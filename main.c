@@ -1,7 +1,10 @@
 #include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
 #include <math.h>
 
 #include "linalg.h"
+#include "canvas.h"
 
 void
 matrix_print_helper(Matrix m, const char * name) {
@@ -24,9 +27,29 @@ vector_print_helper(Vector v, const char * name) {
     printf("%s: %s\n", name, str_buf);
 }
 
+
+Canvas
+generate_test_image()
+{
+    Canvas c = canvas_alloc(500, 100);
+    Color color = { 1.0, 0.1, 0.3 };
+
+    int i, j;
+    for (i = 0; i < c->width; i += 1) {
+        for (j = 0; j < c->height; j += 1) {
+            color[0] = (double)i * (double)j/ 50000.0;
+            color[2] = 1.0 - color[0];
+            printf("%d, %d, %lu\n", i, j, 3 * (i * c->height + j));
+            canvas_write_pixel(c, i, j, color);
+        }
+    }
+    return c;
+}
+
 int
 main()
 {
+/*
     Vector v1 = vector(1.0,2.0,3.0);
     Point p1 = point(1.0, 2.2, 0.3);
     Point p2 = point(0.0,0.5,0.5);
@@ -100,6 +123,16 @@ main()
     matrix_print_helper(prod2, "d");
     printf("compare a,d: %d\n", matrix_equal(m0,prod2));
     
+*/
+//    Canvas c = construct_canvas_from_ppm_file("/tmp/myfile2.ppm");
+    Canvas c = generate_test_image();
+    Ppm ppm = construct_ppm(c, true);
+
+
+    FILE * pFile;
+    pFile = fopen ("/tmp/myfile.ppm", "wb");
+    fwrite (ppm->arr, sizeof(unsigned char), ppm->len, pFile);
+    fclose (pFile);
 
     return 0;
 }
