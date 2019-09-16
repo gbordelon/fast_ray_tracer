@@ -4,7 +4,9 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-typedef double Color[3];
+typedef struct color {
+    double arr[3];
+} *Color;
 
 typedef struct canvas {
     double *arr;
@@ -18,14 +20,19 @@ typedef struct ppm_struct {
     size_t len;
 } *Ppm;
 
+Color color_default();
+
 Canvas canvas_alloc(size_t width, size_t height);
 
 Ppm ppm_alloc(size_t len);
 
 void canvas_free(Canvas c);
 void ppm_free(Ppm p);
+void color_free(Color c);
 
 void canvas_write_pixel(Canvas c, int row, int col, Color color);
+void canvas_pixel_at(Canvas c, int row, int col, Color res);
+Color canvas_pixel_at_alloc(Canvas c, int row, int col);
 
 Ppm construct_ppm(Canvas, bool use_clamping);
 

@@ -32,17 +32,19 @@ Canvas
 generate_test_image()
 {
     Canvas c = canvas_alloc(500, 100);
-    Color color = { 1.0, 0.1, 0.3 };
+    Color color = color_default();
 
     int i, j;
     for (i = 0; i < c->width; i += 1) {
         for (j = 0; j < c->height; j += 1) {
-            color[0] = (double)i * (double)j/ 50000.0;
-            color[2] = 1.0 - color[0];
+            color->arr[0] = (double)i * (double)j/ 50000.0;
+            color->arr[2] = 1.0 - color->arr[0];
             printf("%d, %d, %lu\n", i, j, 3 * (i * c->height + j));
             canvas_write_pixel(c, i, j, color);
         }
     }
+
+    color_free(color);
     return c;
 }
 

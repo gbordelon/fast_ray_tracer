@@ -29,13 +29,11 @@
     && equal((a)->arr[15], (b)->arr[15])
 
 typedef struct pt {
-    double *arr;
-    size_t len;
+    double arr[4];
 } *Point;
 
 typedef struct v {
-    double *arr;
-    size_t len;
+    double arr[4];
 } *Vector;
 
 /*
@@ -67,8 +65,7 @@ typedef struct v {
  * 3,3 -> F = 3 * 4 + 3
  */
 typedef struct m {
-    double *arr;
-    size_t len;
+    double arr[16];
 } *Matrix;
 
 

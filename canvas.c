@@ -7,6 +7,14 @@
 #define header_len 32
 
 
+Color
+color_default()
+{
+    Color c = (Color) malloc(sizeof(struct color));
+    // null check c
+    return c;
+}
+
 Canvas
 canvas_alloc(size_t width, size_t height)
 {
@@ -61,6 +69,14 @@ ppm_free(Ppm p)
     }
 }
 
+void
+color_free(Color c)
+{
+    if (c != NULL) {
+        free(c);
+    }
+}
+
 /*
  * row and col do not take into account 3 doubles for each entry
  * e.g. 4x4 canvas
@@ -89,7 +105,24 @@ canvas_write_pixel(Canvas c, int row, int col, Color color)
 {
     // null check c
     // null check color
-    memcpy(c->arr + c->depth * (row * c->height + col), color, 3 * sizeof(double));
+    memcpy(c->arr + c->depth * (row * c->height + col), color->arr, 3 * sizeof(double));
+}
+
+void
+canvas_pixel_at(Canvas c, int row, int col, Color res)
+{
+    // null check c
+    // null check res
+    memcpy(res->arr, c->arr + c->depth * (row * c->height + col), 3 * sizeof(double));
+}
+
+Color
+canvas_pixel_at_alloc(Canvas c, int row, int col)
+{
+    Color color = (Color) malloc(sizeof(struct color));
+    // null check color
+    canvas_pixel_at(c, row, col, color);
+    return color;
 }
 
 Ppm

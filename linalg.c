@@ -11,12 +11,8 @@ point_default()
     if (pt == NULL) {
         // error check
     }
-    pt->arr = (double *) malloc(4 * sizeof(double));
-    if (pt->arr == NULL) {
-        // free pt
-        // error check
-    }
 
+    pt->arr[3] = 1.0;
     return pt;
 }
 
@@ -28,11 +24,9 @@ point(double x,
     Point pt = point_default();
     linalg_null_check(pt,NULL)
 
-    pt->len = 4;
     pt->arr[0] = x;
     pt->arr[1] = y;
     pt->arr[2] = z;
-    pt->arr[3] = 1.0;
 
     return pt;
 }
@@ -51,12 +45,8 @@ vector_default()
     if (v == NULL) {
         // error check
     }
-    v->arr = (double *) malloc(4 * sizeof(double));
-    if (v->arr == NULL) {
-        // free v
-        // error check
-    }
-    v->len = 4;
+
+    v->arr[3] = 0.0;
     return v;
 }
 
@@ -71,7 +61,6 @@ vector(double x,
     v->arr[0] = x;
     v->arr[1] = y;
     v->arr[2] = z;
-    v->arr[3] = 0.0;
 
     return v;
 }
@@ -120,13 +109,7 @@ matrix_default()
     if (m == NULL) {
         // error check
     }
-    m->arr = (double *) malloc(16 * sizeof(double));
-    if (m->arr == NULL) {
-        // free v
-        // error check
-    }
 
-    m->len = 16;
     return m;
 }
 
@@ -181,11 +164,7 @@ matrix_copy(Matrix m, Matrix res)
     linalg_null_check_void(m)
     linalg_null_check_void(res)
 
-    if (m->len != res->len) {
-        // error
-    }
-
-    memcpy(res->arr, m->arr, m->len * sizeof(double));
+    memcpy(res->arr, m->arr, 16 * sizeof(double));
 }
 
 Matrix
@@ -200,9 +179,6 @@ void
 point_free(Point pt)
 {
     if (pt != NULL) {
-        if (pt->arr != NULL) {
-            free(pt->arr);
-        }
         free(pt);
     }
 }
@@ -211,9 +187,6 @@ void
 vector_free(Vector v)
 {
     if (v != NULL) {
-        if (v->arr != NULL) {
-            free(v->arr);
-        }
         free(v);
     }
 }
@@ -222,9 +195,6 @@ void
 matrix_free(Matrix m)
 {
     if (m != NULL) {
-        if (m->arr != NULL) {
-            free(m->arr);
-        }
         free(m);
     }
 }
@@ -263,11 +233,11 @@ vector_magnitude(Vector v)
 
     linalg_null_check(v, 0.0)
 
-    if (v->arr[3] != 0.0 || v->len != 4) {
+    if (v->arr[3] != 0.0) {
         // error
     }
 
-    for (item = v->arr, i = 0; i < v->len - 1; item++, i++) {
+    for (item = v->arr, i = 0; i < 3; item++, i++) {
         sum += (*item) * (*item);
     }
 
@@ -284,7 +254,7 @@ vector_normalize(Vector v, Vector res)
     linalg_null_check_void(res)
 
     mag = vector_magnitude(v);
-    for (i = 0; i < v->len - 1; i++) {
+    for (i = 0; i < 3; i++) {
         res->arr[i] = v->arr[i] / mag;
     }
 }
