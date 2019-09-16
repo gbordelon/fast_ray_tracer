@@ -1,7 +1,7 @@
 CC = cc
 CFLAGS = -std=c99 -pedantic -Wall
-DEPS = linalg.h canvas.h
-OBJ = linalg.o main.o canvas.o
+DEPS = linalg.h canvas.h perlin.h
+OBJ = linalg.o main.o canvas.o perlin.o
 
 %.o: %.c $(DEPS)
 	$(CC) $(CFLAGS) -c -o $@ $<
