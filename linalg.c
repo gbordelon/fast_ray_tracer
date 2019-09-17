@@ -102,6 +102,31 @@ vector_from_points_alloc(Point pt1, Point pt2)
     return v;
 }
 
+void
+vector_reflect(Vector input, Vector normal, Vector res)
+{
+    double ddot = 2 * vector_dot(input, normal);
+    res->arr[0] = input->arr[0] - normal->arr[0] * ddot;
+    res->arr[1] = input->arr[1] - normal->arr[1] * ddot;
+    res->arr[2] = input->arr[2] - normal->arr[2] * ddot;
+}
+
+Vector
+vector_reflect_alloc(Vector a, Vector b)
+{
+    Vector res = vector_default();
+    vector_reflect(a, b, res);
+    return res;
+}
+
+void
+vector_scale(Vector input, double scalar)
+{
+    input->arr[0] *= scalar;
+    input->arr[1] *= scalar;
+    input->arr[2] *= scalar;
+}
+
 Matrix
 matrix_default()
 {
@@ -471,6 +496,31 @@ matrix_multiply_alloc(Matrix a, Matrix b)
 {
     Matrix res = matrix_default();
     matrix_multiply(a,b,res);
+    return res;
+}
+
+void
+matrix_point_multiply(Matrix a, Point b, Point res)
+{
+    int i;
+
+    linalg_null_check_void(a)
+    linalg_null_check_void(b)
+    linalg_null_check_void(res)
+
+    for (i = 0; i < 4; i++) {
+        res->arr[i] = a->arr[i*4+0] * b->arr[0] +
+                      a->arr[i*4+1] * b->arr[1] +
+                      a->arr[i*4+2] * b->arr[2] +
+                      a->arr[i*4+3] * b->arr[3];
+    }
+}
+
+Point
+matrix_point_multiply_alloc(Matrix a, Point b)
+{
+    Point res = point_default();
+    matrix_point_multiply(a,b,res);
     return res;
 }
 

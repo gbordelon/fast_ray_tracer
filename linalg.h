@@ -32,6 +32,12 @@ typedef struct pt {
     double arr[4];
 } *Point;
 
+// TODO implement construction/destruction
+typedef struct pts {
+    Point points;
+    size_t points_num;
+} *Points;
+
 typedef struct v {
     double arr[4];
 } *Vector;
@@ -142,6 +148,10 @@ double vector_dot(Vector a, Vector b);
 void vector_cross(Vector a, Vector b, Vector res);
 Vector vector_cross_alloc(Vector a, Vector b);
 
+void vector_reflect(Vector a, Vector b, Vector res);
+Vector vector_reflect_alloc(Vector a, Vector b);
+
+void vector_scale(Vector input, double scalar);
 
 void matrix_identity(Matrix res);
 Matrix matrix_identity_alloc();
@@ -167,8 +177,11 @@ Matrix matrix_shear_alloc(double xy, double xz, double yx, double yz, double zx,
 void matrix_multiply(Matrix a, Matrix b, Matrix res);
 Matrix matrix_multiply_alloc(Matrix a, Matrix b);
 
-void matrix_vector_multiply_res(Matrix a, Vector b, Vector res);
+void matrix_vector_multiply(Matrix a, Vector b, Vector res);
 Vector matrix_vector_multiply_alloc(Matrix a, Vector b);
+
+void matrix_point_multiply(Matrix a, Point b, Point res);
+Point matrix_point_multiply_alloc(Matrix a, Point b);
 
 void matrix_transpose(Matrix m, Matrix res);
 Matrix matrix_transpose_alloc(Matrix m);

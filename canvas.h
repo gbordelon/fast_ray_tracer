@@ -21,6 +21,9 @@ typedef struct ppm_struct {
 } *Ppm;
 
 Color color_default();
+Color color(double r, double g, double b);
+void color_accumulate(Color acc, Color other);
+void color_scale(Color acc, double scalar);
 
 Canvas canvas_alloc(size_t width, size_t height);
 

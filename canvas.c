@@ -15,6 +15,32 @@ color_default()
     return c;
 }
 
+Color
+color(double r, double g, double b)
+{
+    Color c = color_default();
+    c->arr[0] = r;
+    c->arr[1] = g;
+    c->arr[2] = b;
+    return c;
+}
+
+void
+color_accumulate(Color acc, Color other)
+{
+    acc->arr[0] += other->arr[0];
+    acc->arr[1] += other->arr[1];
+    acc->arr[2] += other->arr[2];
+}
+
+void
+color_scale(Color acc, double scalar)
+{
+    acc->arr[0] *= scalar;
+    acc->arr[1] *= scalar;
+    acc->arr[2] *= scalar;
+}
+
 Canvas
 canvas_alloc(size_t width, size_t height)
 {
@@ -105,7 +131,7 @@ canvas_write_pixel(Canvas c, int row, int col, Color color)
 {
     // null check c
     // null check color
-    memcpy(c->arr + c->depth * (row * c->height + col), color->arr, 3 * sizeof(double));
+    memcpy(c->arr + c->depth * (row * c->height + col), color->arr, sizeof(color->arr));
 }
 
 void
@@ -113,7 +139,7 @@ canvas_pixel_at(Canvas c, int row, int col, Color res)
 {
     // null check c
     // null check res
-    memcpy(res->arr, c->arr + c->depth * (row * c->height + col), 3 * sizeof(double));
+    memcpy(res->arr, c->arr + c->depth * (row * c->height + col), sizeof(res->arr));
 }
 
 Color

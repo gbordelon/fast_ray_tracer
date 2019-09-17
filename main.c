@@ -5,6 +5,8 @@
 
 #include "linalg.h"
 #include "canvas.h"
+#include "renderer.h"
+#include "shapes.h"
 
 void
 matrix_print_helper(Matrix m, const char * name) {
@@ -39,7 +41,7 @@ generate_test_image()
         for (j = 0; j < c->height; j += 1) {
             color->arr[0] = (double)i * (double)j/ 50000.0;
             color->arr[2] = 1.0 - color->arr[0];
-            printf("%d, %d, %lu\n", i, j, 3 * (i * c->height + j));
+            printf("%f %f %f\n", color->arr[0], color->arr[1], color->arr[2]);
             canvas_write_pixel(c, i, j, color);
         }
     }
@@ -127,7 +129,18 @@ main()
     
 */
 //    Canvas c = construct_canvas_from_ppm_file("/tmp/myfile2.ppm");
-    Canvas c = generate_test_image();
+//    Canvas c = generate_test_image();
+    Point from = point(0, 1.5, -5);
+    Point to = point(0, 1, 0);
+    Vector up = vector(0, 1, 0);
+    Camera cam = camera(100, 50, M_PI/3.0, view_transform(from, to, up));
+    point_free(from);
+    point_free(to);
+    vector_free(up);
+
+    World w = default_world();
+
+    Canvas c = render(cam, w);
     Ppm ppm = construct_ppm(c, true);
 
 
