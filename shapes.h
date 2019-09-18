@@ -162,13 +162,14 @@ typedef struct intersections {
 void intersection(double t, Shape sh, Intersection x);
 Intersection intersection_alloc(double t, Shape sh);
 
-Intersection hit(Intersections xs);
+Intersection hit(Intersections xs, bool filter_shadow_casters);
 Intersections intersections_empty(size_t num);
 void intersections_free(Intersections xs);
 
 
 Ray ray_alloc(Point origin, Vector direction);
 void ray_free(Ray r);
+int ray_to_string(char *s, size_t n, Ray r);
 
 // Sphere
 void sphere();

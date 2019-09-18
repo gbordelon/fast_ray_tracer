@@ -130,10 +130,10 @@ main()
 */
 //    Canvas c = construct_canvas_from_ppm_file("/tmp/myfile2.ppm");
 //    Canvas c = generate_test_image();
-    Point from = point(0.0,1.5,1.4);
+    Point from = point(2,0,-5);
     Point to = point(0,0,0);
     Vector up = vector(0, 1, 0);
-    Camera cam = camera(500, 500, M_PI/3.0, view_transform(from, to, up));
+    Camera cam = camera(500, 400, M_PI/3.0, view_transform(from, to, up));
     point_free(from);
     point_free(to);
     vector_free(up);

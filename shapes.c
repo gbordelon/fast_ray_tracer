@@ -39,13 +39,13 @@ intersection_uv_alloc(double t, double u, double v, Shape sh)
 }
 
 Intersection
-hit(Intersections xs)
+hit(Intersections xs, bool filter_shadow_casters)
 {
     int i;
     Intersection x;
 
     for (i = 0, x = xs->xs; i < xs->num; i++, x++) {
-        if (x->t > 0) {
+        if (x->t > 0 && (!filter_shadow_casters || (filter_shadow_casters && x->object->material->casts_shadow))) {
             return x;
         }
     }
@@ -151,6 +151,14 @@ ray_transform_alloc(Ray original, Matrix m)
     return res;
 }
 
+int
+ray_to_string(char *buf, size_t n, Ray r)
+{
+    return snprintf(buf, n, "Point: [%f %f %f] Vector: [%f %f %f]",
+                    r->origin[0], r->origin[1], r->origin[2],
+                    r->direction[0], r->direction[1], r->direction[2]);
+}
+
 Intersections
 shape_intersect(Shape sh, Ray r)
 {
@@ -179,6 +187,7 @@ shape_normal_at(Shape sh, Point world_point, Intersection hit)
 
     return n;
 }
+
 Intersections
 sphere_local_intersect(Shape sphere, Ray r)
 {

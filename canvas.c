@@ -133,23 +133,23 @@ color_free(Color c)
  * 33 -> 45
  */
 void
-canvas_write_pixel(Canvas c, int row, int col, Color color)
+canvas_write_pixel(Canvas c, int col, int row, Color color)
 {
     // null check c
     // null check color
-    memcpy(c->arr + c->depth * (row * c->height + col), color->arr, sizeof(color->arr));
+    memcpy(c->arr + c->depth * (row * c->width + col), color->arr, sizeof(color->arr));
 }
 
 void
-canvas_pixel_at(Canvas c, int row, int col, Color res)
+canvas_pixel_at(Canvas c, int col, int row, Color res)
 {
     // null check c
     // null check res
-    memcpy(res->arr, c->arr + c->depth * (row * c->height + col), sizeof(res->arr));
+    memcpy(res->arr, c->arr + c->depth * (row * c->width + col), sizeof(res->arr));
 }
 
 Color
-canvas_pixel_at_alloc(Canvas c, int row, int col)
+canvas_pixel_at_alloc(Canvas c, int col, int row)
 {
     Color color = (Color) malloc(sizeof(struct color));
     // null check color
@@ -198,6 +198,7 @@ construct_ppm(Canvas c, bool use_clamping)
     }
 
     inverse = 255 / max_val;
+
     for (cur_val = c->arr; n < out_len - 1; n++, out++, cur_val++) {
         if (*cur_val >= max_val) {
             scaled = 255;

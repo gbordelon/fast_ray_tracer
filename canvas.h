@@ -34,9 +34,9 @@ void canvas_free(Canvas c);
 void ppm_free(Ppm p);
 void color_free(Color c);
 
-void canvas_write_pixel(Canvas c, int row, int col, Color color);
-void canvas_pixel_at(Canvas c, int row, int col, Color res);
-Color canvas_pixel_at_alloc(Canvas c, int row, int col);
+void canvas_write_pixel(Canvas c, int col, int row, Color color);
+void canvas_pixel_at(Canvas c, int col, int row, Color res);
+Color canvas_pixel_at_alloc(Canvas c, int col, int row);
 
 Ppm construct_ppm(Canvas, bool use_clamping);
 

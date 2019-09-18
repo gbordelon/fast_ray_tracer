@@ -109,7 +109,7 @@ Ray ray_for_pixel(Camera cam, size_t px, size_t py);
 Color color_at(World w, Ray r, size_t remaining);
 Color shade_hit(World w, Computations comps, size_t remaining);
 bool is_shadowed(World w, double light_position[4], Point pt);
-Intersections intersect_world(World w, Ray r, bool filter_shadow_casters);
+Intersections intersect_world(World w, Ray r);
 Computations prepare_computations(Intersection i, Ray r, Intersections xs);
 Canvas render(Camera cam, World w);
 

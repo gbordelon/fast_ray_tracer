@@ -119,13 +119,15 @@ view_transform(Point fr, Point to, Vector up)
     Matrix m = matrix_translate_alloc(-fr->arr[0], -fr->arr[1], -fr->arr[2]);
 
     Matrix retval = matrix_multiply_alloc(orientation, m);
-    vector_free(v);
-    vector_free(forward);
-    vector_free(upn);
-    vector_free(left);
-    vector_free(true_up);
-    matrix_free(orientation);
+
     matrix_free(m);
+    matrix_free(orientation);
+    vector_free(true_up);
+    vector_free(left);
+    vector_free(upn);
+    vector_free(forward);
+    vector_free(v);
+
     return retval;
 }
 
@@ -144,7 +146,7 @@ World
 default_world()
 {
     World w = world();
-    Point p = point(-1, 10, -10);
+    Point p = point(0, 0, -10);
     Color c = color(1, 1, 1);
     Light l = point_light(p, c);
     w->lights = l;
@@ -160,12 +162,20 @@ default_world()
     s1->material->color[2] = 0.6;
     s1->material->diffuse = 0.7;
     s1->material->specular = 0.2;
+    s1->material->reflective = 1.0;
+    //s1->material->refractive_index = 1.0;
     s1->material->transparency = 1.0;
+    s1->material->casts_shadow = false;
 
-    shape_set_transform(s2, matrix_scale_alloc(0.5, 0.5, 0.5));
+    Matrix trans = matrix_translate_alloc(0.0, 1.0, 2.0);
+    Matrix scale = matrix_scale_alloc(0.5, 0.5, 0.5);
+    shape_set_transform(s2, matrix_multiply_alloc(trans, scale));
 
     w->shapes = shapes;
     w->shapes_num = 2;
+
+    matrix_free(scale);
+    matrix_free(trans);
 
     return w;
 }
@@ -173,14 +183,13 @@ default_world()
 bool
 is_shadowed(World w, double light_position[4], Point pt)
 {
-    Vector v = vector_from_arrays_alloc(light_position, pt->arr);
-    double distance = vector_magnitude(v);
+    Vector v = vector_from_arrays_alloc(light_position, pt->arr); // from pt to light
+    double distance = vector_magnitude(v); // distance between pt and light
     Vector direction = vector_normalize_alloc(v);
     Ray r = ray_alloc(pt, direction);
-    Intersections xs = intersect_world(w, r, true);
-    Intersection h = hit(xs);
+    Intersections xs = intersect_world(w, r);
+    Intersection h = hit(xs, true);
     bool retval = h != NULL && h->t < distance;
-
 
     intersections_free(xs);
     ray_free(r);
@@ -232,6 +241,7 @@ render(Camera cam, World w)
             color_free(c);
             ray_free(r);
         }
+        //printf("\n");
         k += 1;
         //printf("Wrote %d rows out of %lu\n", k, cam->vsize);
     }
@@ -241,8 +251,8 @@ render(Camera cam, World w)
 Color
 color_at(World w, Ray r, size_t remaining)
 {
-    Intersections xs = intersect_world(w, r, false);
-    Intersection i = hit(xs);
+    Intersections xs = intersect_world(w, r);
+    Intersection i = hit(xs, false);
     if (i == NULL) {
         return color(0,0,0);
     }
@@ -262,34 +272,29 @@ sort_intersections(const void *p, const void *q)
 }
 
 Intersections
-intersect_world(World w, Ray r, bool filter_shadow_casters)
+intersect_world(World w, Ray r)
 {
     Shape itr;
-    Intersections xs = intersections_empty(1024);
-    size_t max_xs = 1024;
+    Intersections xs = intersections_empty(512);
     int i;
 
     for (itr = w->shapes, i = 0;
          i < w->shapes_num;
          itr++, i++) {
-        if (!filter_shadow_casters && itr->material->casts_shadow) {
-            Intersections xs_1 = itr->intersect(itr, r);
-            if (xs_1->num + xs->num >= max_xs) {
-                // realloc and copy xs
-                max_xs *= 2;
-                Intersections xs_2 = intersections_empty(max_xs);
-                memcpy(xs_2->xs, xs->xs, xs->array_len * sizeof(struct intersection));
-                xs_2->array_len = max_xs;
-                xs_2->num = xs->num;
-                intersections_free(xs);
-                xs = xs_2;
-            }
-            // copy from xs_1 into xs + xs->len
-            memcpy(xs->xs + xs->num, xs_1->xs, xs_1->num * sizeof(struct intersection));
-            xs->num += xs_1->num;
-
-            intersections_free(xs_1);
+        Intersections xs_1 = itr->intersect(itr, r);
+        if (xs_1->num + xs->num >= xs->array_len) {
+            // realloc and copy xs
+            Intersections xs_2 = intersections_empty(2 * xs->array_len);
+            memcpy(xs_2->xs, xs->xs, xs->array_len * sizeof(struct intersection));
+            xs_2->num = xs->num;
+            intersections_free(xs);
+            xs = xs_2;
         }
+        // copy from xs_1 into xs + xs->num
+        memcpy(xs->xs + xs->num, xs_1->xs, xs_1->num * sizeof(struct intersection));
+        xs->num += xs_1->num;
+
+        intersections_free(xs_1);
     }
 
     // sort xs by xs->xs->t ascending
@@ -329,38 +334,12 @@ computations(double t,
     comps->inside = inside;
     comps->over_point = over_point;
     comps->under_point = under_point;
-    comps->n1 = 0.0;
-    comps->n2 = 0.0;
+    comps->n1 = 1.0;
+    comps->n2 = 1.0;
 
     return comps;
 }
  
-/*
-    c.over_point = c.point + c.normalv * EPSILON
-    c.under_point = c.point - c.normalv * EPSILON
-
-    containers = []
-    for i in xs:
-        if i == intersection:
-            if len(containers) == 0:
-                c.n1 = 1.0
-            else:
-                c.n1 = containers[-1].material.refractive_index
-
-        if i.object in containers:
-            containers.remove(i.object)
-        else:
-            containers.append(i.object)
-
-        if i == intersection:
-            if len(containers) == 0:
-                c.n2 = 1.0
-            else:
-                c.n2 = containers[-1].material.refractive_index
-            break
-
-    return c
-*/
 Computations
 prepare_computations(Intersection i, Ray r, Intersections xs)
 {
@@ -371,14 +350,22 @@ prepare_computations(Intersection i, Ray r, Intersections xs)
 
     Point over_point = point_default();
     Point under_point = point_default();
+    bool inside = false;
+
+    Vector reflectv2 = vector_reflect_alloc(reflectv, n);
+
+    if (vector_dot(n, neg_r_direction) < 0) {
+        inside = true;
+        vector_scale(n, -1);
+    }
 
     over_point->arr[0] = p->arr[0] + n->arr[0] * EPSILON;
-    over_point->arr[1] = p->arr[0] + n->arr[1] * EPSILON;
-    over_point->arr[2] = p->arr[0] + n->arr[2] * EPSILON;
+    over_point->arr[1] = p->arr[1] + n->arr[1] * EPSILON;
+    over_point->arr[2] = p->arr[2] + n->arr[2] * EPSILON;
 
     under_point->arr[0] = p->arr[0] - n->arr[0] * EPSILON;
-    under_point->arr[1] = p->arr[0] - n->arr[1] * EPSILON;
-    under_point->arr[2] = p->arr[0] - n->arr[2] * EPSILON;
+    under_point->arr[1] = p->arr[1] - n->arr[1] * EPSILON;
+    under_point->arr[2] = p->arr[2] - n->arr[2] * EPSILON;
 
     Computations c = computations(i->t,
                                   i->object,
@@ -387,63 +374,130 @@ prepare_computations(Intersection i, Ray r, Intersections xs)
                                   under_point,
                                   neg_r_direction,
                                   n,
-                                  vector_reflect_alloc(reflectv, n),
-                                  false);
+                                  reflectv2,
+                                  inside);
 
-    if (vector_dot(c->normalv, c->eyev) < 0) {
-        c->inside = true;
-        c->normalv->arr[0] = -c->normalv->arr[0];
-        c->normalv->arr[1] = -c->normalv->arr[1];
-        c->normalv->arr[2] = -c->normalv->arr[2];
+    int j, k;
+    Intersection x;
+    size_t container_len = 0;
+    Shape *container = (Shape*) malloc(xs->num * sizeof(Shape));
+
+    for (j = 0, x = xs->xs; j < xs->num; x++, j++) {
+        if (x == i) {// address compare should be okay.
+            if (container_len == 0) {
+                c->n1 = 1.0;
+            } else {
+                c->n1 = container[container_len-1]->material->refractive_index;
+            }
+        }
+
+        for (k = 0; k < container_len; k++) {
+            if (container[k] == i->object) {
+                break;
+            }
+        }
+
+        if (k < container_len) {
+            // shift everything left one slot, overwriting container[index_of_object] first
+            for (; k < container_len - 1; k++) {
+                container[k] = container[k+1];
+            }
+            container_len--;
+        } else {
+            container[container_len] = i->object;
+            container_len++;
+        }
+
+        if (x == i) {
+            if (container_len == 0) {
+                c->n2 = 1.0;
+            } else {
+                c->n2 = container[container_len-1]->material->refractive_index;
+            }
+            break;
+        }
     }
 
-    // TODO containers for c->n1 and c->n2
-
+    free(container);
     vector_free(reflectv);
 
     return c;
 }
 
-/*
-    if remaining == 0 or comps.object.material.reflective == 0:
-        return color(0,0,0)
+void
+computations_free(Computations comps)
+{
+    if (comps != NULL) {
+        if (comps->p != NULL) {
+            point_free(comps->p);
+        }
+        if (comps->over_point != NULL) {
+            point_free(comps->over_point);
+        }
+        if (comps->under_point != NULL) {
+            point_free(comps->under_point);
+        }
+        if (comps->eyev != NULL) {
+            vector_free(comps->eyev);
+        }
+        if (comps->normalv != NULL) {
+            vector_free(comps->normalv);
+        }
+        if (comps->reflectv != NULL) {
+            vector_free(comps->reflectv);
+        }
+        free(comps);
+    }
+}
 
-    reflect_ray = shapes.ray(comps.over_point, comps.reflectv)
-    c = color_at(world, reflect_ray, remaining - 1)
-
-    return c * comps.object.material.reflective
-*/
 Color
 reflected_color(World w, Computations comps, size_t remaining)
 {
-    return color(0,0,0);
+    if (remaining == 0 || comps->obj->material->reflective == 0) {
+        return color(0,0,0);
+    }
+    Ray reflect_ray = ray_alloc(comps->over_point, comps->reflectv);
+    Color c = color_at(w, reflect_ray, remaining - 1);
+    color_scale(c, comps->obj->material->reflective);
+
+    ray_free(reflect_ray);
+
+    return c;
 }
 
-/*
-
-    if comps.object.material.transparency == 0 or remaining == 0:
-        return color(0,0,0)
-
-    n_ratio = comps.n1 / comps.n2
-    cos_i = dot(comps.eyev, comps.normalv)
-    sin2_t = n_ratio ** 2 * (1 - cos_i ** 2)
-
-    if sin2_t > 1.0:
-        return color(0,0,0)
-
-    cos_t = np.sqrt(1.0 - sin2_t)
-    direction = comps.normalv * (n_ratio * cos_i - cos_t) - \
-                comps.eyev * n_ratio
-
-    refracted_ray = shapes.ray(comps.under_point, direction)
-    c = color_at(world, refracted_ray, remaining - 1) * \
-        comps.object.material.transparency
-    return c
-*/
 Color
 refracted_color(World w, Computations comps, size_t remaining)
 {
-    return color(0,0,0);
+    if (remaining == 0 || comps->obj->material->transparency == 0) {
+        return color(0,0,0);
+    }
+    double n_ratio = comps->n1 / comps->n2;
+    double cos_i = vector_dot(comps->eyev, comps->normalv);
+    double sin2_t = n_ratio * n_ratio * (1.0 - cos_i * cos_i);
+
+    if (sin2_t > 1.0) {
+        return color(0,0,0);
+    }
+
+    double cos_t = sqrt(1.0 - sin2_t);
+    Vector t1 = vector(comps->normalv->arr[0], comps->normalv->arr[1], comps->normalv->arr[2]);
+    vector_scale(t1, n_ratio * cos_i - cos_t);
+    Vector t2 = vector(comps->eyev->arr[0], comps->eyev->arr[1], comps->eyev->arr[2]);
+    vector_scale(t2, n_ratio);
+    Vector direction = vector(t1->arr[0] - t2->arr[0],
+                              t1->arr[1] - t2->arr[1],
+                              t1->arr[2] - t2->arr[2]);
+
+    Ray refracted_ray = ray_alloc(comps->under_point, direction);
+    Color c = color_at(w, refracted_ray, remaining - 1);
+    color_scale(c, comps->obj->material->transparency);
+
+    ray_free(refracted_ray);
+    vector_free(direction);
+    vector_free(t2);
+    vector_free(t1);
+
+    return c;
 }
 
 double
@@ -487,20 +541,19 @@ shade_hit(World w, Computations comps, size_t remaining)
         Color reflected = reflected_color(w, comps, remaining);
         Color refracted = refracted_color(w, comps, remaining);
 
-        if (comps->obj->material->reflective > 0 && comps->obj->material) {
+        if (comps->obj->material->reflective > 0 && comps->obj->material->transparency > 0) {
             double reflectance = schlick(comps);
             color_scale(reflected, reflectance);
             color_scale(refracted, 1.0 - reflectance);
-            color_accumulate(surface, reflected);
-            color_accumulate(surface, refracted);
-        } else {
-            color_accumulate(surface, reflected);
-            color_accumulate(surface, refracted);
         }
-        color_free(c);
+        color_accumulate(surface, reflected);
+        color_accumulate(surface, refracted);
+
         color_free(reflected);
         color_free(refracted);
+        color_free(c);
     }
+    computations_free(comps);
 
     return surface;
 }
@@ -544,6 +597,7 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
         vector_normalize(diff, lightv);
         double light_dot_normal = vector_dot(lightv, normalv);
         if (light_dot_normal >= 0) {
+            // diffuse
             diffuse->arr[0] = effective_color->arr[0];
             diffuse->arr[1] = effective_color->arr[1];
             diffuse->arr[2] = effective_color->arr[2];
@@ -552,11 +606,12 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
             color_scale(diffuse, light_dot_normal);
             color_accumulate(acc, diffuse);
 
+            // specular
             vector_scale(lightv, -1);
             vector_reflect(lightv, normalv, reflectv);
             vector_scale(lightv, -1);
+
             double reflect_dot_eye = vector_dot(reflectv, eyev);
-            // specular
             if (reflect_dot_eye > 0) {
                 double factor = pow(reflect_dot_eye, material->shininess);
                 acc->arr[0] += light->intensity[0] * material->specular * factor;

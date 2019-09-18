@@ -273,9 +273,7 @@ matrix_to_string(char * buf, size_t n, Matrix m)
 double
 vector_magnitude(Vector v)
 {
-    double *item;
-    int i;
-    double sum = 0.0;
+    double sum;
 
     linalg_null_check(v, 0.0)
 
@@ -283,10 +281,9 @@ vector_magnitude(Vector v)
         // error
     }
 
-    for (item = v->arr, i = 0; i < 3; item++, i++) {
-        sum += (*item) * (*item);
-    }
-
+    sum = v->arr[0] * v->arr[0] +
+          v->arr[1] * v->arr[1] +
+          v->arr[2] * v->arr[2];
     return sqrt(sum);
 }
 
