@@ -133,7 +133,7 @@ typedef struct shape {
     Vector (*normal_at)(struct shape *sh, Point world_point, Intersection hit);
     Vector (*local_normal_at)(struct shape *sh, Point local_point, Intersection hit);
     Vector (*normal_to_world)(struct shape *sh, Vector local_normal);
-    Point (*world_to_object)(struct shape  *sh, Point pt);
+    Point (*world_to_object)(struct shape *sh, Point pt);
 
     void (*divide)(struct shape *sh, size_t threshold);
     bool (*includes)(struct shape *a, struct shape *b);
@@ -171,15 +171,19 @@ Ray ray_alloc(Point origin, Vector direction);
 void ray_free(Ray r);
 int ray_to_string(char *s, size_t n, Ray r);
 
-// Sphere
-void sphere();
-Shape sphere_alloc();
+// default functions for shapes
+Intersections shape_intersect(Shape sh, Ray r);
+Vector shape_normal_at(Shape sh, Point world_point, Intersection hit);
+Vector shape_normal_to_world(Shape sh, Vector local_normal);
+Point shape_world_to_object(Shape sh, Point pt);
+void shape_divide(Shape sh, size_t threshold);
+bool shape_includes(Shape a, Shape b);
+
 int shape_to_string(char *buf, size_t n, Shape sh);
 
 void shape_set_transform(Shape obj, Matrix transform);
 void pattern_set_transform(Pattern pat, Matrix transform);
 
-// Plane
 // Cube
 // Cone
 // Cylinder
@@ -189,14 +193,8 @@ void pattern_set_transform(Pattern pat, Matrix transform);
 // Group
 
 
-
-
-
-
-
-
-
 // Bounding Box
+
 // Material
 void material();
 Material material_alloc();

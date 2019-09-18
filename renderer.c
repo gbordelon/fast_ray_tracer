@@ -2,8 +2,13 @@
 #include <string.h>
 #include <math.h>
 
-#include "linalg.h"
 #include "renderer.h"
+
+#include "linalg.h"
+#include "shapes.h"
+#include "sphere.h"
+#include "plane.h"
+#include "cube.h"
 
 Color
 lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity);
@@ -146,36 +151,42 @@ World
 default_world()
 {
     World w = world();
-    Point p = point(0, 0, -10);
+    Point p = point(-10, 10, -10);
     Color c = color(1, 1, 1);
     Light l = point_light(p, c);
     w->lights = l;
     w->lights_num = 1;
-    Shape shapes = (Shape) malloc(2 * sizeof(struct shape));
+    Shape shapes = (Shape) malloc(3 * sizeof(struct shape));
     Shape s1 = shapes;
     Shape s2 = shapes + 1;
-    sphere(s1);
+    Shape s3 = shapes + 2;
+    cube(s1);
     sphere(s2);
+    plane(s3);
 
     s1->material->color[0] = 0.8;
     s1->material->color[1] = 1.0;
     s1->material->color[2] = 0.6;
     s1->material->diffuse = 0.7;
     s1->material->specular = 0.2;
-    s1->material->reflective = 1.0;
+    //s1->material->reflective = 1.0;
     //s1->material->refractive_index = 1.0;
-    s1->material->transparency = 1.0;
-    s1->material->casts_shadow = false;
+    //s1->material->transparency = 1.0;
+    //s1->material->casts_shadow = false;
 
-    Matrix trans = matrix_translate_alloc(0.0, 1.0, 2.0);
+    Matrix trans1 = matrix_translate_alloc(0.0, 1.0, 2.0);
     Matrix scale = matrix_scale_alloc(0.5, 0.5, 0.5);
-    shape_set_transform(s2, matrix_multiply_alloc(trans, scale));
+    Matrix rotate = matrix_rotate_x_alloc(-0.1);
+    Matrix trans2 = matrix_translate_alloc(0.0, -3.0, 0.0);
+
+    shape_set_transform(s2, matrix_multiply_alloc(trans1, scale));
+    shape_set_transform(s3, matrix_multiply_alloc(trans2, rotate));
 
     w->shapes = shapes;
-    w->shapes_num = 2;
+    w->shapes_num = 3;
 
-    matrix_free(scale);
-    matrix_free(trans);
+    //matrix_free(scale);
+    //matrix_free(trans1);
 
     return w;
 }
