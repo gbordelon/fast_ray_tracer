@@ -93,10 +93,12 @@ typedef struct camera {
     double half_height;
     double pixel_size;
     Matrix transform;
+    Matrix transform_inverse;
 } *Camera;
 
 Camera camera(size_t hsize, size_t vsize, double field_of_view, Matrix transform);
 Matrix view_transform(Point fr, Point to, Vector up);
+void camera_set_transform(Camera c, Matrix m);
 
 World world();
 World default_world();

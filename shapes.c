@@ -154,14 +154,12 @@ ray_transform_alloc(Ray original, Matrix m)
 Intersections
 shape_intersect(Shape sh, Ray r)
 {
-    Matrix m = matrix_default();
-    matrix_inverse(sh->transform, m);
+    Matrix m = sh->transform_inverse;
 
     Ray r2 = ray_transform_alloc(r, m);
 
     Intersections xs = sh->local_intersect(sh, r2);
 
-    matrix_free(m);
     ray_free(r2);
 
     return xs;
@@ -222,7 +220,7 @@ sphere_local_normal_at(Shape sh, Point local_point, Intersection hit)
 Vector
 shape_normal_to_world(Shape sh, Vector local_normal)
 {
-    Matrix inv = matrix_inverse_alloc(sh->transform);
+    Matrix inv = sh->transform_inverse;
     Matrix tr = matrix_transpose_alloc(inv);
     
     Vector un_normal = matrix_vector_multiply_alloc(tr, local_normal);
@@ -237,7 +235,6 @@ shape_normal_to_world(Shape sh, Vector local_normal)
 
     vector_free(un_normal);
     matrix_free(tr);
-    matrix_free(inv);
 
     return normal;
 }
@@ -248,12 +245,10 @@ shape_world_to_object(Shape sh, Point pt)
     if (sh->parent != NULL) {
         return sh->parent->world_to_object(sh->parent, pt);
     }
-    Matrix m = matrix_default();
-    matrix_inverse(sh->transform, m);
+
+    Matrix m = sh->transform_inverse;
     Point p = matrix_point_multiply_alloc(m, pt);
     
-    matrix_free(m);
-
     return p;
 }
 
@@ -270,9 +265,29 @@ shape_includes(Shape a, Shape b)
 }
 
 void
+shape_set_transform(Shape obj, Matrix m)
+{
+    if (obj != NULL) {
+        if (obj->transform_inverse != NULL) {
+            matrix_free(obj->transform_inverse);
+        }
+        if (obj->transform != NULL) {
+            matrix_free(obj->transform);
+        }
+        obj->transform = m;
+        obj->transform_inverse = matrix_inverse_alloc(m);
+    }
+}
+
+
+void
 sphere(Shape s)
 {
-    s->transform = matrix_identity_alloc();
+    s->transform = NULL;
+    s->transform_inverse = NULL;
+
+    shape_set_transform(s, matrix_identity_alloc());
+
     s->material = material_alloc();
     s->parent = NULL;
     s->type = SHAPE_SPHERE;
@@ -294,36 +309,6 @@ sphere_alloc()
     sphere(s);
     return s;
 }
-
-/*
-typedef struct shape {
-    Matrix transform; // maybe a struct to hold a transform and its inverse
-    Material material;
-    struct shape *parent;
-    // a bounding box?
-
-    enum shape_enum type;
-    union {
-        struct csg_fields csg;
-        struct group_fields group;
-        struct cone_cylinder_fields cone;
-        struct cone_cylinder_fields cylinder;
-        struct triangle_fields triangle;
-    } fields;
-
-    Intersections (*intersect)(struct shape *sh, Ray r);
-    Intersections (*local_intersect)(struct shape *sh, Ray r);
-    Vector (*normal_at)(struct shape *sh, Point world_point, Intersection hit);
-    Vector (*local_normal_at)(struct shape *sh, Point local_point, Intersection hit);
-    Vector (*normal_to_world)(struct shape *sh, Vector local_normal);
-    Point (*world_to_object)(struct shape  *sh, Point pt);
-
-    void (*divide)(struct shape *sh, size_t threshold);
-    bool (*includes)(struct shape *a, struct shape *b);
-    // bounds
-    // parent_space_bounds
-} *Shape;
-*/
 
 int
 shape_to_string(char *buf, size_t n, Shape sh)

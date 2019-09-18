@@ -4,6 +4,21 @@
 
 #include "linalg.h"
 
+
+
+/*
+ * Create a data structure which will store n Matrixes when the first matrix is alloc'd
+ * When it gets full, double the size and memcpy over to the new block
+ *      all matrix pointers will be broken at this point
+ *      instead of using matrix pointers, use an index?
+ *          this fixes the broken pointer problem but how do i defrag?
+ * keep a free list of matrixes which have been released
+ * use free list first when a new matrix is being alloc'd
+ * 
+ * Will this actually be faster than malloc and free?
+ */
+
+
 Point
 point_default()
 {

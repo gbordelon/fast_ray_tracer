@@ -50,10 +50,12 @@ enum uv_pattern_enum {
 };
 
 typedef struct pattern {
-    Matrix transform; // struct to include transform and its inverse
+    Matrix transform;
+    Matrix transform_inverse;
     // pattern_at
     // pattern_at_shape
     // what else? probably look like Shape
+    // pattern_set_transform
 } *Pattern;
 
 typedef struct material {
@@ -111,7 +113,8 @@ typedef struct intersections *Intersections;
 typedef struct ray *Ray;
 
 typedef struct shape {
-    Matrix transform; // maybe a struct to hold a transform and its inverse
+    Matrix transform;
+    Matrix transform_inverse;
     Material material;
     struct shape *parent;
     // a bounding box?
@@ -171,6 +174,9 @@ void ray_free(Ray r);
 void sphere();
 Shape sphere_alloc();
 int shape_to_string(char *buf, size_t n, Shape sh);
+
+void shape_set_transform(Shape obj, Matrix transform);
+void pattern_set_transform(Pattern pat, Matrix transform);
 
 // Plane
 // Cube

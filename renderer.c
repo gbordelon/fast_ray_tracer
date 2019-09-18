@@ -80,10 +80,27 @@ camera(size_t hsize,
         c->half_height = half_view;
     }
 
+    c->transform = NULL;
+    c->transform_inverse = NULL;
+    camera_set_transform(c, transform);
     c->pixel_size = c->half_width * 2.0 / (double)hsize;
-    c->transform = transform;
 
     return c;
+}
+
+void
+camera_set_transform(Camera c, Matrix m)
+{
+    if (c != NULL) {
+        if (c->transform_inverse != NULL) {
+            matrix_free(c->transform_inverse);
+        }
+        if (c->transform != NULL) {
+            matrix_free(c->transform);
+        }
+        c->transform = m;
+        c->transform_inverse = matrix_inverse_alloc(m);
+    }
 }
 
 Matrix
@@ -145,7 +162,7 @@ default_world()
     s1->material->specular = 0.2;
     s1->material->transparency = 1.0;
 
-    matrix_scale(0.5, 0.5, 0.5, s2->transform);
+    shape_set_transform(s2, matrix_scale_alloc(0.5, 0.5, 0.5));
 
     w->shapes = shapes;
     w->shapes_num = 2;
@@ -180,8 +197,7 @@ ray_for_pixel(Camera cam, size_t px, size_t py)
     double yoffset = ((double)py + 0.5) * cam->pixel_size;
     double world_x = cam->half_width - xoffset;
     double world_y = cam->half_height - yoffset;
-    // TODO cache the inverse
-    Matrix inv = matrix_inverse_alloc(cam->transform);
+    Matrix inv = cam->transform_inverse;
     Point p = point(world_x, world_y, -1);
 
     Point pixel = matrix_point_multiply_alloc(inv, p);
@@ -196,7 +212,6 @@ ray_for_pixel(Camera cam, size_t px, size_t py)
 
     point_free(p);
     vector_free(v);
-    matrix_free(inv);
 
     return r;
 }
@@ -207,36 +222,6 @@ render(Camera cam, World w)
     int i,j,k;
 
     Canvas image = canvas_alloc(cam->hsize, cam->vsize);
-/*
-    >>> w = default_world()
-    >>> r = ray(point(0,0,-5), vector(0,1,0))
-    >>> c = color_at(w,r)
-    >>> np.isclose(c, color(0,0,0))
-    array([ True,  True,  True])
-
-    >>> w = default_world()
-    >>> r = ray(point(0,0,-5), vector(0,0,1))
-    >>> c = color_at(w,r)
-    >>> np.isclose(c, color(0.38066, 0.47583, 0.28549589))
-    array([ True,  True,  True])
-
-    >>> w = default_world()
-    >>> outer = w.contains[0]
-    >>> outer.material.ambient = 1.0
-    >>> inner = w.contains[1]
-    >>> inner.material.ambient = 1.0
-    >>> r = ray(point(0,0,0.75), vector(0,0,-1))
-    >>> c = color_at(w,r)
-    >>> c == inner.material.color
-    array([ True,  True,  True])
-*/
-    Point pt = point(0.0, 0.0, -5.0);
-    Vector v = vector( 0.0, 0.0, 1.0);
-    Ray r2 = ray_alloc(pt, v);
-    Color c = color_at(w, r2, 5);
-    char buf[256];
-    color_to_string(buf, 256, c);
-
 
     k = 0;
     for (j = 0; j < cam->vsize; ++j) {
