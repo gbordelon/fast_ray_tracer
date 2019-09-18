@@ -130,10 +130,10 @@ main()
 */
 //    Canvas c = construct_canvas_from_ppm_file("/tmp/myfile2.ppm");
 //    Canvas c = generate_test_image();
-    Point from = point(0, 1.5, -5);
-    Point to = point(0, 1, 0);
+    Point from = point(0.0,1.5,1.4);
+    Point to = point(0,0,0);
     Vector up = vector(0, 1, 0);
-    Camera cam = camera(100, 50, M_PI/3.0, view_transform(from, to, up));
+    Camera cam = camera(500, 500, M_PI/3.0, view_transform(from, to, up));
     point_free(from);
     point_free(to);
     vector_free(up);
@@ -141,13 +141,21 @@ main()
     World w = default_world();
 
     Canvas c = render(cam, w);
-    Ppm ppm = construct_ppm(c, true);
 
+    Ppm ppm = construct_ppm(c, true);
 
     FILE * pFile;
     pFile = fopen ("/tmp/myfile.ppm", "wb");
     fwrite (ppm->arr, sizeof(unsigned char), ppm->len, pFile);
     fclose (pFile);
+
+    Ppm ppm2 = construct_ppm(c, false);
+
+    pFile = fopen ("/tmp/myfile_clamped.ppm", "wb");
+    fwrite (ppm2->arr, sizeof(unsigned char), ppm2->len, pFile);
+    fclose (pFile);
+
+    printf("files written\n");
 
     return 0;
 }

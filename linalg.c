@@ -82,21 +82,27 @@ vector_from_points(Point pt1, Point pt2, Vector res)
     res->arr[0] = pt1->arr[0] - pt2->arr[0];
     res->arr[1] = pt1->arr[1] - pt2->arr[1];
     res->arr[2] = pt1->arr[2] - pt2->arr[2];
-    res->arr[3] = 0;
 }
 
 Vector
 vector_from_points_alloc(Point pt1, Point pt2)
 {
-    Vector v = vector_default();
-
     linalg_null_check(pt1,NULL)
     linalg_null_check(pt2,NULL)
+
+    return vector_from_arrays_alloc(pt1->arr, pt2->arr);
+}
+
+Vector
+vector_from_arrays_alloc(double pt1[4], double pt2[4])
+{
+    Vector v = vector_default();
+
     linalg_null_check(v,NULL)
 
-    v->arr[0] = pt1->arr[0] - pt2->arr[0];
-    v->arr[1] = pt1->arr[1] - pt2->arr[1];
-    v->arr[2] = pt1->arr[2] - pt2->arr[2];
+    v->arr[0] = pt1[0] - pt2[0];
+    v->arr[1] = pt1[1] - pt2[1];
+    v->arr[2] = pt1[2] - pt2[2];
     // v->arr[3] is already set
 
     return v;
@@ -298,9 +304,15 @@ vector_dot(Vector a, Vector b)
     linalg_null_check(a,0.0)
     linalg_null_check(b,0.0)
 
-    return a->arr[0] * b->arr[0] +
-           a->arr[1] * b->arr[1] +
-           a->arr[2] * b->arr[2];
+    return array_dot(a->arr, b->arr);
+}
+
+double
+array_dot(double a[4], double b[4])
+{
+    return a[0] * b[0] +
+           a[1] * b[1] +
+           a[2] * b[2];
 }
 
 void
@@ -502,18 +514,11 @@ matrix_multiply_alloc(Matrix a, Matrix b)
 void
 matrix_point_multiply(Matrix a, Point b, Point res)
 {
-    int i;
-
     linalg_null_check_void(a)
     linalg_null_check_void(b)
     linalg_null_check_void(res)
 
-    for (i = 0; i < 4; i++) {
-        res->arr[i] = a->arr[i*4+0] * b->arr[0] +
-                      a->arr[i*4+1] * b->arr[1] +
-                      a->arr[i*4+2] * b->arr[2] +
-                      a->arr[i*4+3] * b->arr[3];
-    }
+    matrix_array_multiply(a, b->arr, res->arr);
 }
 
 Point
@@ -527,18 +532,11 @@ matrix_point_multiply_alloc(Matrix a, Point b)
 void
 matrix_vector_multiply(Matrix a, Vector b, Vector res)
 {
-    int i;
-
     linalg_null_check_void(a)
     linalg_null_check_void(b)
     linalg_null_check_void(res)
 
-    for (i = 0; i < 4; i++) {
-        res->arr[i] = a->arr[i*4+0] * b->arr[0] +
-                      a->arr[i*4+1] * b->arr[1] +
-                      a->arr[i*4+2] * b->arr[2] +
-                      a->arr[i*4+3] * b->arr[3];
-    }
+    matrix_array_multiply(a, b->arr, res->arr);
 }
 
 Vector
@@ -547,6 +545,19 @@ matrix_vector_multiply_alloc(Matrix a, Vector b)
     Vector res = vector_default();
     matrix_vector_multiply(a,b,res);
     return res;
+}
+
+void
+matrix_array_multiply(Matrix a, double b[4], double res[4])
+{
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        res[i] = a->arr[i*4+0] * b[0] +
+                 a->arr[i*4+1] * b[1] +
+                 a->arr[i*4+2] * b[2] +
+                 a->arr[i*4+3] * b[3];
+    }
 }
 
 void
@@ -653,7 +664,8 @@ matrix_inverse(Matrix m, Matrix res)
 
     det =  arr[0] * sub0 - arr[1] * sub1 + arr[2] * sub2 - arr[3] * sub3;
 
-    if (!equal(det,0.0)) {
+    if (equal(det,0.0)) {
+        printf("determinant is zero\n");
         // error
     }
 

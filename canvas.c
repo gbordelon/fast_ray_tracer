@@ -41,6 +41,12 @@ color_scale(Color acc, double scalar)
     acc->arr[2] *= scalar;
 }
 
+int
+color_to_string(char *buf, size_t n, Color c)
+{
+    return snprintf(buf, n, "Color: [%f %f %f]", c->arr[0], c->arr[1], c->arr[2]);
+}
+
 Canvas
 canvas_alloc(size_t width, size_t height)
 {

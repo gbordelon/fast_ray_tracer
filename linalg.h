@@ -137,6 +137,7 @@ void matrix_free(Matrix m);
 // subtract pt2 from pt1
 void vector_from_points(Point pt1, Point pt2, Vector res);
 Vector vector_from_points_alloc(Point pt1, Point pt2);
+Vector vector_from_arrays_alloc(double pt1[4], double pt2[4]);
 
 double vector_magnitude(Vector v);
 
@@ -144,6 +145,7 @@ void vector_normalize(Vector v, Vector res);
 Vector vector_normalize_alloc(Vector v);
 
 double vector_dot(Vector a, Vector b);
+double array_dot(double a[4], double b[4]);
 
 void vector_cross(Vector a, Vector b, Vector res);
 Vector vector_cross_alloc(Vector a, Vector b);
@@ -182,6 +184,8 @@ Vector matrix_vector_multiply_alloc(Matrix a, Vector b);
 
 void matrix_point_multiply(Matrix a, Point b, Point res);
 Point matrix_point_multiply_alloc(Matrix a, Point b);
+
+void matrix_array_multiply(Matrix a, double b[4], double res[4]);
 
 void matrix_transpose(Matrix m, Matrix res);
 Matrix matrix_transpose_alloc(Matrix m);

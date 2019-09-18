@@ -130,7 +130,7 @@ typedef struct shape {
     Vector (*normal_at)(struct shape *sh, Point world_point, Intersection hit);
     Vector (*local_normal_at)(struct shape *sh, Point local_point, Intersection hit);
     Vector (*normal_to_world)(struct shape *sh, Vector local_normal);
-    Point (*world_to_object)(Point pt);
+    Point (*world_to_object)(struct shape  *sh, Point pt);
 
     void (*divide)(struct shape *sh, size_t threshold);
     bool (*includes)(struct shape *a, struct shape *b);
@@ -152,11 +152,12 @@ typedef struct intersection {
 
 typedef struct intersections {
     Intersection xs;
-    size_t len;
+    size_t array_len;
+    size_t num;
 } *Intersections;
 
-// intersect
-// local_intersect for each shape
+void intersection(double t, Shape sh, Intersection x);
+Intersection intersection_alloc(double t, Shape sh);
 
 Intersection hit(Intersections xs);
 Intersections intersections_empty(size_t num);
@@ -164,9 +165,12 @@ void intersections_free(Intersections xs);
 
 
 Ray ray_alloc(Point origin, Vector direction);
+void ray_free(Ray r);
 
 // Sphere
-Shape sphere();
+void sphere();
+Shape sphere_alloc();
+int shape_to_string(char *buf, size_t n, Shape sh);
 
 // Plane
 // Cube
@@ -177,8 +181,19 @@ Shape sphere();
 // CSG
 // Group
 
+
+
+
+
+
+
+
+
 // Bounding Box
 // Material
+void material();
+Material material_alloc();
+
 // Pattern
 // SphereUVMap
 // CylinderUVMap

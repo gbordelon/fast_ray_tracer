@@ -10,12 +10,9 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
 
 
 /*
-    Points surface_points_cache;
-    size_t surface_points_cache_len;
-
-    set the cache fields when alloc'ing the first time
-    no need to alloc after the first call for point light
-*/
+ *  set the cache fields when alloc'ing the first time
+ *  no need to alloc after the first call for point light
+ */
 Points
 point_light_surface_points(Light light)
 {
@@ -84,6 +81,7 @@ camera(size_t hsize,
     }
 
     c->pixel_size = c->half_width * 2.0 / (double)hsize;
+    c->transform = transform;
 
     return c;
 }
@@ -135,8 +133,8 @@ default_world()
     w->lights = l;
     w->lights_num = 1;
     Shape shapes = (Shape) malloc(2 * sizeof(struct shape));
-    Shape s1 = &shapes[0];
-    Shape s2 = &shapes[1];
+    Shape s1 = shapes;
+    Shape s2 = shapes + 1;
     sphere(s1);
     sphere(s2);
 
@@ -145,9 +143,9 @@ default_world()
     s1->material->color[2] = 0.6;
     s1->material->diffuse = 0.7;
     s1->material->specular = 0.2;
+    s1->material->transparency = 1.0;
 
-    matrix_free(s2->transform);
-    s2->transform = matrix_scale_alloc(0.5, 0.5, 0.5);
+    matrix_scale(0.5, 0.5, 0.5, s2->transform);
 
     w->shapes = shapes;
     w->shapes_num = 2;
@@ -155,21 +153,24 @@ default_world()
     return w;
 }
 
-/*
-    v = light_position - point
-    distance = magnitude(v)
-    direction = normalize(v)
-    r = shapes.ray(point, direction)
-    intersections = intersect_world(world, r)
-    intersections = [ i for i in intersections if i.object.material.casts_shadow ]
-    h = shapes.hit(intersections)
-
-    return h is not None and h.t < distance
-*/
 bool
 is_shadowed(World w, double light_position[4], Point pt)
 {
-    return false;
+    Vector v = vector_from_arrays_alloc(light_position, pt->arr);
+    double distance = vector_magnitude(v);
+    Vector direction = vector_normalize_alloc(v);
+    Ray r = ray_alloc(pt, direction);
+    Intersections xs = intersect_world(w, r, true);
+    Intersection h = hit(xs);
+    bool retval = h != NULL && h->t < distance;
+
+
+    intersections_free(xs);
+    ray_free(r);
+    vector_free(direction);
+    vector_free(v);
+
+    return retval;
 }
 
 Ray
@@ -206,6 +207,36 @@ render(Camera cam, World w)
     int i,j,k;
 
     Canvas image = canvas_alloc(cam->hsize, cam->vsize);
+/*
+    >>> w = default_world()
+    >>> r = ray(point(0,0,-5), vector(0,1,0))
+    >>> c = color_at(w,r)
+    >>> np.isclose(c, color(0,0,0))
+    array([ True,  True,  True])
+
+    >>> w = default_world()
+    >>> r = ray(point(0,0,-5), vector(0,0,1))
+    >>> c = color_at(w,r)
+    >>> np.isclose(c, color(0.38066, 0.47583, 0.28549589))
+    array([ True,  True,  True])
+
+    >>> w = default_world()
+    >>> outer = w.contains[0]
+    >>> outer.material.ambient = 1.0
+    >>> inner = w.contains[1]
+    >>> inner.material.ambient = 1.0
+    >>> r = ray(point(0,0,0.75), vector(0,0,-1))
+    >>> c = color_at(w,r)
+    >>> c == inner.material.color
+    array([ True,  True,  True])
+*/
+    Point pt = point(0.0, 0.0, -5.0);
+    Vector v = vector( 0.0, 0.0, 1.0);
+    Ray r2 = ray_alloc(pt, v);
+    Color c = color_at(w, r2, 5);
+    char buf[256];
+    color_to_string(buf, 256, c);
+
 
     k = 0;
     for (j = 0; j < cam->vsize; ++j) {
@@ -214,9 +245,10 @@ render(Camera cam, World w)
             Color c = color_at(w, r, 5);
             canvas_write_pixel(image, i, j, c);
             color_free(c);
+            ray_free(r);
         }
         k += 1;
-        //printf("Wrote %d rows out of %d", k, cam->vsize);
+        //printf("Wrote %d rows out of %lu\n", k, cam->vsize);
     }
     return image;
 }
@@ -224,14 +256,14 @@ render(Camera cam, World w)
 Color
 color_at(World w, Ray r, size_t remaining)
 {
-    Intersections xs = intersect_world(w, r);
+    Intersections xs = intersect_world(w, r, false);
     Intersection i = hit(xs);
     if (i == NULL) {
         return color(0,0,0);
     }
     Computations comps = prepare_computations(i, r, xs);
 
-    free(xs);
+    intersections_free(xs);
 
     return shade_hit(w, comps, remaining);
 }
@@ -245,7 +277,7 @@ sort_intersections(const void *p, const void *q)
 }
 
 Intersections
-intersect_world(World w, Ray r)
+intersect_world(World w, Ray r, bool filter_shadow_casters)
 {
     Shape itr;
     Intersections xs = intersections_empty(1024);
@@ -255,23 +287,28 @@ intersect_world(World w, Ray r)
     for (itr = w->shapes, i = 0;
          i < w->shapes_num;
          itr++, i++) {
-        Intersections xs_1 = itr->intersect(itr, r);
-        if (xs_1->len + xs->len >= max_xs) {
-            // realloc and copy xs
-            Intersections xs_2 = intersections_empty(2 * max_xs);
-            max_xs *= 2;
-            memcpy(xs_2->xs, xs->xs, xs->len * sizeof(struct intersection));
-            xs_2->len = xs->len;
-            intersections_free(xs);
-            xs = xs_2;
+        if (!filter_shadow_casters && itr->material->casts_shadow) {
+            Intersections xs_1 = itr->intersect(itr, r);
+            if (xs_1->num + xs->num >= max_xs) {
+                // realloc and copy xs
+                max_xs *= 2;
+                Intersections xs_2 = intersections_empty(max_xs);
+                memcpy(xs_2->xs, xs->xs, xs->array_len * sizeof(struct intersection));
+                xs_2->array_len = max_xs;
+                xs_2->num = xs->num;
+                intersections_free(xs);
+                xs = xs_2;
+            }
+            // copy from xs_1 into xs + xs->len
+            memcpy(xs->xs + xs->num, xs_1->xs, xs_1->num * sizeof(struct intersection));
+            xs->num += xs_1->num;
+
+            intersections_free(xs_1);
         }
-        // copy from xs_1 into xs + xs->len
-        memcpy(xs->xs + xs->len, xs_1->xs, xs_1->len * sizeof(struct intersection));
-        intersections_free(xs_1);
     }
 
     // sort xs by xs->xs->t ascending
-    qsort((void*)xs->xs, xs->len, sizeof(struct intersection), sort_intersections);
+    qsort((void*)xs->xs, xs->num, sizeof(struct intersection), sort_intersections);
     return xs;
 }
 
@@ -465,8 +502,7 @@ shade_hit(World w, Computations comps, size_t remaining)
         Color reflected = reflected_color(w, comps, remaining);
         Color refracted = refracted_color(w, comps, remaining);
 
-        Material m = comps->obj->material;
-        if (m->reflective > 0 && m->transparency > 0) {
+        if (comps->obj->material->reflective > 0 && comps->obj->material) {
             double reflectance = schlick(comps);
             color_scale(reflected, reflectance);
             color_scale(refracted, 1.0 - reflectance);
@@ -494,14 +530,16 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
         // nothing for now
         // pcolor = material.pattern.pattern_at_shape(shape, point)
     } else {
-        memcpy(pcolor->arr, material->color, sizeof(pcolor->arr)); // what is that size?
+        memcpy(pcolor->arr, material->color, sizeof(pcolor->arr));
     }
+
     pcolor->arr[0] *= light->intensity[0];
     pcolor->arr[1] *= light->intensity[1];
     pcolor->arr[2] *= light->intensity[2];
 
     Color ambient = color_default();
-    memcpy(ambient->arr, effective_color->arr, sizeof(ambient->arr)); // what is that size?
+    memcpy(ambient->arr, effective_color->arr, sizeof(ambient->arr));
+    color_scale(ambient, material->ambient);
     if (shade_intensity == 0.0) {
         color_free(pcolor);
         return ambient;
