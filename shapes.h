@@ -162,6 +162,9 @@ typedef struct intersections {
 void intersection(double t, Shape sh, Intersection x);
 Intersection intersection_alloc(double t, Shape sh);
 
+void intersection_with_uv(double t, double u, double v, Shape sh, Intersection x);
+Intersection intersection_with_uv_alloc(double t, double u, double v, Shape sh);
+
 Intersection hit(Intersections xs, bool filter_shadow_casters);
 Intersections intersections_empty(size_t num);
 void intersections_free(Intersections xs);
@@ -184,7 +187,6 @@ int shape_to_string(char *buf, size_t n, Shape sh);
 void shape_set_transform(Shape obj, Matrix transform);
 void pattern_set_transform(Pattern pat, Matrix transform);
 
-// Cylinder
 // Triangle
 // Smooth Triangle
 // CSG

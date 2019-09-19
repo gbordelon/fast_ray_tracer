@@ -11,6 +11,7 @@
 #include "cube.h"
 #include "cone.h"
 #include "cylinder.h"
+#include "triangle.h"
 
 Color
 lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity);
@@ -162,7 +163,11 @@ default_world()
     Shape s1 = shapes;
     Shape s2 = shapes + 1;
     Shape s3 = shapes + 2;
-    cone(s1);
+
+    double triangle_p1[4] = {0.0, 0.0, 0.0};
+    double triangle_p2[4] = {1.0, 1.0, 0.5};
+    double triangle_p3[4] = {0.0, 1.0, 0.0};
+    triangle(s1, triangle_p1, triangle_p2, triangle_p3);
     plane(s2);
     cube(s3);
 
@@ -172,9 +177,9 @@ default_world()
     s1->material->diffuse = 0.6;
     s1->material->specular = 1.0;
     s1->material->shininess = 300.0;
-    s1->fields.cone.minimum = -1;
-    s1->fields.cone.maximum = 1;
-    s1->fields.cone.closed = true;
+    //s1->fields.cone.minimum = -1;
+    //s1->fields.cone.maximum = 1;
+    //s1->fields.cone.closed = true;
     //s1->material->reflective = 1.0;
     //s1->material->refractive_index = 1.0;
     //s1->material->casts_shadow = false;
@@ -304,7 +309,7 @@ pixel_single_sample(Camera cam, World w, int x, int y)
 }
 
 /* TODO
- * some other algorithm for deciciding to make recursive calls. HSV?
+ * some other algorithm for deciciding to make recursive calls. HSL?
  */
 Color
 pixel_multi_sample(Camera cam, World w, double x, double y, double factor)

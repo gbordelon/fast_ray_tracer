@@ -4,6 +4,6 @@
 #include "shapes.h"
 
 Shape plane_alloc();
-void plane();
+void plane(Shape s);
 
 #endif

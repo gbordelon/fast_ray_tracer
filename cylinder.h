@@ -4,6 +4,6 @@
 #include "shapes.h"
 
 Shape cylinder_alloc();
-void cylinder();
+void cylinder(Shape s);
 
 #endif

@@ -4,6 +4,6 @@
 #include "shapes.h"
 
 Shape cone_alloc();
-void cone();
+void cone(Shape s);
 
 #endif

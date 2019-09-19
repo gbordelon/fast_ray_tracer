@@ -14,7 +14,7 @@ intersection(double t, Shape sh, Intersection x)
 }
 
 void
-intersection_uv(double t, double u, double v, Shape sh, Intersection x)
+intersection_with_uv(double t, double u, double v, Shape sh, Intersection x)
 {
     x->t = t;
     x->object = sh;
@@ -34,7 +34,7 @@ Intersection
 intersection_uv_alloc(double t, double u, double v, Shape sh)
 {
     Intersection x = (Intersection) malloc(sizeof(struct intersection));
-    intersection_uv(t, u, v, sh, x);
+    intersection_with_uv(t, u, v, sh, x);
     return x;
 }
 
@@ -257,8 +257,8 @@ int
 shape_to_string(char *buf, size_t n, Shape sh)
 {
     return snprintf(buf, n, "Shape:\n\ttransform: %p\n\tmaterial: %p\n\tparent: %p\n\ttype: %d\n",
-        sh->transform,
-        sh->material,
-        sh->parent,
+        (void *)sh->transform,
+        (void *)sh->material,
+        (void *)sh->parent,
         sh->type);
 }

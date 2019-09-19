@@ -137,6 +137,8 @@ void matrix_free(Matrix m);
 void vector_from_points(Point pt1, Point pt2, Vector res);
 Vector vector_from_points_alloc(Point pt1, Point pt2);
 Vector vector_from_arrays_alloc(double pt1[4], double pt2[4]);
+void array_from_arrays(double pt1[4], double pt2[4], double res[4]);
+Vector vector_cross_arrays_alloc(double a[4], double b[4]);
 
 double vector_magnitude(Vector v);
 

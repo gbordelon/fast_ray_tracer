@@ -124,6 +124,14 @@ vector_from_arrays_alloc(double pt1[4], double pt2[4])
 }
 
 void
+array_from_arrays(double pt1[4], double pt2[4], double res[4])
+{
+    res[0] = pt1[0] - pt2[0];
+    res[1] = pt1[1] - pt2[1];
+    res[2] = pt1[2] - pt2[2];
+}
+
+void
 vector_reflect(Vector input, Vector normal, Vector res)
 {
     double ddot = 2 * vector_dot(input, normal);
@@ -328,23 +336,33 @@ array_dot(double a[4], double b[4])
 }
 
 void
-vector_cross(Vector a, Vector b, Vector res)
+vector_cross_arrays(double a[4], double b[4], Vector res)
 {
-    linalg_null_check_void(a)
-    linalg_null_check_void(b)
     linalg_null_check_void(res)
 
-    res->arr[0] = a->arr[1] * b->arr[2] - a->arr[2] * b->arr[1];
-    res->arr[1] = a->arr[2] * b->arr[0] - a->arr[0] * b->arr[2];
-    res->arr[2] = a->arr[0] * b->arr[1] - a->arr[1] * b->arr[0];
+    res->arr[0] = a[1] * b[2] - a[2] * b[1];
+    res->arr[1] = a[2] * b[0] - a[0] * b[2];
+    res->arr[2] = a[0] * b[1] - a[1] * b[0];
+}
+
+void
+vector_cross(Vector a, Vector b, Vector res)
+{
+    vector_cross_arrays(a->arr, b->arr, res);
+}
+
+Vector
+vector_cross_arrays_alloc(double a[4], double b[4])
+{
+    Vector v = vector_default();
+    vector_cross_arrays(a, b, v);
+    return v;
 }
 
 Vector
 vector_cross_alloc(Vector a, Vector b)
 {
-    Vector v = vector_default();
-    vector_cross(a,b,v);
-    return v;
+    return vector_cross_arrays_alloc(a->arr,b->arr);
 }
 
 void

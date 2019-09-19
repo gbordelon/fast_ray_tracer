@@ -4,6 +4,6 @@
 #include "shapes.h"
 
 Shape sphere_alloc();
-void sphere();
+void sphere(Shape s);
 
 #endif
