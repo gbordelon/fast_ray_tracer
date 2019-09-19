@@ -10,6 +10,7 @@
 #include "plane.h"
 #include "cube.h"
 #include "cone.h"
+#include "cylinder.h"
 
 Color
 lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity);
@@ -161,34 +162,53 @@ default_world()
     Shape s1 = shapes;
     Shape s2 = shapes + 1;
     Shape s3 = shapes + 2;
-    cube(s1);
-    sphere(s2);
-    plane(s3);
+    cone(s1);
+    plane(s2);
+    cube(s3);
 
-    s1->material->color[0] = 0.8;
-    s1->material->color[1] = 1.0;
-    s1->material->color[2] = 0.6;
-    s1->material->diffuse = 0.7;
-    s1->material->specular = 0.2;
-    s1->fields.cone.minimum = -1.0;
+    s1->material->color[0] = 0.0;
+    s1->material->color[1] = 1;
+    s1->material->color[2] = 0.0;
+    s1->material->diffuse = 0.6;
+    s1->material->specular = 1.0;
+    s1->material->shininess = 300.0;
+    s1->fields.cone.minimum = -1;
     s1->fields.cone.maximum = 1;
+    s1->fields.cone.closed = true;
     //s1->material->reflective = 1.0;
     //s1->material->refractive_index = 1.0;
-    //s1->material->transparency = 1.0;
     //s1->material->casts_shadow = false;
-    s1->fields.cone.closed = true;
+    //s1->material->transparency = 1.0;
+
+    //s3->material->casts_shadow = false;
+    //s3->material->transparency = 1;
+    //s3->material->shininess = 300;
+    //s3->material->specular = 1;
+    //s3->material->refractive_index = 3;
+    //s3->material->reflective = 1.0;
+
+    s2->material->color[0] = 1;
+    s2->material->color[1] = 0;
+    s2->material->color[2] = 0;
+    //s2->material->casts_shadow = false;
+    //s2->material->transparency = 1;
+    //s2->material->refractive_index = 1.0;
 
     Matrix trans1 = matrix_translate_alloc(0.0, 1.0, 2.0);
     Matrix scale = matrix_scale_alloc(0.5, 0.5, 0.5);
-    Matrix rotate = matrix_rotate_x_alloc(-0.6);
-    Matrix trans2 = matrix_translate_alloc(0.0, -3.0, 0.0);
+    Matrix rotate = matrix_rotate_x_alloc(0);
+    Matrix rotate2 = matrix_rotate_z_alloc(M_PI/4.0);
+    Matrix trans2 = matrix_translate_alloc(0.0, -1 + .8, 0.0);
 
-    shape_set_transform(s1, rotate);
-    shape_set_transform(s2, matrix_multiply_alloc(trans1, scale));
-    shape_set_transform(s3, matrix_multiply_alloc(trans2, rotate));
+    //shape_set_transform(s1, matrix_multiply_alloc(rotate, rotate2));
+    shape_set_transform(s2, matrix_multiply_alloc(trans2, rotate));
+    //shape_set_transform(s3, trans2);
+    //shape_set_transform(s2, matrix_multiply_alloc(trans1, scale));
+    //shape_set_transform(s2, matrix_translate_alloc(0.0, -0.9, 0));
+    //shape_set_transform(s3, matrix_multiply_alloc(trans2, rotate));
 
     w->shapes = shapes;
-    w->shapes_num = 3;
+    w->shapes_num = 1;
 
     //matrix_free(scale);
     //matrix_free(trans1);
@@ -204,6 +224,7 @@ is_shadowed(World w, double light_position[4], Point pt)
     Vector direction = vector_normalize_alloc(v);
     Ray r = ray_alloc(pt, direction);
     Intersections xs = intersect_world(w, r);
+
     Intersection h = hit(xs, true);
     bool retval = h != NULL && h->t < distance;
 
@@ -271,6 +292,20 @@ ray_for_pixel_m(Camera cam, double px, double py, double factor)
     return ray_for_pixel(cam, px, py, 0.5 * factor, 0.5 * factor);
 }
 
+Color
+pixel_single_sample(Camera cam, World w, int x, int y)
+{
+    Ray rm = ray_for_pixel_m(cam, (double)x, (double)y, 1.0);
+    Color cm = color_at(w, rm, 5);
+
+    ray_free(rm);
+
+    return cm;
+}
+
+/* TODO
+ * some other algorithm for deciciding to make recursive calls. HSV?
+ */
 Color
 pixel_multi_sample(Camera cam, World w, double x, double y, double factor)
 {
@@ -345,11 +380,11 @@ render(Camera cam, World w)
     k = 0;
     for (j = 0; j < cam->vsize; ++j) {
         for (i = 0; i < cam->hsize; ++i) {
-            Color c = pixel_multi_sample(cam, w, (double)i, (double)j, 1.0);
+            //Color c = pixel_multi_sample(cam, w, (double)i, (double)j, 1.0);
+            Color c = pixel_single_sample(cam, w, i, j);
             canvas_write_pixel(image, i, j, c);
             color_free(c);
         }
-        //printf("\n");
         k += 1;
         //printf("Wrote %d rows out of %lu\n", k, cam->vsize);
     }
@@ -360,16 +395,18 @@ Color
 color_at(World w, Ray r, size_t remaining)
 {
     Intersections xs = intersect_world(w, r);
-    Intersection i = hit(xs, false);
+    Intersection i = hit(xs, true);
     if (i == NULL) {
         intersections_free(xs);
         return color(0,0,0);
     }
+
     Computations comps = prepare_computations(i, r, xs);
+    Color c = shade_hit(w, comps, remaining);
 
     intersections_free(xs);
 
-    return shade_hit(w, comps, remaining);
+    return c;
 }
 
 int
@@ -377,28 +414,39 @@ sort_intersections(const void *p, const void *q)
 {
     double l = ((Intersection)p)->t;
     double r = ((Intersection)q)->t;
-    return round(l - r);
+    if ((l - r ) < 0) {
+        return -1;
+    } else if ((l - r) > 0) {
+        return 1;
+    }
+    return 0;
 }
 
 Intersections
 intersect_world(World w, Ray r)
 {
     Shape itr;
-    Intersections xs = intersections_empty(512);
+    Intersections xs = intersections_empty(64);
     int i;
 
     for (itr = w->shapes, i = 0;
          i < w->shapes_num;
          itr++, i++) {
         Intersections xs_1 = itr->intersect(itr, r);
+        if (xs_1->num == 0) {
+            intersections_free(xs_1);
+            continue;
+        }
+
+        // realloc and copy xs
         if (xs_1->num + xs->num >= xs->array_len) {
-            // realloc and copy xs
             Intersections xs_2 = intersections_empty(2 * xs->array_len);
             memcpy(xs_2->xs, xs->xs, xs->array_len * sizeof(struct intersection));
             xs_2->num = xs->num;
             intersections_free(xs);
             xs = xs_2;
         }
+
         // copy from xs_1 into xs + xs->num
         memcpy(xs->xs + xs->num, xs_1->xs, xs_1->num * sizeof(struct intersection));
         xs->num += xs_1->num;
@@ -406,8 +454,11 @@ intersect_world(World w, Ray r)
         intersections_free(xs_1);
     }
 
-    // sort xs by xs->xs->t ascending
-    qsort((void*)xs->xs, xs->num, sizeof(struct intersection), sort_intersections);
+    if (xs->num > 1) {
+        // sort xs by xs->xs->t ascending
+        mergesort((void*)xs->xs, xs->num, sizeof(struct intersection), sort_intersections);
+    }
+
     return xs;
 }
 
@@ -454,16 +505,16 @@ prepare_computations(Intersection i, Ray r, Intersections xs)
 {
     Point p = position_alloc(r, i->t);
     Vector n = i->object->normal_at(i->object, p, i);
-    Vector neg_r_direction = vector(-r->direction[0], -r->direction[1], -r->direction[2]);
-    Vector reflectv = vector(r->direction[0], r->direction[1], r->direction[2]);
+    Vector eyev = vector(-r->direction[0], -r->direction[1], -r->direction[2]);
+    Vector direction = vector(r->direction[0], r->direction[1], r->direction[2]);
 
     Point over_point = point_default();
     Point under_point = point_default();
     bool inside = false;
 
-    Vector reflectv2 = vector_reflect_alloc(reflectv, n);
+    Vector reflectv = vector_reflect_alloc(direction, n);
 
-    if (vector_dot(n, neg_r_direction) < 0) {
+    if (vector_dot(n, eyev) < 0) {
         inside = true;
         vector_scale(n, -1);
     }
@@ -481,9 +532,9 @@ prepare_computations(Intersection i, Ray r, Intersections xs)
                                   p,
                                   over_point,
                                   under_point,
-                                  neg_r_direction,
+                                  eyev,
                                   n,
-                                  reflectv2,
+                                  reflectv,
                                   inside);
 
     int j, k;
@@ -528,7 +579,7 @@ prepare_computations(Intersection i, Ray r, Intersections xs)
     }
 
     free(container);
-    vector_free(reflectv);
+    vector_free(direction);
 
     return c;
 }
@@ -562,7 +613,7 @@ computations_free(Computations comps)
 Color
 reflected_color(World w, Computations comps, size_t remaining)
 {
-    if (remaining == 0 || comps->obj->material->reflective == 0) {
+    if (remaining == 0 || equal(comps->obj->material->reflective, 0)) {
         return color(0,0,0);
     }
     Ray reflect_ray = ray_alloc(comps->over_point, comps->reflectv);
@@ -577,7 +628,7 @@ reflected_color(World w, Computations comps, size_t remaining)
 Color
 refracted_color(World w, Computations comps, size_t remaining)
 {
-    if (remaining == 0 || comps->obj->material->transparency == 0) {
+    if (remaining == 0 || equal(comps->obj->material->transparency,0)) {
         return color(0,0,0);
     }
     double n_ratio = comps->n1 / comps->n2;
@@ -646,22 +697,24 @@ shade_hit(World w, Computations comps, size_t remaining)
                            intensity);
 
         color_accumulate(surface, c);
-
-        Color reflected = reflected_color(w, comps, remaining);
-        Color refracted = refracted_color(w, comps, remaining);
-
-        if (comps->obj->material->reflective > 0 && comps->obj->material->transparency > 0) {
-            double reflectance = schlick(comps);
-            color_scale(reflected, reflectance);
-            color_scale(refracted, 1.0 - reflectance);
-        }
-        color_accumulate(surface, reflected);
-        color_accumulate(surface, refracted);
-
-        color_free(reflected);
-        color_free(refracted);
         color_free(c);
     }
+
+    Color reflected = reflected_color(w, comps, remaining);
+    Color refracted = refracted_color(w, comps, remaining);
+
+    if (comps->obj->material->reflective > 0 && comps->obj->material->transparency > 0) {
+        double reflectance = schlick(comps);
+        color_scale(reflected, reflectance);
+        color_scale(refracted, 1.0 - reflectance);
+    }
+
+    color_accumulate(surface, reflected);
+    color_accumulate(surface, refracted);
+
+    color_free(reflected);
+    color_free(refracted);
+
     computations_free(comps);
 
     return surface;
@@ -687,7 +740,7 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
     Color ambient = color_default();
     memcpy(ambient->arr, effective_color->arr, sizeof(ambient->arr));
     color_scale(ambient, material->ambient);
-    if (shade_intensity == 0.0) {
+    if (equal(shade_intensity,0.0)) {
         color_free(pcolor);
         return ambient;
     }

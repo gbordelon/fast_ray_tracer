@@ -7,7 +7,7 @@
 #include "shapes.h"
 
 bool
-check_cap(Shape cone, Ray r, double t, double y)
+check_cap(Ray r, double t, double y)
 {
     double x = r->origin[0] + t * r->direction[0];
     double z = r->origin[2] + t * r->direction[2];
@@ -18,19 +18,20 @@ check_cap(Shape cone, Ray r, double t, double y)
 void
 intersect_caps(Shape cone, Ray r, Intersections xs)
 {
-    if ((!cone->fields.cone.closed) || equal(r->direction[1],0.0)) {
+    if ((!cone->fields.cone.closed) || equal(r->direction[1], 0.0)) {
         return;
     }
 
     Intersection x = xs->xs + xs->num;
+
     double t = (cone->fields.cone.minimum - r->origin[1]) / r->direction[1];
-    if (check_cap(cone, r, t, cone->fields.cone.minimum)) {
+    if (check_cap(r, t, cone->fields.cone.minimum)) {
         intersection(t, cone, x++);
         xs->num++;
     }
 
     t = (cone->fields.cone.maximum - r->origin[1]) / r->direction[1];
-    if (check_cap(cone, r, t, cone->fields.cone.maximum)) {
+    if (check_cap(r, t, cone->fields.cone.maximum)) {
         intersection(t, cone, x);
         xs->num++;
     }
@@ -45,15 +46,15 @@ cone_local_intersect(Shape cone, Ray r)
     double a = r->direction[0] * r->direction[0] +
                r->direction[2] * r->direction[2] -
                r->direction[1] * r->direction[1];
-    double b = 2 * r->origin[0] * r->direction[0] +
-               2 * r->origin[2] * r->direction[2] -
-               2 * r->origin[1] * r->direction[1];
+    double b = 2 * (r->origin[0] * r->direction[0] +
+               r->origin[2] * r->direction[2] -
+               r->origin[1] * r->direction[1]);
     double c = r->origin[0] * r->origin[0] +
                r->origin[2] * r->origin[2] -
                r->origin[1] * r->origin[1];
 
-    if (equal(a, 0.0)) {
-        if (!equal(b, 0.0)) {
+    if (equal(a,0.0)) {
+        if (!equal(b,0.0)) {
             intersection(-c / (2 * b), cone, x++);
             xs->num++;
         }
@@ -94,14 +95,14 @@ Vector
 cone_local_normal_at(Shape sh, Point local_point, Intersection hit)
 {
     double dist = local_point->arr[0] * local_point->arr[0] + local_point->arr[2] * local_point->arr[2];
-    if (dist < 1 && (sh->fields.cone.maximum - EPSILON) < local_point->arr[1]) {
+    if (dist < 1 && ((sh->fields.cone.maximum - EPSILON) <= local_point->arr[1])) {
         return vector(0,1,0);
-    } else if (dist < 1 && ((sh->fields.cone.minimum + EPSILON) > local_point->arr[1])) {
+    } else if (dist < 1 && ((sh->fields.cone.minimum + EPSILON) >= local_point->arr[1])) {
         return vector(0,-1,0);
     }
 
     double y = sqrt(dist);
-    if (local_point->arr[0] > 0) {
+    if (local_point->arr[1] > 0) {
         y = -y;
     }
     return vector(local_point->arr[0], y, local_point->arr[2]);

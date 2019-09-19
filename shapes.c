@@ -45,7 +45,7 @@ hit(Intersections xs, bool filter_shadow_casters)
     Intersection x;
 
     for (i = 0, x = xs->xs; i < xs->num; i++, x++) {
-        if (x->t > 0 && (!filter_shadow_casters || (filter_shadow_casters && x->object->material->casts_shadow))) {
+        if (x->t >= 0 && (!filter_shadow_casters || (filter_shadow_casters && x->object->material->casts_shadow))) {
             return x;
         }
     }
@@ -163,9 +163,7 @@ Intersections
 shape_intersect(Shape sh, Ray r)
 {
     Matrix m = sh->transform_inverse;
-
     Ray r2 = ray_transform_alloc(r, m);
-
     Intersections xs = sh->local_intersect(sh, r2);
 
     ray_free(r2);
@@ -213,13 +211,18 @@ shape_normal_to_world(Shape sh, Vector local_normal)
 Point
 shape_world_to_object(Shape sh, Point pt)
 {
+    Point pt_new = pt;
     if (sh->parent != NULL) {
-        return sh->parent->world_to_object(sh->parent, pt);
+        pt_new = sh->parent->world_to_object(sh->parent, pt);
     }
 
     Matrix m = sh->transform_inverse;
-    Point p = matrix_point_multiply_alloc(m, pt);
-    
+    Point p = matrix_point_multiply_alloc(m, pt_new);
+
+    if (sh->parent != NULL) {
+        point_free(pt_new);
+    }
+
     return p;
 }
 

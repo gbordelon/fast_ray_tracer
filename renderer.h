@@ -8,26 +8,10 @@
 #include "linalg.h"
 #include "shapes.h"
 
-// World
-// Computations
-// Camera
-// Light
 // PointLight
 // AreaLight
-// prepare computations
-// intersect world
-// schlick
-// refracted color
-// relfected color
-// reflect
 // shade hit
 // is shadowed
-// color at
-// view transform
-// ray for pixel
-// render
-// normal at
-// lighting
 
 typedef struct world *World;
 

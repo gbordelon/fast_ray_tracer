@@ -7,7 +7,7 @@
 Intersections
 sphere_local_intersect(Shape sphere, Ray r)
 {
-    double sphere_origin[4] = { 0.0, 0.0, 0.0, 0.0 };;
+    double sphere_origin[4] = { 0.0, 0.0, 0.0, 0.0 };
     Vector sphere_to_ray = vector_from_arrays_alloc(r->origin, sphere_origin);
     double a = array_dot(r->direction, r->direction);
     double b = 2 * array_dot(r->direction, sphere_to_ray->arr);
@@ -24,7 +24,7 @@ sphere_local_intersect(Shape sphere, Ray r)
     Intersection x = xs->xs;
     intersection((-b - discriminant) * a, sphere, x++);
     intersection((-b + discriminant) * a, sphere, x);
-    xs->num = 2;
+    xs->num = 1;
 
     vector_free(sphere_to_ray);
 
@@ -34,10 +34,8 @@ sphere_local_intersect(Shape sphere, Ray r)
 Vector
 sphere_local_normal_at(Shape sh, Point local_point, Intersection hit)
 {
-    Point origin = point(0,0,0);
-    Vector v = vector_from_points_alloc(local_point, origin);
-
-    point_free(origin);
+    double origin[4] = {0.0, 0.0, 0.0, 0.0};
+    Vector v = vector_from_arrays_alloc(local_point->arr, origin);
 
     return v;
 }
