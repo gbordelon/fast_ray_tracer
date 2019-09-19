@@ -32,7 +32,6 @@ typedef struct pt {
     double arr[4];
 } *Point;
 
-// TODO implement construction/destruction
 typedef struct pts {
     Point points;
     size_t points_num;

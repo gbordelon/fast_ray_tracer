@@ -9,6 +9,7 @@
 #include "sphere.h"
 #include "plane.h"
 #include "cube.h"
+#include "cone.h"
 
 Color
 lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity);
@@ -169,16 +170,20 @@ default_world()
     s1->material->color[2] = 0.6;
     s1->material->diffuse = 0.7;
     s1->material->specular = 0.2;
+    s1->fields.cone.minimum = -1.0;
+    s1->fields.cone.maximum = 1;
     //s1->material->reflective = 1.0;
     //s1->material->refractive_index = 1.0;
     //s1->material->transparency = 1.0;
     //s1->material->casts_shadow = false;
+    s1->fields.cone.closed = true;
 
     Matrix trans1 = matrix_translate_alloc(0.0, 1.0, 2.0);
     Matrix scale = matrix_scale_alloc(0.5, 0.5, 0.5);
-    Matrix rotate = matrix_rotate_x_alloc(-0.1);
+    Matrix rotate = matrix_rotate_x_alloc(-0.6);
     Matrix trans2 = matrix_translate_alloc(0.0, -3.0, 0.0);
 
+    shape_set_transform(s1, rotate);
     shape_set_transform(s2, matrix_multiply_alloc(trans1, scale));
     shape_set_transform(s3, matrix_multiply_alloc(trans2, rotate));
 
@@ -211,10 +216,10 @@ is_shadowed(World w, double light_position[4], Point pt)
 }
 
 Ray
-ray_for_pixel(Camera cam, size_t px, size_t py)
+ray_for_pixel(Camera cam, double px, double py, double x_offset, double y_offset)
 {
-    double xoffset = ((double)px + 0.5) * cam->pixel_size;
-    double yoffset = ((double)py + 0.5) * cam->pixel_size;
+    double xoffset = (px + x_offset) * cam->pixel_size;
+    double yoffset = (py + y_offset) * cam->pixel_size;
     double world_x = cam->half_width - xoffset;
     double world_y = cam->half_height - yoffset;
     Matrix inv = cam->transform_inverse;
@@ -236,6 +241,100 @@ ray_for_pixel(Camera cam, size_t px, size_t py)
     return r;
 }
 
+Ray
+ray_for_pixel_ul(Camera cam, double px, double py, double factor)
+{
+    return ray_for_pixel(cam, px, py, 0, factor);
+}
+
+Ray
+ray_for_pixel_ur(Camera cam, double px, double py, double factor)
+{
+    return ray_for_pixel(cam, px, py, factor, factor);
+}
+
+Ray
+ray_for_pixel_ll(Camera cam, double px, double py, double factor)
+{
+    return ray_for_pixel(cam, px, py, 0, 0);
+}
+
+Ray
+ray_for_pixel_lr(Camera cam, double px, double py, double factor)
+{
+    return ray_for_pixel(cam, px, py, 0, factor);
+}
+
+Ray
+ray_for_pixel_m(Camera cam, double px, double py, double factor)
+{
+    return ray_for_pixel(cam, px, py, 0.5 * factor, 0.5 * factor);
+}
+
+Color
+pixel_multi_sample(Camera cam, World w, double x, double y, double factor)
+{
+    double color_threshold = 0.9;
+    double new_factor = 0.5 * factor;
+
+    Ray rm = ray_for_pixel_m(cam, x, y, factor);
+    Color cm = color_at(w, rm, 5);
+
+    Ray rul = ray_for_pixel_ul(cam, x, y, factor);
+    Color cul = color_at(w, rul, 5);
+    if (fabs(cul->arr[0] - cm->arr[0]) > color_threshold ||
+            fabs(cul->arr[1] - cm->arr[1]) > color_threshold ||
+            fabs(cul->arr[2] - cm->arr[2]) > color_threshold) {
+        color_free(cul);
+        cul = pixel_multi_sample(cam, w, x, y + new_factor, new_factor);
+    }
+
+    Ray rur = ray_for_pixel_ur(cam, x, y, factor);
+    Color cur = color_at(w, rur, 5);
+    if (fabs(cur->arr[0] - cm->arr[0]) > color_threshold ||
+            fabs(cur->arr[1] - cm->arr[1]) > color_threshold ||
+            fabs(cur->arr[2] - cm->arr[2]) > color_threshold) {
+        color_free(cur);
+        cur = pixel_multi_sample(cam, w, x + new_factor, y + new_factor, new_factor);
+    }
+
+    Ray rll = ray_for_pixel_ll(cam, x, y, factor);
+    Color cll = color_at(w, rll, 5);
+    if (fabs(cll->arr[0] - cm->arr[0]) > color_threshold ||
+            fabs(cll->arr[1] - cm->arr[1]) > color_threshold ||
+            fabs(cll->arr[2] - cm->arr[2]) > color_threshold) {
+        color_free(cll);
+        cll = pixel_multi_sample(cam, w, x, y, new_factor);
+    }
+
+    Ray rlr = ray_for_pixel_lr(cam, x, y, factor);
+    Color clr = color_at(w, rlr, 5);
+    if (fabs(clr->arr[0] - cm->arr[0]) > color_threshold ||
+            fabs(clr->arr[1] - cm->arr[1]) > color_threshold ||
+            fabs(clr->arr[2] - cm->arr[2]) > color_threshold) {
+        color_free(clr);
+        clr = pixel_multi_sample(cam, w, x + new_factor, y, new_factor);
+    }
+
+    cm->arr[0] += cul->arr[0] + cur->arr[0] + cll->arr[0] + clr->arr[0];
+    cm->arr[1] += cul->arr[1] + cur->arr[1] + cll->arr[1] + clr->arr[1];
+    cm->arr[2] += cul->arr[2] + cur->arr[2] + cll->arr[2] + clr->arr[2];
+
+    color_scale(cm, 0.2); // divide by 5
+
+    color_free(clr);
+    ray_free(rlr);
+    color_free(cll);
+    ray_free(rll);
+    color_free(cur);
+    ray_free(rur);
+    color_free(cul);
+    ray_free(rul);
+    ray_free(rm);
+
+    return cm;
+}
+
 Canvas
 render(Camera cam, World w)
 {
@@ -246,11 +345,9 @@ render(Camera cam, World w)
     k = 0;
     for (j = 0; j < cam->vsize; ++j) {
         for (i = 0; i < cam->hsize; ++i) {
-            Ray r = ray_for_pixel(cam, i, j);
-            Color c = color_at(w, r, 5);
+            Color c = pixel_multi_sample(cam, w, (double)i, (double)j, 1.0);
             canvas_write_pixel(image, i, j, c);
             color_free(c);
-            ray_free(r);
         }
         //printf("\n");
         k += 1;
@@ -265,6 +362,7 @@ color_at(World w, Ray r, size_t remaining)
     Intersections xs = intersect_world(w, r);
     Intersection i = hit(xs, false);
     if (i == NULL) {
+        intersections_free(xs);
         return color(0,0,0);
     }
     Computations comps = prepare_computations(i, r, xs);

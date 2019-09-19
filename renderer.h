@@ -105,7 +105,7 @@ World default_world();
 
 
 // pixel x and pixel y
-Ray ray_for_pixel(Camera cam, size_t px, size_t py);
+//Ray ray_for_pixel(Camera cam, size_t px, size_t py, double x_offset, double y_offset);
 Color color_at(World w, Ray r, size_t remaining);
 Color shade_hit(World w, Computations comps, size_t remaining);
 bool is_shadowed(World w, double light_position[4], Point pt);

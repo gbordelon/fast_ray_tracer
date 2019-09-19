@@ -184,8 +184,6 @@ int shape_to_string(char *buf, size_t n, Shape sh);
 void shape_set_transform(Shape obj, Matrix transform);
 void pattern_set_transform(Pattern pat, Matrix transform);
 
-// Cube
-// Cone
 // Cylinder
 // Triangle
 // Smooth Triangle
