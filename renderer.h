@@ -96,6 +96,7 @@ bool is_shadowed(World w, double light_position[4], Point pt);
 Intersections intersect_world(World w, Ray r);
 
 void intersections_sort(Intersections xs);
+void intersections_reverse(Intersections xs);
 
 Computations prepare_computations(Intersection i, Ray r, Intersections xs);
 Canvas render(Camera cam, World w);

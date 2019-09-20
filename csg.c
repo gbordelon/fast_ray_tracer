@@ -49,7 +49,7 @@ csg_filter_intersections(Shape s, Intersections xs)
     bool inleft = false;
     bool inright = false;
 
-    for (i = 0, to = xs->xs, from = xs->xs; i < xs->num; i++, from++) {
+    for (i = 0, to = from = xs->xs; i < xs->num; i++, from++) {
         lhit = s->fields.csg.left->includes(s->fields.csg.left, from->object);
 
         if (intersection_allowed(s->fields.csg.op, lhit, inleft, inright)) {
