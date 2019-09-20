@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "linalg.h"
+#include "canvas.h"
 
 enum shape_enum {
     SHAPE_CONE,
@@ -49,14 +50,7 @@ enum uv_pattern_enum {
     UV_TEXTURE
 };
 
-typedef struct pattern {
-    Matrix transform;
-    Matrix transform_inverse;
-    // pattern_at
-    // pattern_at_shape
-    // what else? probably look like Shape
-    // pattern_set_transform
-} *Pattern;
+typedef struct pattern *Pattern;
 
 typedef struct material {
     double color[3];
@@ -158,6 +152,164 @@ typedef struct intersections {
     size_t num;
 } *Intersections;
 
+
+enum pattern_type {
+    /* concrete have pattern_at fn */
+    CHECKER_PATTERN,
+    GRADIENT_PATTERN,
+    RADIAL_GRADIENT_PATTERN,
+    RING_PATTERN,
+    STRIPE_PATTERN,
+    /* concrete UV instead have uv_pattern_at fn */
+    UV_ALIGN_CHECKER_PATTERN,
+    UV_CHECKER_PATTERN,
+    UV_TEXTURE_PATTERN,
+    /* abstract also have pattern_at_shape fn */
+    BLENDED_PATTERN,
+    NESTESTED_PATTERN,
+    PERTURBED_PATTERN,
+    /* abstract UV have a pattern_at fn which calls uv_pattern_at and uv_map */
+    CUBE_MAP_PATTERN,
+    CYLINDER_MAP_PATTERN,
+    TEXTURE_MAP_PATTERN
+};
+
+/* concrete patterns */
+struct concrete_pattern_fields {
+    double a[3];
+    double b[3];
+};
+
+/* concrete uv patterns */
+struct uv_align_check_fields {
+    double main[3];
+    double ul[3];
+    double ur[3];
+    double bl[3];
+    double br[3];
+};
+
+struct uv_checker_fields {
+    double a[3];
+    double b[3];
+    size_t width;
+    size_t height;
+};
+
+struct uv_texture_fields {
+    Canvas canvas;
+};
+
+struct pattern;
+
+/* abstract patterns */
+struct blended_pattern_fields {
+    struct pattern *pattern1;
+    struct pattern *pattern2;
+};
+
+struct nested_pattern_fields {
+    struct pattern *pattern1;
+    struct pattern *pattern2;
+    struct pattern *pattern3;
+};
+
+struct perturbed_pattern_fields {
+    struct pattern *pattern1;
+    double frequency;
+    double scale_factor;
+    double persistence;
+    size_t octaves;
+    int seed;
+};
+
+/* abstract UV patterns */
+enum uv_map_type {
+    CUBE_UV_MAP,
+    CYLINDER_UV_MAP,
+    PLANE_UV_MAP,
+    SPHERE_UV_MAP
+};
+
+struct uv_map_pattern_fields {
+    enum uv_map_type type;
+    struct pattern *uv_faces;
+};
+
+
+typedef struct face_uv_retval {
+    size_t face;
+    double u;
+    double v;
+} *UVMapReturnType;
+
+typedef UVMapReturnType (*uv_map_fn)(Point);
+
+typedef struct pattern {
+    Matrix transform;
+    Matrix transform_inverse;
+    enum pattern_type type;
+
+    union {
+        struct concrete_pattern_fields concrete;
+        struct uv_align_check_fields uv_align_check;
+        struct uv_checker_fields uv_check;
+        struct uv_texture_fields uv_texture;
+        struct blended_pattern_fields blended;
+        struct nested_pattern_fields nested;
+        struct perturbed_pattern_fields perturbed;
+        struct uv_map_pattern_fields uv_map;
+    } fields;
+
+    Color (*pattern_at_shape)(struct pattern *, Shape, Point);
+    Color (*pattern_at)(struct pattern *, Point);
+    Color (*uv_pattern_at)(struct pattern *, double, double);
+    uv_map_fn uv_map;
+
+    // pattern_set_transform
+} *Pattern;
+
+void checker_pattern(Color a, Color b, Pattern res);
+void gradient_pattern(Color a, Color b, Pattern res);
+void radial_gradient_pattern(Color a, Color b, Pattern res);
+void ring_pattern(Color a, Color b, Pattern res);
+void stripe_pattern(Color a, Color b, Pattern res);
+
+void uv_align_check_pattern(Color main, Color ul, Color ur, Color bl, Color br, Pattern res);
+void uv_check_pattern(Color a, Color b, size_t width, size_t height, Pattern res);
+void uv_texture_patern(Canvas canvas, Pattern res);
+
+void blended_pattern(Pattern p1, Pattern p2, Pattern res);
+void nested_pattern(Pattern p1, Pattern p2, Pattern p3, Pattern res);
+void perturbed_pattern(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed, Pattern res);
+
+void cube_uv_map_pattern(Pattern faces /* should be six */, uv_map_fn uv_map, Pattern res);
+void cylinder_uv_map_pattern(Pattern faces /* should be three */, uv_map_fn uv_map, Pattern res);
+void plane_uv_map_pattern(Pattern faces /* should be one */, uv_map_fn uv_map, Pattern res);
+void sphere_uv_map_pattern(Pattern faces /* should be one */, uv_map_fn uv_map, Pattern res);
+
+
+Pattern checker_pattern_alloc(Color a, Color b);
+Pattern gradient_pattern_alloc(Color a, Color b);
+Pattern radial_gradient_pattern_alloc(Color a, Color b);
+Pattern ring_pattern_alloc(Color a, Color b);
+Pattern stripe_pattern_alloc(Color a, Color b);
+
+Pattern uv_align_check_pattern_alloc(Color main, Color ul, Color ur, Color bl, Color br);
+Pattern uv_check_pattern_alloc(Color a, Color b, size_t width, size_t height);
+Pattern uv_texture_patern_alloc(Canvas canvas);
+
+Pattern blended_pattern_alloc(Pattern p1, Pattern p2);
+Pattern nested_pattern_alloc(Pattern p1, Pattern p2, Pattern p3);
+Pattern perturbed_pattern_alloc(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed);
+
+Pattern cube_uv_map_pattern_alloc(Pattern faces /* should be six */, uv_map_fn uv_map);
+Pattern cylinder_uv_map_pattern_alloc(Pattern faces /* should be three */, uv_map_fn uv_map);
+Pattern plane_uv_map_pattern_alloc(Pattern faces /* should be one */, uv_map_fn uv_map);
+Pattern sphere_uv_map_pattern_alloc(Pattern faces /* should be one */, uv_map_fn uv_map);
+
+
+
 void intersection(double t, Shape sh, Intersection x);
 Intersection intersection_alloc(double t, Shape sh);
 
@@ -186,34 +338,11 @@ int shape_to_string(char *buf, size_t n, Shape sh);
 void shape_set_transform(Shape obj, Matrix transform);
 void pattern_set_transform(Pattern pat, Matrix transform);
 
-// CSG
-// Group
-
-
 // Bounding Box
 
 // Material
 void material();
 Material material_alloc();
-
-// Pattern
-// SphereUVMap
-// CylinderUVMap
-// PlaneUVMap
-// CubeUVMap
-// TextureMapPattern
-// CubeMapPattern
-// CylinderMapPattern
-// BlendedPattern
-// NestedPattern
-// PerturbedPattern
-// UVCheckerPattern
-// UVAlignCheckPattern
-// UVTexturePattern
-// Checkers
-// Gradient
-// RadialGradient
-// Ring
-// Stripe
+void material_set_pattern(Material m, Pattern p);
 
 #endif

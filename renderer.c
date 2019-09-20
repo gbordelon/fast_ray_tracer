@@ -181,6 +181,7 @@ default_world()
     csg(s6, CSG_DIFFERENCE, s5, s3);
     csg(s7, CSG_DIFFERENCE, s6, s4);
 
+    material_set_pattern(s1->material, stripe_pattern_alloc(color(1,1,0), color(1,0,0)));
     s1->material->color[0] = 1;
     s1->material->color[1] = 1;
     s1->material->color[2] = 0.0;
@@ -206,7 +207,7 @@ default_world()
     shape_set_transform(s3, matrix_multiply_alloc(scale, rotate2));
     shape_set_transform(s2, scale);
 
-    w->shapes = shapes + 4;
+    w->shapes = shapes + 0;
     w->shapes_num = 1;
 
     //matrix_free(scale);
@@ -748,15 +749,15 @@ shade_hit(World w, Computations comps, size_t remaining)
 Color
 lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity)
 {
-    Color pcolor = color_default();
-    Color effective_color = pcolor;
+    Color pcolor;
 
     if (material->pattern != NULL) {
-        // nothing for now
-        // pcolor = material.pattern.pattern_at_shape(shape, point)
+        pcolor = material->pattern->pattern_at_shape(material->pattern, shape, point);
     } else {
+        pcolor = color_default();
         memcpy(pcolor->arr, material->color, sizeof(pcolor->arr));
     }
+    Color effective_color = pcolor;
 
     pcolor->arr[0] *= light->intensity[0];
     pcolor->arr[1] *= light->intensity[1];

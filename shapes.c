@@ -135,6 +135,16 @@ material_alloc()
     return m;
 }
 
+void
+material_set_pattern(Material m, Pattern p)
+{
+    if (m != NULL) {
+        if (m->pattern != NULL) {
+            // TODO probably don't need to worry about freeing the pattern ATM
+        }
+        m->pattern = p;
+    }
+}
 
 void
 ray_transform(Ray original, Matrix m, Ray res)
@@ -262,3 +272,315 @@ shape_to_string(char *buf, size_t n, Shape sh)
         (void *)sh->parent,
         sh->type);
 }
+
+
+/*
+ *
+ * Patterns
+ *
+ */
+Color
+base_pattern_at_shape(Pattern p, Shape s, Point pt)
+{
+    Matrix inv = p->transform_inverse;
+
+    Point object_point = s->world_to_object(s, pt);
+    Point pattern_point = matrix_point_multiply_alloc(inv, object_point);
+    Color c = p->pattern_at(p, pattern_point);
+
+    point_free(pattern_point);
+    point_free(object_point);
+
+    return c;
+}
+
+Color
+base_pattern_at(Pattern p, Point pt)
+{
+    printf("calling base_pattern_at which should only happen for tests.\n");
+    return color(pt->arr[0], pt->arr[1], pt->arr[2]);
+}
+
+Color
+checker_pattern_at(Pattern p, Point pt)
+{
+    int s = (int)floor(pt->arr[0]) + (int)floor(pt->arr[1]) + (int)floor(pt->arr[2]);
+    double *arr;
+
+    if (s % 2 == 0) {
+        arr = p->fields.concrete.a;
+    } else {
+        arr = p->fields.concrete.b;
+    }
+    return color(arr[0], arr[1], arr[2]);
+}
+
+Color
+gradient_pattern_at(Pattern p, Point pt)
+{
+    double distance[3] = { p->fields.concrete.b[0] - p->fields.concrete.a[0],
+                           p->fields.concrete.b[1] - p->fields.concrete.a[1],
+                           p->fields.concrete.b[2] - p->fields.concrete.a[2]};
+    double fraction = pt->arr[0] - floor(pt->arr[0]);
+
+    return color(p->fields.concrete.a[0] + distance[0] * fraction,
+                 p->fields.concrete.a[1] + distance[1] * fraction,
+                 p->fields.concrete.a[2] + distance[2] * fraction);
+}
+
+Color
+radial_gradient_pattern_at(Pattern p, Point pt)
+{
+    double distance[3] = { p->fields.concrete.b[0] - p->fields.concrete.a[0],
+                           p->fields.concrete.b[1] - p->fields.concrete.a[1],
+                           p->fields.concrete.b[2] - p->fields.concrete.a[2]};
+
+    double magnitude = sqrt(pt->arr[0] * pt->arr[0] + pt->arr[2] * pt->arr[2]);
+
+    double fraction = magnitude - floor(magnitude);
+
+    return color(p->fields.concrete.a[0] + distance[0] * fraction,
+                 p->fields.concrete.a[1] + distance[1] * fraction,
+                 p->fields.concrete.a[2] + distance[2] * fraction);
+}
+
+Color
+ring_pattern_at(Pattern p, Point pt)
+{
+    int s = (int)floor(sqrt(pt->arr[0] * pt->arr[0] + pt->arr[2] * pt->arr[2]));
+    double *arr;
+
+    if (s % 2 == 0) {
+        arr = p->fields.concrete.a;
+    } else {
+        arr = p->fields.concrete.b;
+    }
+    return color(arr[0], arr[1], arr[2]);
+}
+
+Color
+stripe_pattern_at(Pattern p, Point pt)
+{
+    int s = (int)floor(pt->arr[0]);
+    double *arr;
+
+    if (s % 2 == 0) {
+        arr = p->fields.concrete.a;
+    } else {
+        arr = p->fields.concrete.b;
+    }
+    return color(arr[0], arr[1], arr[2]);
+}
+
+Color
+base_uv_pattern_at(Pattern p, double u, double v)
+{
+    printf("calling base_uv_pattern_at which should never happen.\n");
+    return color(u, v, 0);
+}
+
+UVMapReturnType
+uv_map_return_type_alloc(size_t face, double u, double v)
+{
+    UVMapReturnType rv = (UVMapReturnType) malloc(sizeof(struct face_uv_retval));
+    rv->face = face;
+    rv->u = u;
+    rv->v = v;
+
+    return rv;
+}
+
+void
+uv_map_return_type_free(UVMapReturnType p)
+{
+    if (p != NULL) {
+        free(p);
+    }
+}
+
+UVMapReturnType
+base_uv_map(Point pt)
+{
+    printf("calling base_uv_pattern_at which should never happen.\n");
+    return uv_map_return_type_alloc(0, pt->arr[0], pt->arr[1]);
+}
+
+void
+pattern_set_transform(Pattern obj, Matrix m)
+{
+    if (obj != NULL) {
+        if (obj->transform_inverse != NULL) {
+            matrix_free(obj->transform_inverse);
+        }
+        if (obj->transform != NULL) {
+            matrix_free(obj->transform);
+        }
+        obj->transform = m;
+        obj->transform_inverse = matrix_inverse_alloc(m);
+    }
+}
+
+void
+default_pattern_constructor(Pattern res)
+{
+    res->transform = NULL;
+    res->transform_inverse = NULL;
+
+    pattern_set_transform(res, matrix_identity_alloc());
+
+    res->pattern_at_shape = base_pattern_at_shape;
+    res->pattern_at = base_pattern_at;
+    res->uv_pattern_at = base_uv_pattern_at;
+    res->uv_map = base_uv_map;
+}
+
+void
+checker_pattern(Color a, Color b, Pattern res)
+{
+    default_pattern_constructor(res);
+
+    res->type = CHECKER_PATTERN;
+    memcpy(res->fields.concrete.a, a->arr, 3 * sizeof(double));
+    memcpy(res->fields.concrete.b, b->arr, 3 * sizeof(double));
+
+    res->pattern_at = checker_pattern_at;
+}
+
+void
+gradient_pattern(Color a, Color b, Pattern res)
+{
+    default_pattern_constructor(res);
+
+    res->type = GRADIENT_PATTERN;
+    memcpy(res->fields.concrete.a, a->arr, 3 * sizeof(double));
+    memcpy(res->fields.concrete.b, b->arr, 3 * sizeof(double));
+
+    res->pattern_at = gradient_pattern_at;
+}
+
+void
+radial_gradient_pattern(Color a, Color b, Pattern res)
+{
+    default_pattern_constructor(res);
+
+    res->type = RADIAL_GRADIENT_PATTERN;
+    memcpy(res->fields.concrete.a, a->arr, 3 * sizeof(double));
+    memcpy(res->fields.concrete.b, b->arr, 3 * sizeof(double));
+
+    res->pattern_at = radial_gradient_pattern_at;
+}
+
+void
+ring_pattern(Color a, Color b, Pattern res)
+{
+    default_pattern_constructor(res);
+
+    res->type = RING_PATTERN;
+    memcpy(res->fields.concrete.a, a->arr, 3 * sizeof(double));
+    memcpy(res->fields.concrete.b, b->arr, 3 * sizeof(double));
+
+    res->pattern_at = ring_pattern_at;
+}
+
+void
+stripe_pattern(Color a, Color b, Pattern res)
+{
+    default_pattern_constructor(res);
+
+    res->type = STRIPE_PATTERN;
+    memcpy(res->fields.concrete.a, a->arr, 3 * sizeof(double));
+    memcpy(res->fields.concrete.b, b->arr, 3 * sizeof(double));
+
+    res->pattern_at = stripe_pattern_at;
+}
+
+void
+uv_align_check_pattern(Color main, Color ul, Color ur, Color bl, Color br, Pattern res);
+void
+uv_check_pattern(Color a, Color b, size_t width, size_t height, Pattern res);
+void
+uv_texture_patern(Canvas canvas, Pattern res);
+
+void
+blended_pattern(Pattern p1, Pattern p2, Pattern res);
+void
+nested_pattern(Pattern p1, Pattern p2, Pattern p3, Pattern res);
+void
+perturbed_pattern(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed, Pattern res);
+
+void
+cube_uv_map_pattern(Pattern faces /* should be six */, uv_map_fn uv_map, Pattern res);
+void
+cylinder_uv_map_pattern(Pattern faces /* should be three */, uv_map_fn uv_map, Pattern res);
+void
+plane_uv_map_pattern(Pattern faces /* should be one */, uv_map_fn uv_map, Pattern res);
+void
+sphere_uv_map_pattern(Pattern faces /* should be one */, uv_map_fn uv_map, Pattern res);
+
+
+Pattern
+checker_pattern_alloc(Color a, Color b)
+{
+    Pattern p = (Pattern) malloc(sizeof(struct pattern));
+    checker_pattern(a, b, p);
+    return p;
+}
+
+Pattern
+gradient_pattern_alloc(Color a, Color b)
+{
+    Pattern p = (Pattern) malloc(sizeof(struct pattern));
+    gradient_pattern(a, b, p);
+    return p;
+}
+
+Pattern
+radial_gradient_pattern_alloc(Color a, Color b)
+{
+    Pattern p = (Pattern) malloc(sizeof(struct pattern));
+    radial_gradient_pattern(a, b, p);
+    return p;
+}
+
+Pattern ring_pattern_alloc(Color a, Color b)
+{
+    Pattern p = (Pattern) malloc(sizeof(struct pattern));
+    ring_pattern(a, b, p);
+    return p;
+}
+
+Pattern
+stripe_pattern_alloc(Color a, Color b)
+{
+    Pattern p = (Pattern) malloc(sizeof(struct pattern));
+    stripe_pattern(a, b, p);
+    return p;
+}
+
+Pattern uv_align_check_pattern_alloc(Color main, Color ul, Color ur, Color bl, Color br);
+Pattern uv_check_pattern_alloc(Color a, Color b, size_t width, size_t height);
+Pattern uv_texture_patern_alloc(Canvas canvas);
+
+Pattern blended_pattern_alloc(Pattern p1, Pattern p2);
+Pattern nested_pattern_alloc(Pattern p1, Pattern p2, Pattern p3);
+Pattern perturbed_pattern_alloc(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed);
+
+Pattern cube_uv_map_pattern_alloc(Pattern faces /* should be six */, uv_map_fn uv_map);
+Pattern cylinder_uv_map_pattern_alloc(Pattern faces /* should be three */, uv_map_fn uv_map);
+Pattern plane_uv_map_pattern_alloc(Pattern faces /* should be one */, uv_map_fn uv_map);
+Pattern sphere_uv_map_pattern_alloc(Pattern faces /* should be one */, uv_map_fn uv_map);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
