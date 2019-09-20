@@ -80,8 +80,7 @@ struct csg_fields {
 struct group_fields {
     struct shape *children;
     size_t num_children;
-    // add child
-    // add children
+    bool children_need_free;
     // partition children this can probably be private to the .c file
     // make subgroup this can probably be private to the .c file
 };
