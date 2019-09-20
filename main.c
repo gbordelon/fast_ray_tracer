@@ -156,13 +156,26 @@ main()
     fwrite (ppm->arr, sizeof(unsigned char), ppm->len, pFile);
     fclose (pFile);
 
-    Ppm ppm2 = construct_ppm(c, false);
 
-    pFile = fopen ("/tmp/left_clamped.ppm", "wb");
+
+/*
+    from = point(-1.9,3,-6.0);
+    to = point(0,0.0,0);
+    up = vector(0, 1, 0);
+    cam = camera(400, 400, 0.5, view_transform(from, to, up));
+
+    c = render(cam, w);
+
+
+
+
+    Ppm ppm2 = construct_ppm(c, true);
+
+    pFile = fopen ("/tmp/right.ppm", "wb");
     fwrite (ppm2->arr, sizeof(unsigned char), ppm2->len, pFile);
     fclose (pFile);
-
-    printf("files written\n");
+*/
+    printf("file written\n");
 
     return 0;
 }

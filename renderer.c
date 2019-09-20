@@ -196,7 +196,7 @@ default_world()
     //s3->material->refractive_index = 3;
     //s3->material->reflective = 1.0;
 
-    s2->material->color[0] = 0;
+    s2->material->color[0] = 1;
     s2->material->color[1] = 0;
     s2->material->color[2] = 0;
     s2->material->casts_shadow = false;
