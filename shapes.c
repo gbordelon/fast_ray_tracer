@@ -45,7 +45,7 @@ hit(Intersections xs, bool filter_shadow_casters)
     Intersection x;
 
     for (i = 0, x = xs->xs; i < xs->num; i++, x++) {
-        if (x->t >= 0 && (!filter_shadow_casters || (filter_shadow_casters && x->object->material->casts_shadow))) {
+        if (x->t > 0 && (!filter_shadow_casters || (filter_shadow_casters && x->object->material->casts_shadow))) {
             return x;
         }
     }

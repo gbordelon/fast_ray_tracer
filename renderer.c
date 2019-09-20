@@ -12,6 +12,7 @@
 #include "cone.h"
 #include "cylinder.h"
 #include "triangle.h"
+#include "csg.h"
 
 Color
 lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity);
@@ -154,35 +155,37 @@ World
 default_world()
 {
     World w = world();
-    Point p = point(-10, 10, -10);
+    Point p = point(2, 10, -2);
     Color c = color(1, 1, 1);
     Light l = point_light(p, c);
     w->lights = l;
     w->lights_num = 1;
-    Shape shapes = (Shape) malloc(3 * sizeof(struct shape));
+    Shape shapes = (Shape) malloc(4 * sizeof(struct shape));
     Shape s1 = shapes;
     Shape s2 = shapes + 1;
     Shape s3 = shapes + 2;
+    Shape s4 = shapes + 3;
 
     double triangle_p1[4] = {0.0, 0.0, 0.0};
     double triangle_p2[4] = {1.0, 1.0, 0.5};
     double triangle_p3[4] = {0.0, 1.0, 0.0};
-    triangle(s1, triangle_p1, triangle_p2, triangle_p3);
-    plane(s2);
-    cube(s3);
+    cube(s1);
+    sphere(s2);
+    csg(s3, CSG_DIFFERENCE, s1, s2);
+    plane(s4);
 
-    s1->material->color[0] = 0.0;
+    s1->material->color[0] = 1;
     s1->material->color[1] = 1;
     s1->material->color[2] = 0.0;
-    s1->material->diffuse = 0.6;
-    s1->material->specular = 1.0;
-    s1->material->shininess = 300.0;
+    //s1->material->diffuse = 0.6;
+    //s1->material->specular = 1.0;
+    //s1->material->shininess = 300.0;
     //s1->fields.cone.minimum = -1;
     //s1->fields.cone.maximum = 1;
     //s1->fields.cone.closed = true;
     //s1->material->reflective = 1.0;
     //s1->material->refractive_index = 1.0;
-    //s1->material->casts_shadow = false;
+    s1->material->casts_shadow = false;
     //s1->material->transparency = 1.0;
 
     //s3->material->casts_shadow = false;
@@ -192,28 +195,32 @@ default_world()
     //s3->material->refractive_index = 3;
     //s3->material->reflective = 1.0;
 
-    s2->material->color[0] = 1;
+    s2->material->color[0] = 0;
     s2->material->color[1] = 0;
     s2->material->color[2] = 0;
-    //s2->material->casts_shadow = false;
+    s2->material->casts_shadow = false;
     //s2->material->transparency = 1;
     //s2->material->refractive_index = 1.0;
+    //s2->material->diffuse = 0.0;
+    //s2->material->specular = 0.0;
+    //s2->material->ambient = 0.0;
 
-    Matrix trans1 = matrix_translate_alloc(0.0, 1.0, 2.0);
+    Matrix trans1 = matrix_translate_alloc(0.0, -2.0, 0.0);
     Matrix scale = matrix_scale_alloc(0.5, 0.5, 0.5);
     Matrix rotate = matrix_rotate_x_alloc(0);
     Matrix rotate2 = matrix_rotate_z_alloc(M_PI/4.0);
-    Matrix trans2 = matrix_translate_alloc(0.0, -1 + .8, 0.0);
+    Matrix trans2 = matrix_translate_alloc(0.2, 0.5, -0.3);
 
     //shape_set_transform(s1, matrix_multiply_alloc(rotate, rotate2));
-    shape_set_transform(s2, matrix_multiply_alloc(trans2, rotate));
+    shape_set_transform(s2, trans2);
+    shape_set_transform(s4, trans1);
     //shape_set_transform(s3, trans2);
     //shape_set_transform(s2, matrix_multiply_alloc(trans1, scale));
     //shape_set_transform(s2, matrix_translate_alloc(0.0, -0.9, 0));
     //shape_set_transform(s3, matrix_multiply_alloc(trans2, rotate));
 
-    w->shapes = shapes;
-    w->shapes_num = 1;
+    w->shapes = shapes + 2;
+    w->shapes_num = 2;
 
     //matrix_free(scale);
     //matrix_free(trans1);
@@ -400,7 +407,7 @@ Color
 color_at(World w, Ray r, size_t remaining)
 {
     Intersections xs = intersect_world(w, r);
-    Intersection i = hit(xs, true);
+    Intersection i = hit(xs, false);
     if (i == NULL) {
         intersections_free(xs);
         return color(0,0,0);
@@ -425,6 +432,13 @@ sort_intersections(const void *p, const void *q)
         return 1;
     }
     return 0;
+}
+
+void
+intersections_sort(Intersections xs)
+{
+    // sort xs by xs->xs->t ascending
+    mergesort((void*)xs->xs, xs->num, sizeof(struct intersection), sort_intersections);
 }
 
 Intersections
@@ -460,8 +474,7 @@ intersect_world(World w, Ray r)
     }
 
     if (xs->num > 1) {
-        // sort xs by xs->xs->t ascending
-        mergesort((void*)xs->xs, xs->num, sizeof(struct intersection), sort_intersections);
+        intersections_sort(xs);
     }
 
     return xs;
