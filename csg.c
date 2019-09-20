@@ -8,6 +8,21 @@
 #include "shapes.h"
 #include "renderer.h"
 
+/*
+ *
+ * DIFFERENCE
+ *
+ * lhit | inr | inl | result |
+ *    0 |   0 |   0 |      0 |
+ *    0 |   0 |   1 |      1 |
+ *    0 |   1 |   0 |      0 |
+ *    0 |   1 |   1 |      1 |
+ *    1 |   0 |   0 |      1 |
+ *    1 |   0 |   1 |      1 |
+ *    1 |   1 |   0 |      0 |
+ *    1 |   1 |   1 |      0 |
+ */
+
 bool
 intersection_allowed(enum csg_ops_enum op, bool lhit, bool inl, bool inr)
 {
@@ -40,12 +55,13 @@ csg_filter_intersections(Shape s, Intersections xs)
         if (intersection_allowed(s->fields.csg.op, lhit, inleft, inright)) {
             if (to != from) {
                 *to = *from;
-                printf("\n");
+                //printf("\n");
             }
             num_remaining++;
             to++;
+            //printf("keeping  x: %d %d %d\n", lhit, inleft, inright);
         } else {
-            printf("skipping x: %d %d %d\n", lhit, inleft, inright);
+            //printf("skipping x: %d %d %d\n", lhit, inleft, inright);
         }
 
         if (lhit) {

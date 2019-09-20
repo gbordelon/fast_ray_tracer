@@ -136,7 +136,7 @@ main()
     Vector up = vector(0, 1, 0);
     Camera cam = camera(6, 5, M_PI/40.0, view_transform(from, to, up));
 */
-    Point from = point(-2,3,-6.0);
+    Point from = point(3.5,3.5,-4.0);
     Point to = point(0,0.0,0);
     Vector up = vector(0, 1, 0);
     Camera cam = camera(400, 400, 0.5, view_transform(from, to, up));

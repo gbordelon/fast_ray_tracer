@@ -172,7 +172,7 @@ default_world()
     double triangle_p3[4] = {0.0, 1.0, 0.0};
     cube(s1);
     sphere(s2);
-    csg(s3, CSG_DIFFERENCE, s1, s2);
+    csg(s3, CSG_INTERSECT, s2, s1);
     plane(s4);
 
     s1->material->color[0] = 1;
@@ -207,13 +207,13 @@ default_world()
     //s2->material->ambient = 0.0;
 
     Matrix trans1 = matrix_translate_alloc(0.0, -2.0, 0.0);
-    Matrix scale = matrix_scale_alloc(0.5, 0.5, 0.5);
+    Matrix scale = matrix_scale_alloc(1.45, 1.45, 1.45);
     Matrix rotate = matrix_rotate_x_alloc(0);
     Matrix rotate2 = matrix_rotate_z_alloc(M_PI/4.0);
     Matrix trans2 = matrix_translate_alloc(0.2, 0.5, -0.3);
 
     //shape_set_transform(s1, matrix_multiply_alloc(rotate, rotate2));
-    shape_set_transform(s2, trans2);
+    shape_set_transform(s2, scale);
     shape_set_transform(s4, trans1);
     //shape_set_transform(s3, trans2);
     //shape_set_transform(s2, matrix_multiply_alloc(trans1, scale));
