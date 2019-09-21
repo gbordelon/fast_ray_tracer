@@ -166,7 +166,7 @@ enum pattern_type {
     UV_TEXTURE_PATTERN,
     /* abstract also have pattern_at_shape fn */
     BLENDED_PATTERN,
-    NESTESTED_PATTERN,
+    NESTED_PATTERN,
     PERTURBED_PATTERN,
     /* abstract UV have a pattern_at fn which calls uv_pattern_at and uv_map */
     CUBE_MAP_PATTERN,

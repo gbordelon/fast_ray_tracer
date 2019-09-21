@@ -173,7 +173,7 @@ default_world()
     double triangle_p1[4] = {0.0, 0.0, 0.0};
     double triangle_p2[4] = {1.0, 1.0, 0.5};
     double triangle_p3[4] = {0.0, 1.0, 0.0};
-    cube(s1);
+    plane(s1);
     sphere(s2);
     cylinder(s3);
     cylinder(s4);
@@ -181,7 +181,19 @@ default_world()
     csg(s6, CSG_DIFFERENCE, s5, s3);
     csg(s7, CSG_DIFFERENCE, s6, s4);
 
-    material_set_pattern(s1->material, stripe_pattern_alloc(color(1,1,0), color(1,0,0)));
+    Matrix scale_pat = matrix_scale_alloc(0.2, 0.2, 0.2); 
+    Matrix rotate_pat = matrix_rotate_y_alloc(M_PI_2);
+
+    Pattern stripe = stripe_pattern_alloc(color(1,0,1), color(0,1,0));
+    pattern_set_transform(stripe, scale_pat);
+
+    Pattern stripe2 = stripe_pattern_alloc(color(1,1,0), color(1,0,0));
+    pattern_set_transform(stripe2, matrix_multiply_alloc(scale_pat, rotate_pat));
+
+    Pattern check = checker_pattern_alloc(color(0,0,0), color(0,0,0));
+    pattern_set_transform(check, matrix_scale_alloc(0.6, 0.6, 0.6));
+
+    material_set_pattern(s1->material, nested_pattern_alloc(check, stripe, stripe2));
     s1->material->color[0] = 1;
     s1->material->color[1] = 1;
     s1->material->color[2] = 0.0;

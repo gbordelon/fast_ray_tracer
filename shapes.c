@@ -295,6 +295,57 @@ base_pattern_at_shape(Pattern p, Shape s, Point pt)
 }
 
 Color
+blended_pattern_at_shape(Pattern p, Shape s, Point pt)
+{
+    Color c1 = p->fields.blended.pattern1->pattern_at_shape(p->fields.blended.pattern1, s, pt);
+    Color c2 = p->fields.blended.pattern2->pattern_at_shape(p->fields.blended.pattern2, s, pt);
+
+    Color c3 = color((c1->arr[0] + c2->arr[0]) / 2,
+                     (c1->arr[1] + c2->arr[1]) / 2,
+                     (c1->arr[2] + c2->arr[2]) / 2);
+
+    color_free(c1);
+    color_free(c2);
+
+    return c3;
+}
+
+Color
+nested_pattern_at_shape(Pattern p, Shape s, Point pt)
+{
+    Color c1 = p->fields.nested.pattern2->pattern_at_shape(p->fields.nested.pattern2, s, pt);
+    Color c2 = p->fields.nested.pattern3->pattern_at_shape(p->fields.nested.pattern3, s, pt);
+
+    switch(p->fields.nested.pattern1->type) {
+    case CHECKER_PATTERN:
+    case GRADIENT_PATTERN:
+    case RADIAL_GRADIENT_PATTERN:
+    case RING_PATTERN:
+    case STRIPE_PATTERN:
+        memcpy(p->fields.nested.pattern1->fields.concrete.a, c1->arr, 3 * sizeof(double));
+        memcpy(p->fields.nested.pattern1->fields.concrete.b, c2->arr, 3 * sizeof(double));
+        break;
+    // TODO I can't think of anything to do for these other patterns...
+    case UV_ALIGN_CHECKER_PATTERN:
+    case UV_CHECKER_PATTERN:
+    case UV_TEXTURE_PATTERN:
+    case BLENDED_PATTERN:
+    case NESTED_PATTERN:
+    case PERTURBED_PATTERN:
+    case CUBE_MAP_PATTERN:
+    case CYLINDER_MAP_PATTERN:
+    case TEXTURE_MAP_PATTERN:
+    default:
+        break;
+    }
+
+    color_free(c1);
+    color_free(c2);
+
+    return p->fields.nested.pattern1->pattern_at_shape(p->fields.nested.pattern1, s, pt);
+}
+
+Color
 base_pattern_at(Pattern p, Point pt)
 {
     printf("calling base_pattern_at which should only happen for tests.\n");
@@ -378,6 +429,61 @@ base_uv_pattern_at(Pattern p, double u, double v)
     printf("calling base_uv_pattern_at which should never happen.\n");
     return color(u, v, 0);
 }
+
+Color
+uv_align_check_uv_pattern_at(Pattern p, double u, double v)
+{
+    // remember v=0 at the bottom, v=1 at the top
+    double *arr = p->fields.uv_align_check.main;
+
+    if (v > 0.8) {
+        if (u < 0.2) {
+            arr = p->fields.uv_align_check.ul;
+        } else if (u > 0.8) {
+            arr = p->fields.uv_align_check.ur;
+        }
+    } else if (v < 0.2) {
+        if (u < 0.2) {
+            arr = p->fields.uv_align_check.bl;
+        } else if (u > 0.8) {
+            arr = p->fields.uv_align_check.br;
+        }
+    }
+
+    return color(arr[0], arr[1], arr[2]);
+}
+
+Color
+uv_check_uv_pattern_at(Pattern p, double u, double v)
+{
+    double *arr;
+    int u2 = (int)floor(u * (double)p->fields.uv_check.width),
+        v2 = (int)floor(v * (double)p->fields.uv_check.height);
+
+    if ((u2 + v2) % 2 == 0) {
+        arr = p->fields.uv_check.a;
+    } else {
+        arr = p->fields.uv_check.b;
+    }
+
+    return color(arr[0], arr[1], arr[2]);
+}
+
+Color
+uv_texture_uv_pattern_at(Pattern p, double u, double v)
+{
+    // remember v=0 at the bottom, v=1 at the top
+    v = 1 - v;
+    int y = (int)round(u * (double)(p->fields.uv_texture.canvas->width - 1));
+    int x = (int)round(v * (double)(p->fields.uv_texture.canvas->height - 1));
+    
+    Color c = color(0,0,0);
+    canvas_pixel_at(p->fields.uv_texture.canvas, x, y, c);
+
+    return c;
+}
+
+
 
 UVMapReturnType
 uv_map_return_type_alloc(size_t face, double u, double v)
@@ -495,16 +601,70 @@ stripe_pattern(Color a, Color b, Pattern res)
 }
 
 void
-uv_align_check_pattern(Color main, Color ul, Color ur, Color bl, Color br, Pattern res);
-void
-uv_check_pattern(Color a, Color b, size_t width, size_t height, Pattern res);
-void
-uv_texture_patern(Canvas canvas, Pattern res);
+uv_align_check_pattern(Color main, Color ul, Color ur, Color bl, Color br, Pattern res)
+{
+    default_pattern_constructor(res);
+    res->type = UV_ALIGN_CHECKER_PATTERN;
+
+    memcpy(res->fields.uv_align_check.main, main->arr, 3 * sizeof(double));
+    memcpy(res->fields.uv_align_check.ul, ul->arr, 3 * sizeof(double));
+    memcpy(res->fields.uv_align_check.ur, ur->arr, 3 * sizeof(double));
+    memcpy(res->fields.uv_align_check.bl, bl->arr, 3 * sizeof(double));
+    memcpy(res->fields.uv_align_check.br, br->arr, 3 * sizeof(double));
+
+    res->uv_pattern_at = uv_align_check_uv_pattern_at;
+}
 
 void
-blended_pattern(Pattern p1, Pattern p2, Pattern res);
+uv_check_pattern(Color a, Color b, size_t width, size_t height, Pattern res)
+{
+    default_pattern_constructor(res);
+    res->type = UV_CHECKER_PATTERN;
+
+    memcpy(res->fields.uv_check.a, a->arr, 3 * sizeof(double));
+    memcpy(res->fields.uv_check.b, b->arr, 3 * sizeof(double));
+    res->fields.uv_check.width = width;
+    res->fields.uv_check.height = height;
+
+    res->uv_pattern_at = uv_check_uv_pattern_at;
+}
+
 void
-nested_pattern(Pattern p1, Pattern p2, Pattern p3, Pattern res);
+uv_texture_pattern(Canvas canvas, Pattern res)
+{
+    default_pattern_constructor(res);
+    res->type = UV_TEXTURE_PATTERN;
+
+    res->fields.uv_texture.canvas = canvas;
+
+    res->uv_pattern_at = uv_texture_uv_pattern_at;
+}
+
+void
+blended_pattern(Pattern p1, Pattern p2, Pattern res)
+{
+    default_pattern_constructor(res);
+    res->type = BLENDED_PATTERN;
+
+    res->fields.blended.pattern1 = p1;
+    res->fields.blended.pattern2 = p2;
+
+    res->pattern_at_shape = blended_pattern_at_shape;
+}
+
+void
+nested_pattern(Pattern p1, Pattern p2, Pattern p3, Pattern res)
+{
+    default_pattern_constructor(res);
+    res->type = NESTED_PATTERN;
+
+    res->fields.nested.pattern1 = p1;
+    res->fields.nested.pattern2 = p2;
+    res->fields.nested.pattern3 = p3;
+
+    res->pattern_at_shape = nested_pattern_at_shape;
+}
+
 void
 perturbed_pattern(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed, Pattern res);
 
@@ -557,12 +717,46 @@ stripe_pattern_alloc(Color a, Color b)
     return p;
 }
 
-Pattern uv_align_check_pattern_alloc(Color main, Color ul, Color ur, Color bl, Color br);
-Pattern uv_check_pattern_alloc(Color a, Color b, size_t width, size_t height);
-Pattern uv_texture_patern_alloc(Canvas canvas);
+Pattern
+uv_align_check_pattern_alloc(Color main, Color ul, Color ur, Color bl, Color br)
+{
+    Pattern p = (Pattern) malloc(sizeof(struct pattern));
+    uv_align_check_pattern(main, ul, ur, bl, br, p);
+    return p;
+}
 
-Pattern blended_pattern_alloc(Pattern p1, Pattern p2);
-Pattern nested_pattern_alloc(Pattern p1, Pattern p2, Pattern p3);
+Pattern
+uv_check_pattern_alloc(Color a, Color b, size_t width, size_t height)
+{
+    Pattern p = (Pattern) malloc(sizeof(struct pattern));
+    uv_check_pattern(a, b, width, height, p);
+    return p;
+}
+
+Pattern
+uv_texture_patern_alloc(Canvas canvas)
+{
+    Pattern p = (Pattern) malloc(sizeof(struct pattern));
+    uv_texture_pattern(canvas, p);
+    return p;
+}
+
+Pattern
+blended_pattern_alloc(Pattern p1, Pattern p2)
+{
+    Pattern p = (Pattern) malloc(sizeof(struct pattern));
+    blended_pattern(p1, p2, p);
+    return p;
+}
+
+Pattern
+nested_pattern_alloc(Pattern p1, Pattern p2, Pattern p3)
+{
+    Pattern p = (Pattern) malloc(sizeof(struct pattern));
+    nested_pattern(p1, p2, p3, p);
+    return p;
+}
+
 Pattern perturbed_pattern_alloc(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed);
 
 Pattern cube_uv_map_pattern_alloc(Pattern faces /* should be six */, uv_map_fn uv_map);
