@@ -24,9 +24,9 @@ double noise3d(int x, int y, int z, int octave, int seed) {
 }
 
 double interpolate(double a, double b, double x) {
-    double f = (1 - cos(x * 3.141593)) * 0.5;
+    double f = (1.0 - cos(x * M_PI)) * 0.5;
 
-    return a * (1 - f) + b * f;
+    return a * (1.0 - f) + b * f;
 }
 
 double smooth1d(double x, int octave, int seed) {
@@ -57,11 +57,11 @@ double smooth2d(double x, double y, int octave, int seed) {
 }
 
 double smooth3d(double x, double y, double z, int octave, int seed) {
-    int intx = (int)x;
+    int intx = (int) (x < 0 ? -x : x);
     double fracx = x - intx;
-    int inty = (int)y;
+    int inty = (int) (y < 0 ? -y : y);
     double fracy = y - inty;
-    int intz = (int)z;
+    int intz = (int) (z < 0 ? -z : z);
     double fracz = z - intz;
 
 
@@ -115,15 +115,15 @@ double pnoise2d(double x, double y, double persistence, int octaves, int seed) {
    return total;
 }
 
-double pnoise3d(double x, double y, double z, double persistence, int octaves, int seed) {
+double pnoise3d(double x, double y, double z, double persistence, double frequency, int octaves, int seed) {
    double total = 0.0;
-   double frequency = 1.0;
+   //double frequency = 1.0;
    double amplitude = 1.0;
-   int i = 0;
+   int i;
    
    for(i = 0; i < octaves; i++) {
        total += smooth3d(x * frequency, y * frequency, z * frequency, i, seed) * amplitude;
-       frequency /= 2;
+       frequency /= 2.0;
        amplitude *= persistence;
    } 
 

@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include "shapes.h"
+#include "perlin.h"
 
 void
 intersection(double t, Shape sh, Intersection x)
@@ -346,6 +347,44 @@ nested_pattern_at_shape(Pattern p, Shape s, Point pt)
 }
 
 Color
+perturbed_pattern_at_shape(Pattern p, Shape s, Point pt)
+{
+    double x = pt->arr[0] / 10.0;
+    double y = pt->arr[1] / 10.0;
+    double z = pt->arr[2] / 10.0;
+
+    double new_x = pt->arr[0] + p->fields.perturbed.scale_factor *
+                   pnoise3d(x, y, z,
+                            p->fields.perturbed.persistence,
+                            p->fields.perturbed.frequency,
+                            p->fields.perturbed.octaves,
+                            p->fields.perturbed.seed);
+
+    z += 1.0;
+    double new_y = pt->arr[1] + p->fields.perturbed.scale_factor *
+                   pnoise3d(x, y, z,
+                            p->fields.perturbed.persistence,
+                            p->fields.perturbed.frequency,
+                            p->fields.perturbed.octaves,
+                            p->fields.perturbed.seed);
+
+    z += 1.0;
+    double new_z = pt->arr[2] + p->fields.perturbed.scale_factor *
+                   pnoise3d(x, y, z,
+                            p->fields.perturbed.persistence,
+                            p->fields.perturbed.frequency,
+                            p->fields.perturbed.octaves,
+                            p->fields.perturbed.seed);
+
+    Point perturbed = point(new_x, new_y, new_z);
+    Color c = p->fields.perturbed.pattern1->pattern_at_shape(p->fields.perturbed.pattern1, s, perturbed);
+
+    point_free(perturbed);
+
+    return c;
+}
+
+Color
 base_pattern_at(Pattern p, Point pt)
 {
     printf("calling base_pattern_at which should only happen for tests.\n");
@@ -666,7 +705,20 @@ nested_pattern(Pattern p1, Pattern p2, Pattern p3, Pattern res)
 }
 
 void
-perturbed_pattern(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed, Pattern res);
+perturbed_pattern(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed, Pattern res)
+{
+    default_pattern_constructor(res);
+    res->type = PERTURBED_PATTERN;
+
+    res->fields.perturbed.pattern1 = p1;
+    res->fields.perturbed.frequency = frequency;
+    res->fields.perturbed.scale_factor = scale_factor;
+    res->fields.perturbed.persistence = persistence;
+    res->fields.perturbed.octaves = octaves;
+    res->fields.perturbed.seed = seed;
+
+    res->pattern_at_shape = perturbed_pattern_at_shape;
+}
 
 void
 cube_uv_map_pattern(Pattern faces /* should be six */, uv_map_fn uv_map, Pattern res);
@@ -757,7 +809,13 @@ nested_pattern_alloc(Pattern p1, Pattern p2, Pattern p3)
     return p;
 }
 
-Pattern perturbed_pattern_alloc(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed);
+Pattern
+perturbed_pattern_alloc(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed)
+{
+    Pattern p = (Pattern) malloc(sizeof(struct pattern));
+    perturbed_pattern(p1, frequency, scale_factor, persistence, octaves, seed, p);
+    return p;
+}
 
 Pattern cube_uv_map_pattern_alloc(Pattern faces /* should be six */, uv_map_fn uv_map);
 Pattern cylinder_uv_map_pattern_alloc(Pattern faces /* should be three */, uv_map_fn uv_map);

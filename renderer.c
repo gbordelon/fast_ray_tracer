@@ -190,10 +190,11 @@ default_world()
     Pattern stripe2 = stripe_pattern_alloc(color(1,1,0), color(1,0,0));
     pattern_set_transform(stripe2, matrix_multiply_alloc(scale_pat, rotate_pat));
 
-    Pattern check = checker_pattern_alloc(color(0,0,0), color(0,0,0));
-    pattern_set_transform(check, matrix_scale_alloc(0.6, 0.6, 0.6));
+    Pattern check = checker_pattern_alloc(color(0,0,0), color(1,1,1));
+    pattern_set_transform(check, matrix_scale_alloc(.6, .6, .6));
 
-    material_set_pattern(s1->material, nested_pattern_alloc(check, stripe, stripe2));
+    //material_set_pattern(s1->material, nested_pattern_alloc(check, stripe, stripe2));
+    material_set_pattern(s1->material, perturbed_pattern_alloc(check, 32, .1, .7, 1, 12123));
     s1->material->color[0] = 1;
     s1->material->color[1] = 1;
     s1->material->color[2] = 0.0;
@@ -218,6 +219,7 @@ default_world()
     shape_set_transform(s4, matrix_multiply_alloc(scale, rotate));
     shape_set_transform(s3, matrix_multiply_alloc(scale, rotate2));
     shape_set_transform(s2, scale);
+    //shape_set_transform(s1, rotate);
 
     w->shapes = shapes + 0;
     w->shapes_num = 1;
