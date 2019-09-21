@@ -162,6 +162,7 @@ default_world()
     w->lights = l;
     w->lights_num = 1;
     Shape shapes = (Shape) malloc(7 * sizeof(struct shape));
+
     Shape s1 = shapes;
     Shape s2 = shapes + 1;
     Shape s3 = shapes + 2;
@@ -170,16 +171,37 @@ default_world()
     Shape s6 = shapes + 5;
     Shape s7 = shapes + 6;
 
-    double triangle_p1[4] = {0.0, 0.0, 0.0};
-    double triangle_p2[4] = {1.0, 1.0, 0.5};
-    double triangle_p3[4] = {0.0, 1.0, 0.0};
-    plane(s1);
+    Pattern faces = (Pattern) malloc(6 * sizeof(struct pattern));
+    Pattern right = faces;
+    Pattern left = faces + 1;
+    Pattern up = faces + 2;
+    Pattern down = faces + 3;
+    Pattern front = faces + 4;
+    Pattern back = faces + 5;
+
+    uv_align_check_pattern(color(1,0,0), color(1,1,0), color(1,0,1), color(0,1,0), color(1, 1, 1), right);
+    uv_align_check_pattern(color(1,1,0), color(0,1,1), color(1,0,0), color(0,0,1), color(1, .5, 0), left);
+    uv_align_check_pattern(color(1, 0.5, 0), color(0,1,1), color(1,0,1), color(1,0,0), color(1, 1, 0), up);
+    uv_align_check_pattern(color(1, 0, 1), color(1, 0.5, 0), color(0,1,0), color(0,0,1), color(1, 1, 1), down);
+    uv_align_check_pattern(color(0, 1, 1), color(1, 0, 0), color(1,1,0), color(1,0.5,0), color(0, 1, 0), front);
+    uv_align_check_pattern(color(0, 1, 0), color(1, 0, 1), color(0,1,1), color(1,1,1), color(0, 0, 1), back);
+    pattern_set_transform(right, matrix_scale_alloc(0.5, 0.5, 0.5));
+    pattern_set_transform(left, matrix_scale_alloc(0.5, 0.5, 0.5));
+    pattern_set_transform(front, matrix_scale_alloc(0.5, 0.5, 0.5));
+    pattern_set_transform(back, matrix_scale_alloc(0.5, 0.5, 0.5));
+    pattern_set_transform(up, matrix_scale_alloc(0.5, 0.5, 0.5));
+    pattern_set_transform(down, matrix_scale_alloc(0.5, 0.5, 0.5));
+
+
+    cylinder(s1);
     sphere(s2);
     cylinder(s3);
     cylinder(s4);
     csg(s5, CSG_DIFFERENCE, s1, s2);
     csg(s6, CSG_DIFFERENCE, s5, s3);
     csg(s7, CSG_DIFFERENCE, s6, s4);
+
+    
 
     Matrix scale_pat = matrix_scale_alloc(0.2, 0.2, 0.2); 
     Matrix rotate_pat = matrix_rotate_y_alloc(M_PI_2);
@@ -191,13 +213,40 @@ default_world()
     pattern_set_transform(stripe2, matrix_multiply_alloc(scale_pat, rotate_pat));
 
     Pattern check = checker_pattern_alloc(color(0,0,0), color(1,1,1));
-    pattern_set_transform(check, matrix_scale_alloc(.6, .6, .6));
+    pattern_set_transform(check, matrix_scale_alloc(1, 1, 1));
+
+    Pattern uv_check = uv_check_pattern_alloc(color(1,0,0), color(0,0,1), 8, 8);
+    pattern_set_transform(uv_check, matrix_scale_alloc(1, 1, 1));
+
+    Pattern cylinder_faces = (Pattern) malloc(3 * sizeof(struct pattern));
+    Pattern body = cylinder_faces;
+    Pattern top_cap = cylinder_faces + 1;
+    Pattern bottom_cap = cylinder_faces + 2;
+
+    Pattern earth_uv = uv_texture_pattern_alloc(construct_canvas_from_ppm_file("/tmp/earthmap1k.ppm"));
+
+    uv_check_pattern(color(1,0,0), color(0,0,1), 8, 2, body);
+    uv_check_pattern(color(1,1,1), color(0,1,0), 4, 4, top_cap);
+    uv_check_pattern(color(1,1,0), color(0,1,1), 4, 4, bottom_cap);
+
+    pattern_set_transform(body, matrix_scale_alloc(.5, .5, .5));
+    pattern_set_transform(top_cap, matrix_scale_alloc(1, 1, 1));
+    pattern_set_transform(bottom_cap, matrix_scale_alloc(1, 1, 1));
+
+    Pattern cube_map = texture_map_pattern_alloc(faces, CUBE_UV_MAP);
+    Pattern cylinder_map = texture_map_pattern_alloc(cylinder_faces, CYLINDER_UV_MAP);
+    Pattern plane_map = texture_map_pattern_alloc(faces, PLANE_UV_MAP);
+    Pattern sphere_map = texture_map_pattern_alloc(earth_uv, SPHERE_UV_MAP);
 
     //material_set_pattern(s1->material, nested_pattern_alloc(check, stripe, stripe2));
-    material_set_pattern(s1->material, perturbed_pattern_alloc(check, 32, .1, .7, 1, 12123));
+    //material_set_pattern(s1->material, perturbed_pattern_alloc(check, 32, .1, .7, 1, 12123));
+    material_set_pattern(s1->material, sphere_map);
     s1->material->color[0] = 1;
     s1->material->color[1] = 1;
     s1->material->color[2] = 0.0;
+    s1->fields.cylinder.closed = true;
+    s1->fields.cylinder.maximum = 1.;
+    s1->fields.cylinder.minimum = -1;
     //s1->material->casts_shadow = false;
     //s1->material->transparency = 1.0;
 

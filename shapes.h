@@ -277,16 +277,13 @@ void stripe_pattern(Color a, Color b, Pattern res);
 
 void uv_align_check_pattern(Color main, Color ul, Color ur, Color bl, Color br, Pattern res);
 void uv_check_pattern(Color a, Color b, size_t width, size_t height, Pattern res);
-void uv_texture_patern(Canvas canvas, Pattern res);
+void uv_texture_pattern(Canvas canvas, Pattern res);
 
 void blended_pattern(Pattern p1, Pattern p2, Pattern res);
 void nested_pattern(Pattern p1, Pattern p2, Pattern p3, Pattern res);
 void perturbed_pattern(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed, Pattern res);
 
-void cube_uv_map_pattern(Pattern faces /* should be six */, uv_map_fn uv_map, Pattern res);
-void cylinder_uv_map_pattern(Pattern faces /* should be three */, uv_map_fn uv_map, Pattern res);
-void plane_uv_map_pattern(Pattern faces /* should be one */, uv_map_fn uv_map, Pattern res);
-void sphere_uv_map_pattern(Pattern faces /* should be one */, uv_map_fn uv_map, Pattern res);
+void texture_map_pattern(Pattern faces /* should be one */, enum uv_map_type type, Pattern res);
 
 
 Pattern checker_pattern_alloc(Color a, Color b);
@@ -297,16 +294,13 @@ Pattern stripe_pattern_alloc(Color a, Color b);
 
 Pattern uv_align_check_pattern_alloc(Color main, Color ul, Color ur, Color bl, Color br);
 Pattern uv_check_pattern_alloc(Color a, Color b, size_t width, size_t height);
-Pattern uv_texture_patern_alloc(Canvas canvas);
+Pattern uv_texture_pattern_alloc(Canvas canvas);
 
 Pattern blended_pattern_alloc(Pattern p1, Pattern p2);
 Pattern nested_pattern_alloc(Pattern p1, Pattern p2, Pattern p3);
 Pattern perturbed_pattern_alloc(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed);
 
-Pattern cube_uv_map_pattern_alloc(Pattern faces /* should be six */, uv_map_fn uv_map);
-Pattern cylinder_uv_map_pattern_alloc(Pattern faces /* should be three */, uv_map_fn uv_map);
-Pattern plane_uv_map_pattern_alloc(Pattern faces /* should be one */, uv_map_fn uv_map);
-Pattern sphere_uv_map_pattern_alloc(Pattern faces /* should be one */, uv_map_fn uv_map);
+Pattern texture_map_pattern_alloc(Pattern faces /* should be one */, enum uv_map_type type);
 
 
 

@@ -462,6 +462,40 @@ stripe_pattern_at(Pattern p, Point pt)
     return color(arr[0], arr[1], arr[2]);
 }
 
+
+UVMapReturnType
+uv_map_return_type_alloc(size_t face, double u, double v)
+{
+    UVMapReturnType rv = (UVMapReturnType) malloc(sizeof(struct face_uv_retval));
+    rv->face = face;
+    rv->u = u;
+    rv->v = v;
+
+    return rv;
+}
+
+void
+uv_map_return_type_free(UVMapReturnType p)
+{
+    if (p != NULL) {
+        free(p);
+    }
+}
+
+
+Color
+texture_map_pattern_at(Pattern p, Point pt)
+{
+    UVMapReturnType face_u_v = p->uv_map(pt);
+    Pattern face = p->fields.uv_map.uv_faces + face_u_v->face;
+
+    Color c = face->uv_pattern_at(face, face_u_v->u, face_u_v->v);
+
+    uv_map_return_type_free(face_u_v);
+
+    return c;
+}
+
 Color
 base_uv_pattern_at(Pattern p, double u, double v)
 {
@@ -515,32 +549,11 @@ uv_texture_uv_pattern_at(Pattern p, double u, double v)
     v = 1 - v;
     int y = (int)round(u * (double)(p->fields.uv_texture.canvas->width - 1));
     int x = (int)round(v * (double)(p->fields.uv_texture.canvas->height - 1));
-    
+
     Color c = color(0,0,0);
-    canvas_pixel_at(p->fields.uv_texture.canvas, x, y, c);
+    canvas_pixel_at(p->fields.uv_texture.canvas, y, x, c);
 
     return c;
-}
-
-
-
-UVMapReturnType
-uv_map_return_type_alloc(size_t face, double u, double v)
-{
-    UVMapReturnType rv = (UVMapReturnType) malloc(sizeof(struct face_uv_retval));
-    rv->face = face;
-    rv->u = u;
-    rv->v = v;
-
-    return rv;
-}
-
-void
-uv_map_return_type_free(UVMapReturnType p)
-{
-    if (p != NULL) {
-        free(p);
-    }
 }
 
 UVMapReturnType
@@ -549,6 +562,122 @@ base_uv_map(Point pt)
     printf("calling base_uv_pattern_at which should never happen.\n");
     return uv_map_return_type_alloc(0, pt->arr[0], pt->arr[1]);
 }
+
+UVMapReturnType
+cube_uv_map(Point pt)
+{
+    double abs_x = fabs(pt->arr[0]);
+    double abs_y = fabs(pt->arr[1]);
+    double abs_z = fabs(pt->arr[2]);
+    double coord = fmax(fmax(abs_x, abs_y), abs_z);
+
+    size_t face = equal(coord, pt->arr[0])
+        ? 0
+        : equal(coord, -pt->arr[0])
+            ? 1
+            : equal(coord, pt->arr[1])
+                ? 2
+                : equal(coord, -pt->arr[1])
+                    ? 3
+                    : equal(coord, pt->arr[2])
+                        ? 4
+                        : 5;
+
+    UVMapReturnType retval = uv_map_return_type_alloc(face, 0, 0);
+
+    switch (face) {
+    case 0: // right
+        retval->u = fmod((1.0 - pt->arr[2]), 2.0) / 2.0;
+        retval->v = fmod((pt->arr[1] + 1.0), 2.0) / 2.0;
+        break;
+    case 1: // left
+        retval->u = fmod((pt->arr[2] + 1.0), 2.0) / 2.0;
+        retval->v = fmod((pt->arr[1] + 1.0), 2.0) / 2.0;
+        break;
+    case 2: // up
+        retval->u = fmod((pt->arr[0] + 1.0), 2.0) / 2.0;
+        retval->v = fmod((1.0 - pt->arr[2]), 2.0) / 2.0;
+        break;
+    case 3: // down
+        retval->u = fmod((pt->arr[0] + 1.0), 2.0) / 2.0;
+        retval->v = fmod((pt->arr[2] + 1.0), 2.0) / 2.0;
+        break;
+    case 4: // front
+        retval->u = fmod((pt->arr[0] + 1.0), 2.0) / 2.0;
+        retval->v = fmod((pt->arr[1] + 1.0), 2.0) / 2.0;
+        break;
+    case 5: // back
+        retval->u = fmod((1.0 - pt->arr[0]), 2.0) / 2.0;
+        retval->v = fmod((pt->arr[1] + 1.0), 2.0) / 2.0;
+        break;
+    }
+
+    return retval;
+}
+
+UVMapReturnType
+cylinder_uv_map(Point pt)
+{
+    double radius = sqrt(pt->arr[0] * pt->arr[0] + pt->arr[2] + pt->arr[2]);
+    double abs_y = fabs(pt->arr[1]);
+    double coord = fmax(radius, abs_y);
+    double theta;
+    double raw_u;
+
+    // TODO for now don't bother with special mapping for the caps
+    size_t face = 0; /*equal(coord, radius)
+        ? 0
+        : equal(coord, pt->arr[1])
+            ? 1
+            : 2; */
+
+    UVMapReturnType retval = uv_map_return_type_alloc(face, 0, 0);
+
+    switch (face) {
+    case 0: // cylinder body
+        theta = atan2(pt->arr[0], pt->arr[2]);
+        raw_u = theta / (2.0 * M_PI);
+        retval->u = 1.0 - (raw_u + 0.5);
+        retval->v = fmod(pt->arr[1], 1.0);
+        break;
+    case 1: // top cap
+        retval->u = fmod((pt->arr[0] + 1.0), 2.0) / 2.0;
+        retval->v = fmod((1.0 - pt->arr[2]), 2.0) / 2.0;
+        break;
+    case 2: // bottom cap
+        retval->u = fmod((pt->arr[0] + 1.0), 2.0) / 2.0;
+        retval->v = fmod((pt->arr[2] + 1.0), 2.0) / 2.0;
+        break;
+    }
+
+    return retval;
+}
+
+UVMapReturnType
+plane_uv_map(Point pt)
+{
+    double u = fmod(pt->arr[0], 1.0);
+    double v = fmod(pt->arr[2], 1.0);
+
+    return uv_map_return_type_alloc(0, u, v);
+}
+
+UVMapReturnType
+sphere_uv_map(Point pt)
+{
+    double theta = atan2(pt->arr[0], pt->arr[2]);
+    Vector vec = vector(pt->arr[0], pt->arr[1], pt->arr[2]);
+    double radius = vector_magnitude(vec);
+    double phi = acos(pt->arr[1] / radius);
+    double raw_u = theta / (2 * M_PI);
+    double u = 1 - (raw_u + 0.5);
+    double v = 1 - phi / M_PI;
+
+    vector_free(vec);
+
+    return uv_map_return_type_alloc(0, u, v);
+}
+
 
 void
 pattern_set_transform(Pattern obj, Matrix m)
@@ -721,14 +850,33 @@ perturbed_pattern(Pattern p1, double frequency, double scale_factor, double pers
 }
 
 void
-cube_uv_map_pattern(Pattern faces /* should be six */, uv_map_fn uv_map, Pattern res);
-void
-cylinder_uv_map_pattern(Pattern faces /* should be three */, uv_map_fn uv_map, Pattern res);
-void
-plane_uv_map_pattern(Pattern faces /* should be one */, uv_map_fn uv_map, Pattern res);
-void
-sphere_uv_map_pattern(Pattern faces /* should be one */, uv_map_fn uv_map, Pattern res);
+texture_map_pattern(Pattern faces /* should be one */, enum uv_map_type type, Pattern res)
+{
+    default_pattern_constructor(res);
+    res->type = TEXTURE_MAP_PATTERN;
 
+    res->fields.uv_map.type = type;
+    res->fields.uv_map.uv_faces = faces;
+    res->pattern_at = texture_map_pattern_at;
+
+    switch (type) {
+    case CUBE_UV_MAP:
+        res->uv_map = cube_uv_map;
+        break;
+    case CYLINDER_UV_MAP:
+        res->uv_map = cylinder_uv_map;
+        break;
+    case PLANE_UV_MAP:
+        res->uv_map = plane_uv_map;
+        break;
+    case SPHERE_UV_MAP:
+        res->uv_map = sphere_uv_map;
+        break;
+    default:
+        // already set res->uv_map to an error function in the default constructor
+        break;
+    }
+}
 
 Pattern
 checker_pattern_alloc(Color a, Color b)
@@ -786,7 +934,7 @@ uv_check_pattern_alloc(Color a, Color b, size_t width, size_t height)
 }
 
 Pattern
-uv_texture_patern_alloc(Canvas canvas)
+uv_texture_pattern_alloc(Canvas canvas)
 {
     Pattern p = (Pattern) malloc(sizeof(struct pattern));
     uv_texture_pattern(canvas, p);
@@ -817,11 +965,13 @@ perturbed_pattern_alloc(Pattern p1, double frequency, double scale_factor, doubl
     return p;
 }
 
-Pattern cube_uv_map_pattern_alloc(Pattern faces /* should be six */, uv_map_fn uv_map);
-Pattern cylinder_uv_map_pattern_alloc(Pattern faces /* should be three */, uv_map_fn uv_map);
-Pattern plane_uv_map_pattern_alloc(Pattern faces /* should be one */, uv_map_fn uv_map);
-Pattern sphere_uv_map_pattern_alloc(Pattern faces /* should be one */, uv_map_fn uv_map);
-
+Pattern
+texture_map_pattern_alloc(Pattern faces /* number should be determined by uv_map */,  enum uv_map_type type)
+{
+    Pattern p = (Pattern) malloc(sizeof(struct pattern));
+    texture_map_pattern(faces, type, p);
+    return p;
+}
 
 
 
