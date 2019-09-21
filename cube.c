@@ -9,7 +9,7 @@ struct two_doubles {
     double a[2];
 };
 
-struct two_doubles // TODO does this work? 
+struct two_doubles
 check_axis(double origin, double direction)
 {
     struct two_doubles min_max;

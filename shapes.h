@@ -62,7 +62,7 @@ typedef struct material {
     double transparency;
     double refractive_index;
     bool casts_shadow;
-    Pattern pattern; // until patterns are fleshed out, lighting() should just use material->color
+    Pattern pattern;
 } *Material;
 
 struct csg_fields {
@@ -223,7 +223,7 @@ struct perturbed_pattern_fields {
     int seed;
 };
 
-/* abstract UV patterns */
+/* abstract UV patterns correspond to functions in shpaes.c */
 enum uv_map_type {
     CUBE_UV_MAP,
     CYLINDER_UV_MAP,
@@ -265,8 +265,6 @@ typedef struct pattern {
     Color (*pattern_at)(struct pattern *, Point);
     Color (*uv_pattern_at)(struct pattern *, double, double);
     uv_map_fn uv_map;
-
-    // pattern_set_transform
 } *Pattern;
 
 void checker_pattern(Color a, Color b, Pattern res);
@@ -283,7 +281,7 @@ void blended_pattern(Pattern p1, Pattern p2, Pattern res);
 void nested_pattern(Pattern p1, Pattern p2, Pattern p3, Pattern res);
 void perturbed_pattern(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed, Pattern res);
 
-void texture_map_pattern(Pattern faces /* should be one */, enum uv_map_type type, Pattern res);
+void texture_map_pattern(Pattern faces, enum uv_map_type type, Pattern res);
 
 
 Pattern checker_pattern_alloc(Color a, Color b);
@@ -300,7 +298,7 @@ Pattern blended_pattern_alloc(Pattern p1, Pattern p2);
 Pattern nested_pattern_alloc(Pattern p1, Pattern p2, Pattern p3);
 Pattern perturbed_pattern_alloc(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed);
 
-Pattern texture_map_pattern_alloc(Pattern faces /* should be one */, enum uv_map_type type);
+Pattern texture_map_pattern_alloc(Pattern faces, enum uv_map_type type);
 
 
 
@@ -319,7 +317,6 @@ Ray ray_alloc(Point origin, Vector direction);
 void ray_free(Ray r);
 int ray_to_string(char *s, size_t n, Ray r);
 
-// default functions for shapes
 Intersections shape_intersect(Shape sh, Ray r);
 Vector shape_normal_at(Shape sh, Point world_point, Intersection hit);
 Vector shape_normal_to_world(Shape sh, Vector local_normal);
@@ -332,9 +329,6 @@ int shape_to_string(char *buf, size_t n, Shape sh);
 void shape_set_transform(Shape obj, Matrix transform);
 void pattern_set_transform(Pattern pat, Matrix transform);
 
-// Bounding Box
-
-// Material
 void material();
 Material material_alloc();
 void material_set_pattern(Material m, Pattern p);

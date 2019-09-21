@@ -139,7 +139,7 @@ main()
     Point from = point(3.5,3.5,-4.0);
     Point to = point(0,0.0,0);
     Vector up = vector(0, 1, 0);
-    Camera cam = camera(400, 400, 0.5, view_transform(from, to, up));
+    Camera cam = camera(400, 400, .3, view_transform(from, to, up));
 
     point_free(from);
     point_free(to);
@@ -159,10 +159,10 @@ main()
 
 
 /*
-    from = point(-1.9,3,-6.0);
+    from = point(3.9,3.5,-4.0);
     to = point(0,0.0,0);
     up = vector(0, 1, 0);
-    cam = camera(400, 400, 0.5, view_transform(from, to, up));
+    cam = camera(800, 800, .3, view_transform(from, to, up));
 
     c = render(cam, w);
 
