@@ -1,0 +1,84 @@
+# ======================================================
+# the camera
+# ======================================================
+
+- add: camera
+  width: 1024
+  height: 1024
+  field-of-view: 0.5
+  from: [-2, 3, -6]
+  to: [0, 0, 0]
+  up: [0, 1, 0]
+
+# ======================================================
+# light sources
+# ======================================================
+
+- add: light
+  at: [ 2, 10, -2 ]
+  intensity: [ 1, 1, 1 ]
+
+- add: light
+  corner: [-1, 2, 4]
+  uvec: [2, 0, 0]
+  vvec: [0, 2, 0]
+  usteps: 10
+  vsteps: 10
+  jitter: true
+  intensity: [1.5, 1.5, 1.5]
+
+# ======================================================
+# These describe groups that will be reused within
+# the scene. (You can think of these as functions that
+# return a new instance of the given shape each time they
+# are referenced.)
+# ======================================================
+
+- define: leg
+  value:
+    add: csg
+    op: difference
+    right:
+      add: sphere
+      transform:
+      - [ translate, 0.2, 0.5, -0.3]
+      material:
+        transparency: 1.0
+        casts-shadow: False
+        specular: 0
+        ambient: 0
+        diffuse: 0
+    left:
+      add: cube
+      material:
+        color: [ 1, 1, 0 ]
+        casts-shadow: False
+#        specular: 1
+#        diffuse: 1
+#        ambient: 0.0
+
+# ======================================================
+# Construct the scene itself
+# ======================================================
+
+# a white backdrop
+- add: plane
+  transform:
+  - [ rotate-x, 1.5708 ]
+  - [ translate, 0, 0, 100 ]
+  material:
+    color: [ 1, 1, 1 ]
+    ambient: 1
+    diffuse: 0
+    specular: 0
+
+- add: leg
+#  transform:
+#  - [ rotate-y, 0.1745 ]
+#  - [ rotate-y, -1.5708 ]
+#  material:
+#    color: [ 0.2, 0.9, 0.6 ]
+#    ambient: 0.2
+#    diffuse: 0.8
+#    specular: 0.7
+#    shininess: 20
