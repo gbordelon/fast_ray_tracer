@@ -80,10 +80,6 @@ area_light_surface_points(Light light)
     return light->surface_points_cache + choice;
 }
 
-/*
- *  set the cache fields when alloc'ing the first time
- *  no need to alloc after the first call for point light
- */
 Points
 point_light_surface_points(Light light)
 {
@@ -466,6 +462,7 @@ ray_for_pixel(Camera cam, double px, double py, double x_offset, double y_offset
     return r;
 }
 
+/*
 Ray
 ray_for_pixel_ul(Camera cam, double px, double py, double factor)
 {
@@ -507,9 +504,6 @@ pixel_single_sample(Camera cam, World w, int x, int y)
     return cm;
 }
 
-/* TODO
- * some other algorithm for deciciding to make recursive calls. HSL?
- */
 Color
 pixel_multi_sample(Camera cam, World w, double x, double y, double factor)
 {
@@ -573,6 +567,50 @@ pixel_multi_sample(Camera cam, World w, double x, double y, double factor)
 
     return cm;
 }
+*/
+
+
+/*
+ * ^  +-----+
+ * |  |     |
+ * |  |     |
+ *    +-----+
+ * v u  ---->
+ *
+ * u ranges from x to x+1
+ * v ranges from y to y+1
+ * subdivide the pixel by units to make a grid
+ * choose a point in each grid cell to sample
+ * average the colors
+ */
+Color
+pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_t vsteps)
+{
+    double sum[3] = {0.0, 0.0, 0.0};
+    double x_offset, y_offset;
+    size_t u, v;
+    double total_steps = (double)usteps * (double)vsteps;
+
+    Ray r;
+    Color c;
+
+    for (v = 0; v < vsteps; v++) {
+        for (u = 0; u < usteps; u++) {
+            x_offset = ((double)u + jitter_by(true)) / (double)usteps;
+            y_offset = ((double)v + jitter_by(true)) / (double)vsteps;
+            r = ray_for_pixel(cam, x, y, x_offset, y_offset);
+            c = color_at(w, r, 5);
+            sum[0] += c->arr[0];
+            sum[1] += c->arr[1];
+            sum[2] += c->arr[2];
+            ray_free(r);
+            color_free(c);
+        }
+    }
+
+    c = color(sum[0] / total_steps, sum[1] / total_steps, sum[2] / total_steps);
+    return c;
+}
 
 Canvas
 render(Camera cam, World w)
@@ -584,8 +622,8 @@ render(Camera cam, World w)
     k = 0;
     for (j = 0; j < cam->vsize; ++j) {
         for (i = 0; i < cam->hsize; ++i) {
-            //Color c = pixel_multi_sample(cam, w, (double)i, (double)j, 1.0);
-            Color c = pixel_single_sample(cam, w, i, j);
+            Color c = pixel_multi_sample(cam, w, (double)i, (double)j, 2, 2);
+            //Color c = pixel_single_sample(cam, w, i, j);
             canvas_write_pixel(image, i, j, c);
             color_free(c);
         }
