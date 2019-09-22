@@ -64,6 +64,12 @@ group_add_children(Shape group, Shape children, size_t num_children)
 Intersections
 group_local_intersect(Shape group, Ray r)
 {
+    Bounding_box box = group->bounds(group);
+    if (!bounding_box_intersects(box, r)) {
+        bounding_box_free(box);
+        return intersections_empty(0);
+    }
+
     Intersections *children_xs = (Intersections *) malloc(group->fields.group.num_children * sizeof(Intersection));
 
     int i;
@@ -98,6 +104,7 @@ group_local_intersect(Shape group, Ray r)
     intersections_sort(all_xs);
 
     free(children_xs);
+    bounding_box_free(box);
 
     return all_xs;
 }

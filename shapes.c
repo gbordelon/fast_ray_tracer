@@ -264,6 +264,14 @@ shape_set_transform(Shape obj, Matrix m)
     }
 }
 
+void
+shape_set_material(Shape obj, Material m)
+{
+    if (obj != NULL) {
+        obj->material = m;
+    }
+}
+
 // bounding boxes
 Bounding_box
 shape_bounds_alloc(Shape sh)
@@ -293,13 +301,56 @@ shape_parent_space_bounds_alloc(Shape sh)
 int
 shape_to_string(char *buf, size_t n, Shape sh)
 {
-    return snprintf(buf, n, "Shape:\n\ttransform: %p\n\tmaterial: %p\n\tparent: %p\n\ttype: %d\n",
+    const char *type_name;
+    switch (sh->type) {
+    case SHAPE_CONE:
+        type_name = "cone";
+        break;
+    case SHAPE_CUBE:
+        type_name = "cube";
+        break;
+    case SHAPE_CYLINDER:
+        type_name = "cylinder";
+        break;
+    case SHAPE_PLANE:
+        type_name = "plane";
+        break;
+    case SHAPE_SMOOTH_TRIANGLE:
+        type_name = "smooth triangle";
+        break;
+    case SHAPE_SPHERE:
+        type_name = "sphere";
+        break;
+    case SHAPE_TOROID:
+        type_name = "toroid";
+        break;
+    case SHAPE_TRIANGLE:
+        type_name = "triangle";
+        break;
+    case SHAPE_CSG:
+        type_name = "csg";
+        break;
+    case SHAPE_GROUP:
+        type_name = "group";
+        break;
+    }
+
+    return snprintf(buf, n, "Shape:\n\ttransform: %p\n\tmaterial: %p\n\tparent: %p\n\ttype: %s\n",
         (void *)sh->transform,
         (void *)sh->material,
         (void *)sh->parent,
-        sh->type);
+        type_name);
 }
 
+int
+intersection_to_string(char *buf, size_t n, Intersection x)
+{
+    int used = snprintf(buf, n, "Intersection:\n\tt: %f\n\tu: %f\n\tv: %f\n",
+                        x->t,
+                        x->u,
+                        x->v);
+    return used + shape_to_string(buf + used, n - used, x->object);
+}
 
 /*
  *
@@ -998,16 +1049,5 @@ texture_map_pattern_alloc(Pattern faces /* number should be determined by uv_map
     texture_map_pattern(faces, type, p);
     return p;
 }
-
-
-
-
-
-
-
-
-
-
-
 
 

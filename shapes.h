@@ -339,14 +339,16 @@ void shape_divide(Shape sh, size_t threshold);
 bool shape_includes(Shape a, Shape b);
 
 int shape_to_string(char *buf, size_t n, Shape sh);
+int intersection_to_string(char *buf, size_t n, Intersection x);
 
 void shape_set_transform(Shape obj, Matrix transform);
 void pattern_set_transform(Pattern pat, Matrix transform);
 
+void shape_set_material(Shape obj, Material m);
+
 void material();
 Material material_alloc();
 void material_set_pattern(Material m, Pattern p);
-
 
 Bounding_box shape_bounds_alloc(Shape sh);
 Bounding_box shape_parent_space_bounds_alloc(Shape sh);

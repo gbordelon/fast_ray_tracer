@@ -76,10 +76,16 @@ csg_filter_intersections(Shape s, Intersections xs)
 Intersections
 csg_local_intersect(Shape s, Ray r)
 {
+    Bounding_box box = s->bounds(s);
+    if (!bounding_box_intersects(box, r)) {
+        bounding_box_free(box);
+        return intersections_empty(0);
+    }
+
     Intersections left_xs = s->fields.csg.left->intersect(s->fields.csg.left, r);
     Intersections right_xs = s->fields.csg.right->intersect(s->fields.csg.right, r);
 
-    if (left_xs->num + right_xs->num > 0) {
+    if ((left_xs->num + right_xs->num) > 0) {
         if (left_xs->num == 0) {
             // filter
             csg_filter_intersections(s, right_xs);
@@ -111,6 +117,7 @@ csg_local_intersect(Shape s, Ray r)
     }
 
     intersections_free(right_xs);
+    bounding_box_free(box);
 
     return left_xs;
 }

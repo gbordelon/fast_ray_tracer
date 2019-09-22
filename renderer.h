@@ -69,10 +69,23 @@ typedef struct world {
     size_t shapes_num;
 } *World;
 
+enum aperture_shape {
+    POINT_APERTURE,
+    CIRCULAR_APERTURE,
+    RECTANGULAR_APERTURE,
+    HEXAGONAL_APERTURE,
+    PENTAGONAL_APERTURE,
+    OCTAGONAL_APERTURE,
+};
+
 typedef struct camera {
     size_t hsize;
     size_t vsize;
+    double aperture_size;
+    size_t sample_num;
     double field_of_view;
+    double canvas_distance;
+    enum aperture_shape aperture_shape;
     double half_width;
     double half_height;
     double pixel_size;
@@ -80,7 +93,7 @@ typedef struct camera {
     Matrix transform_inverse;
 } *Camera;
 
-Camera camera(size_t hsize, size_t vsize, double field_of_view, Matrix transform);
+Camera camera(size_t hsize, size_t vsize, double field_of_view, double aperture_size, double canvas_distance, enum aperture_shape aperture_shape, size_t sample_num, Matrix transform);
 Matrix view_transform(Point fr, Point to, Vector up);
 void camera_set_transform(Camera c, Matrix m);
 
@@ -99,6 +112,6 @@ void intersections_sort(Intersections xs);
 void intersections_reverse(Intersections xs);
 
 Computations prepare_computations(Intersection i, Ray r, Intersections xs);
-Canvas render(Camera cam, World w);
+Canvas render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter);
 
 #endif

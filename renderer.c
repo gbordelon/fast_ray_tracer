@@ -198,6 +198,10 @@ Camera
 camera(size_t hsize,
        size_t vsize,
        double field_of_view,
+       double aperture_size,
+       double canvas_distance,
+       enum aperture_shape aperture_shape,
+       size_t sample_num,
        Matrix transform)
 {
     Camera c = (Camera) malloc(sizeof(struct camera));
@@ -206,9 +210,13 @@ camera(size_t hsize,
     c->hsize = hsize;
     c->vsize = vsize;
     c->field_of_view = field_of_view;
+    c->aperture_size = aperture_size;
+    c->canvas_distance = canvas_distance;
+    c->aperture_shape = aperture_shape;
+    c->sample_num = sample_num;
 
 
-    double half_view = tan(field_of_view / 2.0);
+    double half_view = canvas_distance * tan(field_of_view / 2.0);
     double aspect = (double)hsize / (double)vsize;
 
     if (aspect >= 1.0) {
@@ -285,13 +293,13 @@ World
 default_world()
 {
     World w = world();
-    //Point p = point(-1, 1.5, -1.8);
-    Point p = point(-2, 0.5, -1.8);
+    Point p = point(-2, 2.2, -3);
+    //Point p = point(-2, 0.5, -1.8);
     Vector uvec = vector(2, 0, 0);
     Vector vvec = vector(0, 2, 0);
     Color c = color(1.5, 1.5, 1.5);
-    Light l = area_light_alloc(p->arr, uvec->arr, 10, vvec->arr, 10, true, c->arr);
-    //Light l = point_light_alloc(p, c);
+    //Light l = area_light_alloc(p->arr, uvec->arr, 10, vvec->arr, 10, true, c->arr);
+    Light l = point_light_alloc(p, c);
     w->lights = l;
     w->lights_num = 1;
     Shape shapes = (Shape) malloc(7 * sizeof(struct shape));
@@ -304,6 +312,7 @@ default_world()
     Shape s6 = shapes + 5;
     Shape s7 = shapes + 6;
 
+/*
     Pattern faces = (Pattern) malloc(6 * sizeof(struct pattern));
     Pattern right = faces;
     Pattern left = faces + 1;
@@ -324,18 +333,19 @@ default_world()
     pattern_set_transform(back, matrix_scale_alloc(0.5, 0.5, 0.5));
     pattern_set_transform(up, matrix_scale_alloc(0.5, 0.5, 0.5));
     pattern_set_transform(down, matrix_scale_alloc(0.5, 0.5, 0.5));
+*/
 
-
-    sphere(s1);
-    plane(s2);
-    cylinder(s3);
-    cylinder(s4);
-    csg(s5, CSG_DIFFERENCE, s1, s2);
-    csg(s6, CSG_DIFFERENCE, s5, s3);
-    csg(s7, CSG_DIFFERENCE, s6, s4);
+    //plane(s1);
+    cube(s2);
+    sphere(s3);
+    csg(s4, CSG_DIFFERENCE, s2, s3);
+    plane(s5);
+    //sphere(s5);//, CSG_DIFFERENCE, s1, s2);
+    //sphere(s6);//, CSG_DIFFERENCE, s5, s3);
+    //sphere(s7);//, CSG_DIFFERENCE, s6, s4);
 
     
-
+/*
     Matrix scale_pat = matrix_scale_alloc(0.2, 0.2, 0.2); 
     Matrix rotate_pat = matrix_rotate_y_alloc(M_PI_2);
 
@@ -345,9 +355,6 @@ default_world()
     Pattern stripe2 = stripe_pattern_alloc(color(1,1,0), color(1,0,0));
     pattern_set_transform(stripe2, matrix_multiply_alloc(scale_pat, rotate_pat));
 
-    Pattern check = checker_pattern_alloc(color(0.8,0.8,0.8), color(1,1,1));
-    pattern_set_transform(check, matrix_scale_alloc(1, 1, 1));
-
     Pattern uv_check = uv_check_pattern_alloc(color(1,0,0), color(0,0,1), 8, 8);
     pattern_set_transform(uv_check, matrix_scale_alloc(1, 1, 1));
 
@@ -355,10 +362,13 @@ default_world()
     Pattern body = cylinder_faces;
     Pattern top_cap = cylinder_faces + 1;
     Pattern bottom_cap = cylinder_faces + 2;
+*/
+    Pattern check = checker_pattern_alloc(color(0.8,0.8,0.8), color(1,1,1));
+    //pattern_set_transform(check, matrix_scale_alloc(1, 1, 1));
 
     Pattern earth_uv = uv_texture_pattern_alloc(construct_canvas_from_ppm_file("/tmp/earthmap1k.ppm"));
 
-    uv_check_pattern(color(1,0,0), color(0,0,1), 8, 2, body);
+/*    uv_check_pattern(color(1,0,0), color(0,0,1), 8, 2, body);
     uv_check_pattern(color(1,1,1), color(0,1,0), 4, 4, top_cap);
     uv_check_pattern(color(1,1,0), color(0,1,1), 4, 4, bottom_cap);
 
@@ -369,23 +379,42 @@ default_world()
     Pattern cube_map = texture_map_pattern_alloc(faces, CUBE_UV_MAP);
     Pattern cylinder_map = texture_map_pattern_alloc(cylinder_faces, CYLINDER_UV_MAP);
     Pattern plane_map = texture_map_pattern_alloc(faces, PLANE_UV_MAP);
+*/
     Pattern sphere_map = texture_map_pattern_alloc(earth_uv, SPHERE_UV_MAP);
 
     //material_set_pattern(s1->material, nested_pattern_alloc(check, stripe, stripe2));
     //material_set_pattern(s1->material, perturbed_pattern_alloc(check, 32, .1, .7, 1, 12123));
-    material_set_pattern(s1->material, sphere_map);
-    s1->material->color[0] = 1;
-    s1->material->color[1] = 1;
-    s1->material->color[2] = 0.0;
+    material_set_pattern(s3->material, sphere_map);
+    s3->material->specular = 0.3;
+
+    s2->material->color[0] = 1;
+    s2->material->color[1] = 1;
+    s2->material->color[2] = 0;
+    s2->material->casts_shadow = false;
+    //s2->material->transparency = 1.0;
+
+    //s3->material->color[0] = 1;
+    //s3->material->color[1] = 0;
+    //s3->material->color[2] = 0;
+    s3->material->casts_shadow = false;
+    s3->material->transparency = 1.0;
+
+    //shape_set_material(s3, s2->material);
+    //shape_set_material(s4, s2->material);
+    //shape_set_material(s5, s2->material);
+    //shape_set_material(s6, s2->material);
+    //shape_set_material(s7, s2->material);
+    //s1->material->color[0] = 1;
+    //s1->material->color[1] = 1;
+    //s1->material->color[2] = 0.0;
     //s1->fields.cylinder.closed = true;
     //s1->fields.cylinder.maximum = 1.;
     //s1->fields.cylinder.minimum = -1;
     //s1->material->casts_shadow = false;
     //s1->material->transparency = 1.0;
-    s1->material->specular = 0.0;
 
 
-    material_set_pattern(s2->material, check);
+    material_set_pattern(s5->material, check);
     //s2->material->color[0] = 1;
     //s2->material->color[1] = 0.0;
     //s2->material->color[2] = 0.0;
@@ -393,21 +422,30 @@ default_world()
     //s2->material->transparency = 1;
     //s2->material->specular = 0.0;
 
-    s3->material = s2->material;
-    s4->material = s2->material;
+    //s3->material = s2->material;
+    //s4->material = s2->material;
 
-    Matrix scale = matrix_scale_alloc(1.2, 1.2, 1.2);
     Matrix rotate = matrix_rotate_y_alloc(M_PI_2);
-    Matrix rotate2 = matrix_rotate_z_alloc(M_PI_2);
-    Matrix trans = matrix_translate_alloc(0,-1,0);
+    //Matrix rotate2 = matrix_rotate_y_alloc(2 * M_PI);
+    Matrix plane_trans = matrix_translate_alloc(0,-1,0);
+    Matrix s3_trans = matrix_translate_alloc(-0.3,0.2,-0.41);
+    //Matrix s4_trans = matrix_translate_alloc(0,0,4);
+    //Matrix s5_trans = matrix_translate_alloc(0,0,6);
+    //Matrix s6_trans = matrix_translate_alloc(0,0,8);
+    //Matrix s7_trans = matrix_translate_alloc(0,0,10);
 
     //shape_set_transform(s4, matrix_multiply_alloc(scale, rotate));
     //shape_set_transform(s3, matrix_multiply_alloc(scale, rotate2));
-    shape_set_transform(s1, rotate);
-    shape_set_transform(s2, trans);
+    shape_set_transform(s5, plane_trans);
+    shape_set_transform(s3, matrix_multiply_alloc(s3_trans, rotate));
+    //shape_set_transform(s3, matrix_multiply_alloc(s3_trans, rotate));
+    //shape_set_transform(s4, matrix_multiply_alloc(s4_trans, rotate2));
+    //shape_set_transform(s5, matrix_multiply_alloc(s5_trans, rotate));
+    //shape_set_transform(s6, matrix_multiply_alloc(s6_trans, rotate));
+    //shape_set_transform(s7, matrix_multiply_alloc(s7_trans, rotate));
     //shape_set_transform(s1, rotate);
 
-    w->shapes = shapes + 0;
+    w->shapes = s4;
     w->shapes_num = 2;
 
     //matrix_free(scale);
@@ -444,11 +482,11 @@ ray_for_pixel(Camera cam, double px, double py, double x_offset, double y_offset
     double world_x = cam->half_width - xoffset;
     double world_y = cam->half_height - yoffset;
     Matrix inv = cam->transform_inverse;
-    Point p = point(world_x, world_y, -1);
+    Point p = point(world_x, world_y, -cam->canvas_distance);
 
     Point pixel = matrix_point_multiply_alloc(inv, p);
-    p->arr[0] = 0;
-    p->arr[1] = 0;
+    p->arr[0] = 0 + (-0.5 + jitter_by(true)) * cam->aperture_size; // aperture size of 1
+    p->arr[1] = 0 + (-0.5 + jitter_by(true)) * cam->aperture_size; // aperture size of 1
     p->arr[2] = 0;
     Point origin = matrix_point_multiply_alloc(inv, p);
     Vector v = vector_from_points_alloc(pixel, origin);
@@ -584,7 +622,7 @@ pixel_multi_sample(Camera cam, World w, double x, double y, double factor)
  * average the colors
  */
 Color
-pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_t vsteps)
+pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_t vsteps, bool jitter)
 {
     double sum[3] = {0.0, 0.0, 0.0};
     double x_offset, y_offset;
@@ -596,8 +634,8 @@ pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_
 
     for (v = 0; v < vsteps; v++) {
         for (u = 0; u < usteps; u++) {
-            x_offset = ((double)u + jitter_by(true)) / (double)usteps;
-            y_offset = ((double)v + jitter_by(true)) / (double)vsteps;
+            x_offset = ((double)u + jitter_by(jitter)) / (double)usteps;
+            y_offset = ((double)v + jitter_by(jitter)) / (double)vsteps;
             r = ray_for_pixel(cam, x, y, x_offset, y_offset);
             c = color_at(w, r, 5);
             sum[0] += c->arr[0];
@@ -613,7 +651,7 @@ pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_
 }
 
 Canvas
-render(Camera cam, World w)
+render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
 {
     int i,j,k;
 
@@ -622,7 +660,7 @@ render(Camera cam, World w)
     k = 0;
     for (j = 0; j < cam->vsize; ++j) {
         for (i = 0; i < cam->hsize; ++i) {
-            Color c = pixel_multi_sample(cam, w, (double)i, (double)j, 2, 2);
+            Color c = pixel_multi_sample(cam, w, (double)i, (double)j, usteps, vsteps, jitter);
             //Color c = pixel_single_sample(cam, w, i, j);
             canvas_write_pixel(image, i, j, c);
             color_free(c);

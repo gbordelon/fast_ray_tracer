@@ -24,7 +24,7 @@ sphere_local_intersect(Shape sphere, Ray r)
     Intersection x = xs->xs;
     intersection((-b - discriminant) * a, sphere, x++);
     intersection((-b + discriminant) * a, sphere, x);
-    xs->num = 1;
+    xs->num = 2;
 
     vector_free(sphere_to_ray);
 

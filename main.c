@@ -136,10 +136,10 @@ main()
     Vector up = vector(0, 1, 0);
     Camera cam = camera(6, 5, M_PI/40.0, view_transform(from, to, up));
 */
-    Point from = point(0,0.5,-4.0);
-    Point to = point(0.6,0.0,0);
+    Point from = point(-2,2.2,-3);
+    Point to = point(0,0,0);
     Vector up = vector(0, 1, 0);
-    Camera cam = camera(800, 800, 1, view_transform(from, to, up));
+    Camera cam = camera(400, 400, 1/*field_of_view*/, 0/*aperture*/, 1/*distance*/, POINT_APERTURE, 1/*sample_num*/, view_transform(from, to, up));
 
     point_free(from);
     point_free(to);
@@ -147,7 +147,7 @@ main()
 
     World w = default_world();
 
-    Canvas c = render(cam, w);
+    Canvas c = render(cam, w, 1/*usteps*/, 1/*vsteps*/, false/*jitter*/);
 
     Ppm ppm = construct_ppm(c, true);
 
