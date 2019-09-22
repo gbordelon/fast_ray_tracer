@@ -94,6 +94,7 @@ static const double MATRIX_IDENTITY[16] = {
     0.0,0.0,0.0,1.0
 };
 
+int array_to_string(char *s, size_t n, double arr[4]);
 int point_to_string(char *s, size_t n, Point pt);
 
 int vector_to_string(char *s, size_t n, Vector v);
@@ -155,6 +156,8 @@ void vector_reflect(Vector a, Vector b, Vector res);
 Vector vector_reflect_alloc(Vector a, Vector b);
 
 void vector_scale(Vector input, double scalar);
+
+void array_scale(double input[4], double scalar);
 
 void matrix_identity(Matrix res);
 Matrix matrix_identity_alloc();

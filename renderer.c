@@ -19,6 +19,66 @@
 Color
 lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity);
 
+double
+jitter_by(bool jitter)
+{
+    if (jitter) {
+        return (double)rand() / (double)RAND_MAX;
+    }
+    return 0.5;
+}
+
+void
+area_light_point_on_light(Light l, size_t u, size_t v, double retval[4])
+{
+    double uvec[4] = {
+        l->u.area.uvec[0],
+        l->u.area.uvec[1],
+        l->u.area.uvec[2],
+        l->u.area.uvec[3]
+    };
+
+    double vvec[4] = {
+        l->u.area.vvec[0],
+        l->u.area.vvec[1],
+        l->u.area.vvec[2],
+        l->u.area.vvec[3]
+    };
+
+    array_scale(uvec, u + jitter_by(l->u.area.jitter));
+    array_scale(vvec, v + jitter_by(l->u.area.jitter));
+
+    retval[0] = l->u.area.corner[0] + uvec[0] + vvec[0];
+    retval[1] = l->u.area.corner[1] + uvec[1] + vvec[1];
+    retval[2] = l->u.area.corner[2] + uvec[2] + vvec[2];
+}
+
+#define AREA_LIGHT_CACHE_SIZE 1024
+Points
+area_light_surface_points(Light light)
+{
+    if (light->surface_points_cache == NULL) {
+        int u, v, i;
+        double point[4] = {0.0, 0.0, 0.0, 1.0};
+        Points pts = (Points) malloc(AREA_LIGHT_CACHE_SIZE * sizeof(struct pts));
+        Points itr = pts;
+        for (i = 0, itr = pts; i < AREA_LIGHT_CACHE_SIZE; i++, itr++) {
+            itr->points_num = light->num_samples;
+            itr->points = (Point) malloc(light->num_samples * sizeof(struct pt));
+            for (v = 0; v < light->u.area.vsteps; v++) {
+                for (u = 0; u < light->u.area.usteps; u++) {
+                    area_light_point_on_light(light, u, v, point);
+                    memcpy((itr->points + v * light->u.area.usteps + u)->arr, point, 4 * sizeof(double));
+                }
+            }
+        }
+        light->surface_points_cache = pts;
+        light->surface_points_cache_len = AREA_LIGHT_CACHE_SIZE;
+    }
+
+    int choice = rand() % light->surface_points_cache_len;
+    return light->surface_points_cache + choice;
+}
 
 /*
  *  set the cache fields when alloc'ing the first time
@@ -39,6 +99,22 @@ point_light_surface_points(Light light)
 }
 
 double
+area_light_intensity_at(Light light, World w, Point p)
+{
+    double total = 0.0;
+    int i;
+    Points pts = light->light_surface_points(light);
+    Point pos;
+    for (i = 0, pos = pts->points; i < pts->points_num; i++, pos++) {
+        if (!is_shadowed(w, pos->arr, p)) {
+            total += 1.0;
+        }
+    }
+
+    return total / light->num_samples;
+}
+
+double
 point_light_intensity_at(Light light, World w, Point p)
 {
     if (is_shadowed(w, light->u.point.position, p)) {
@@ -47,22 +123,78 @@ point_light_intensity_at(Light light, World w, Point p)
     return 1.0;
 }
 
+void
+area_light(double corner[4]/*point*/,
+           double full_uvec[4]/*vector*/,
+           size_t usteps,
+           double full_vvec[4]/*vector*/,
+           size_t vsteps,
+           bool jitter,
+           double intensity[4],
+           Light l)
+{
+    l->type = AREA_LIGHT;
+
+    memcpy(l->u.area.corner, corner, 4 * sizeof(double));
+
+    memcpy(l->u.area.uvec, full_uvec, 4 * sizeof(double));
+    array_scale(l->u.area.uvec, 1.0 / (double) usteps);
+    l->u.area.usteps = usteps;
+
+    memcpy(l->u.area.vvec, full_vvec, 4 * sizeof(double));
+    array_scale(l->u.area.vvec, 1.0 / (double) vsteps);
+    l->u.area.vsteps = vsteps;
+    l->u.area.jitter = jitter;
+
+    memcpy(l->intensity, intensity, sizeof(l->intensity));
+    l->num_samples = usteps * vsteps;
+
+
+    l->light_surface_points = area_light_surface_points;
+    l->intensity_at = area_light_intensity_at;
+
+    // populate surface_points_cache
+    l->surface_points_cache = NULL;
+    area_light_surface_points(l);
+}
+
 Light
-point_light(Point p, Color intensity)
+area_light_alloc(double corner[4]/*point*/,
+                 double full_uvec[4]/*vector*/,
+                 size_t usteps,
+                 double full_vvec[4]/*vector*/,
+                 size_t vsteps,
+                 bool jitter,
+                 double intensity[4])
 {
     Light l = (Light) malloc(sizeof(struct light));
-    // null check l
+    area_light(corner, full_uvec, usteps, full_vvec, vsteps, jitter, intensity, l);
+    return l;
+}
+
+
+void
+point_light(Point p, Color intensity, Light l)
+{
     l->type = POINT_LIGHT;
     memcpy(l->intensity, intensity, sizeof(l->intensity));
     l->num_samples = 1;
-    memcpy(l->u.point.position, p, sizeof(l->u.point.position));
+    memcpy(l->u.point.position, p->arr, sizeof(l->u.point.position));
     l->light_surface_points = point_light_surface_points;
     l->intensity_at = point_light_intensity_at;
 
 
     // populate surface_points_cache
     l->surface_points_cache = NULL;
-    l->surface_points_cache = point_light_surface_points(l);
+    point_light_surface_points(l);
+}
+
+Light
+point_light_alloc(Point p, Color intensity)
+{
+    Light l = (Light) malloc(sizeof(struct light));
+    // null check l
+    point_light(p, intensity, l);
     return l;
 }
 
@@ -157,9 +289,13 @@ World
 default_world()
 {
     World w = world();
-    Point p = point(7, 7, -8);
-    Color c = color(1, 1, 1);
-    Light l = point_light(p, c);
+    //Point p = point(-1, 1.5, -1.8);
+    Point p = point(-2, 0.5, -1.8);
+    Vector uvec = vector(2, 0, 0);
+    Vector vvec = vector(0, 2, 0);
+    Color c = color(1.5, 1.5, 1.5);
+    Light l = area_light_alloc(p->arr, uvec->arr, 10, vvec->arr, 10, true, c->arr);
+    //Light l = point_light_alloc(p, c);
     w->lights = l;
     w->lights_num = 1;
     Shape shapes = (Shape) malloc(7 * sizeof(struct shape));
@@ -194,8 +330,8 @@ default_world()
     pattern_set_transform(down, matrix_scale_alloc(0.5, 0.5, 0.5));
 
 
-    cylinder(s1);
-    sphere(s2);
+    sphere(s1);
+    plane(s2);
     cylinder(s3);
     cylinder(s4);
     csg(s5, CSG_DIFFERENCE, s1, s2);
@@ -213,7 +349,7 @@ default_world()
     Pattern stripe2 = stripe_pattern_alloc(color(1,1,0), color(1,0,0));
     pattern_set_transform(stripe2, matrix_multiply_alloc(scale_pat, rotate_pat));
 
-    Pattern check = checker_pattern_alloc(color(0,0,0), color(1,1,1));
+    Pattern check = checker_pattern_alloc(color(0.8,0.8,0.8), color(1,1,1));
     pattern_set_transform(check, matrix_scale_alloc(1, 1, 1));
 
     Pattern uv_check = uv_check_pattern_alloc(color(1,0,0), color(0,0,1), 8, 8);
@@ -245,34 +381,38 @@ default_world()
     s1->material->color[0] = 1;
     s1->material->color[1] = 1;
     s1->material->color[2] = 0.0;
-    s1->fields.cylinder.closed = true;
-    s1->fields.cylinder.maximum = 1.;
-    s1->fields.cylinder.minimum = -1;
+    //s1->fields.cylinder.closed = true;
+    //s1->fields.cylinder.maximum = 1.;
+    //s1->fields.cylinder.minimum = -1;
     //s1->material->casts_shadow = false;
     //s1->material->transparency = 1.0;
+    s1->material->specular = 0.0;
 
 
-    s2->material->color[0] = 1;
-    s2->material->color[1] = 0.0;
-    s2->material->color[2] = 0.0;
-    s2->material->casts_shadow = false;
-    s2->material->transparency = 1;
-    s2->material->specular = 0.0;
+    material_set_pattern(s2->material, check);
+    //s2->material->color[0] = 1;
+    //s2->material->color[1] = 0.0;
+    //s2->material->color[2] = 0.0;
+    //s2->material->casts_shadow = false;
+    //s2->material->transparency = 1;
+    //s2->material->specular = 0.0;
 
     s3->material = s2->material;
     s4->material = s2->material;
 
     Matrix scale = matrix_scale_alloc(1.2, 1.2, 1.2);
-    Matrix rotate = matrix_rotate_x_alloc(M_PI_2);
+    Matrix rotate = matrix_rotate_y_alloc(M_PI_2);
     Matrix rotate2 = matrix_rotate_z_alloc(M_PI_2);
+    Matrix trans = matrix_translate_alloc(0,-1,0);
 
-    shape_set_transform(s4, matrix_multiply_alloc(scale, rotate));
-    shape_set_transform(s3, matrix_multiply_alloc(scale, rotate2));
-    shape_set_transform(s2, scale);
+    //shape_set_transform(s4, matrix_multiply_alloc(scale, rotate));
+    //shape_set_transform(s3, matrix_multiply_alloc(scale, rotate2));
+    shape_set_transform(s1, rotate);
+    shape_set_transform(s2, trans);
     //shape_set_transform(s1, rotate);
 
     w->shapes = shapes + 0;
-    w->shapes_num = 1;
+    w->shapes_num = 2;
 
     //matrix_free(scale);
     //matrix_free(trans1);

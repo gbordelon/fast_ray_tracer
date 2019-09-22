@@ -60,6 +60,9 @@ sphere(Shape s)
     s->world_to_object = shape_world_to_object;
     s->divide = shape_divide;
     s->includes = shape_includes;
+
+    s->bounds = shape_bounds_alloc;
+    s->parent_space_bounds = shape_parent_space_bounds_alloc;
 }
 
 Shape

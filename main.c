@@ -136,10 +136,10 @@ main()
     Vector up = vector(0, 1, 0);
     Camera cam = camera(6, 5, M_PI/40.0, view_transform(from, to, up));
 */
-    Point from = point(3.5,3.5,-4.0);
-    Point to = point(0,0.0,0);
+    Point from = point(0,0.5,-4.0);
+    Point to = point(0.6,0.0,0);
     Vector up = vector(0, 1, 0);
-    Camera cam = camera(400, 400, .3, view_transform(from, to, up));
+    Camera cam = camera(400, 400, 1, view_transform(from, to, up));
 
     point_free(from);
     point_free(to);

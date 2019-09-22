@@ -149,11 +149,17 @@ vector_reflect_alloc(Vector a, Vector b)
 }
 
 void
+array_scale(double input[4], double scalar)
+{
+    input[0] *= scalar;
+    input[1] *= scalar;
+    input[2] *= scalar;
+}
+
+void
 vector_scale(Vector input, double scalar)
 {
-    input->arr[0] *= scalar;
-    input->arr[1] *= scalar;
-    input->arr[2] *= scalar;
+    array_scale(input->arr, scalar);
 }
 
 Matrix
@@ -251,6 +257,12 @@ matrix_free(Matrix m)
     if (m != NULL) {
         free(m);
     }
+}
+
+int
+array_to_string(char * buf, size_t n, double arr[4])
+{
+    return snprintf(buf, n, "Array: [%f %f %f]", arr[0], arr[1], arr[2]);
 }
 
 int
