@@ -108,6 +108,25 @@ cone_local_normal_at(Shape sh, Point local_point, Intersection hit)
     return vector(local_point->arr[0], y, local_point->arr[2]);
 }
 
+Bounding_box
+cone_bounds_alloc(Shape cone)
+{
+    double a = fabs(cone->fields.cone.minimum);
+    double b = fabs(cone->fields.cone.maximum);
+    double limit = fmax(a,b);
+    double arr[4] = {-limit, cone->fields.cone.minimum, -limit, 1.0};
+    Bounding_box box = bounding_box_alloc();
+
+    bounding_box_add_array(box, arr);
+
+    arr[0] = limit;
+    arr[1] = cone->fields.cone.maximum;
+    arr[2] = limit;
+    bounding_box_add_array(box, arr);
+
+    return box;
+}
+
 void
 cone(Shape s)
 {
@@ -132,6 +151,9 @@ cone(Shape s)
     s->world_to_object = shape_world_to_object;
     s->divide = shape_divide;
     s->includes = shape_includes;
+
+    s->bounds = cone_bounds_alloc;
+    s->parent_space_bounds = shape_parent_space_bounds_alloc;
 }
 
 Shape

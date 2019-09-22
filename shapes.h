@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "linalg.h"
 #include "canvas.h"
+#include "bounding_box.h"
 
 enum shape_enum {
     SHAPE_CONE,
@@ -12,6 +13,7 @@ enum shape_enum {
     SHAPE_PLANE,
     SHAPE_SMOOTH_TRIANGLE,
     SHAPE_SPHERE,
+    SHAPE_TOROID,
     SHAPE_TRIANGLE,
     SHAPE_CSG,
     SHAPE_GROUP
@@ -65,6 +67,11 @@ typedef struct material {
     Pattern pattern;
 } *Material;
 
+struct bounding_box_fields {
+    double min[4]; // Point
+    double max[4]; // Point
+};
+
 struct csg_fields {
     enum csg_ops_enum op;
     struct shape *left;
@@ -83,6 +90,11 @@ struct cone_cylinder_fields {
     double minimum;
     double maximum;
     bool closed;
+};
+
+struct toroid_fields {
+    double radius1;
+    double radius2;
 };
 
 struct triangle_fields {
@@ -104,6 +116,7 @@ struct triangle_fields {
 typedef struct intersection *Intersection;
 typedef struct intersections *Intersections;
 typedef struct ray *Ray;
+typedef struct bbox *Bounding_box; 
 
 typedef struct shape {
     Matrix transform;
@@ -118,6 +131,7 @@ typedef struct shape {
         struct group_fields group;
         struct cone_cylinder_fields cone;
         struct cone_cylinder_fields cylinder;
+        struct toroid_fields toroid;
         struct triangle_fields triangle;
     } fields;
 
@@ -128,10 +142,10 @@ typedef struct shape {
     Vector (*normal_to_world)(struct shape *sh, Vector local_normal);
     Point (*world_to_object)(struct shape *sh, Point pt);
 
+    Bounding_box (*bounds)(struct shape *sh);
+    Bounding_box (*parent_space_bounds)(struct shape *sh);
     void (*divide)(struct shape *sh, size_t threshold);
     bool (*includes)(struct shape *a, struct shape *b);
-    // bounds
-    // parent_space_bounds
 } *Shape;
 
 typedef struct ray {
@@ -332,5 +346,9 @@ void pattern_set_transform(Pattern pat, Matrix transform);
 void material();
 Material material_alloc();
 void material_set_pattern(Material m, Pattern p);
+
+
+Bounding_box shape_bounds_alloc(Shape sh);
+Bounding_box shape_parent_space_bounds_alloc(Shape sh);
 
 #endif

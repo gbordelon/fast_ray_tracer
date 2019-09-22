@@ -264,6 +264,32 @@ shape_set_transform(Shape obj, Matrix m)
     }
 }
 
+// bounding boxes
+Bounding_box
+shape_bounds_alloc(Shape sh)
+{
+    double arr[4] = {-1.0, -1.0, -1.0, 1.0};
+
+    Bounding_box box = bounding_box_alloc();
+
+    bounding_box_add_array(box, arr);
+    arr[0] = 1.0;
+    arr[1] = 1.0;
+    arr[2] = 1.0;
+    bounding_box_add_array(box, arr);
+
+    return box;
+}
+
+Bounding_box
+shape_parent_space_bounds_alloc(Shape sh)
+{
+    Bounding_box box = sh->bounds(sh);
+    bounding_box_transform(box, sh->transform);
+
+    return box;
+}
+
 int
 shape_to_string(char *buf, size_t n, Shape sh)
 {
@@ -618,9 +644,9 @@ cube_uv_map(Point pt)
 UVMapReturnType
 cylinder_uv_map(Point pt)
 {
-    double radius = sqrt(pt->arr[0] * pt->arr[0] + pt->arr[2] + pt->arr[2]);
-    double abs_y = fabs(pt->arr[1]);
-    double coord = fmax(radius, abs_y);
+    //double radius = sqrt(pt->arr[0] * pt->arr[0] + pt->arr[2] + pt->arr[2]);
+    //double abs_y = fabs(pt->arr[1]);
+    //double coord = fmax(radius, abs_y);
     double theta;
     double raw_u;
 
@@ -972,7 +998,6 @@ texture_map_pattern_alloc(Pattern faces /* number should be determined by uv_map
     texture_map_pattern(faces, type, p);
     return p;
 }
-
 
 
 

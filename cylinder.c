@@ -97,6 +97,23 @@ cylinder_local_normal_at(Shape sh, Point local_point, Intersection hit)
     return vector(local_point->arr[0], 0, local_point->arr[2]);
 }
 
+Bounding_box
+cylinder_bounds_alloc(Shape cylinder)
+{
+    double arr[4] = {-1.0, cylinder->fields.cylinder.minimum, -1.0, 1.0};
+    Bounding_box box = bounding_box_alloc();
+
+    bounding_box_add_array(box, arr);
+
+    arr[0] = 1;
+    arr[1] = cylinder->fields.cylinder.maximum;
+    arr[2] = 1;
+    bounding_box_add_array(box, arr);
+
+    return box;
+}
+
+
 void
 cylinder(Shape s)
 {
@@ -109,8 +126,8 @@ cylinder(Shape s)
     s->parent = NULL;
     s->type = SHAPE_CYLINDER;
 
-    s->fields.cylinder.minimum = -DBL_MAX;
-    s->fields.cylinder.maximum = DBL_MAX;
+    s->fields.cylinder.minimum = -INFINITY;
+    s->fields.cylinder.maximum = INFINITY;
     s->fields.cylinder.closed = false;
 
     s->intersect = shape_intersect;
@@ -121,6 +138,9 @@ cylinder(Shape s)
     s->world_to_object = shape_world_to_object;
     s->divide = shape_divide;
     s->includes = shape_includes;
+
+    s->bounds = cylinder_bounds_alloc;
+    s->parent_space_bounds = shape_parent_space_bounds_alloc;
 }
 
 Shape

@@ -136,6 +136,23 @@ csg_divide(Shape csg, size_t threshold)
     csg->fields.csg.right->divide(csg->fields.csg.right, threshold);
 }
 
+Bounding_box
+csg_bounds_alloc(Shape csg)
+{
+    Bounding_box box = bounding_box_alloc();
+
+    Bounding_box lbox = csg->fields.csg.left->parent_space_bounds(csg->fields.csg.left);
+    Bounding_box rbox = csg->fields.csg.right->parent_space_bounds(csg->fields.csg.right);
+
+    bounding_box_add_box(box, lbox);
+    bounding_box_add_box(box, rbox);
+
+    bounding_box_free(rbox);
+    bounding_box_free(lbox);
+
+    return box;
+}
+
 void
 csg(Shape s, enum csg_ops_enum op, Shape left_child, Shape right_child)
 {
@@ -163,6 +180,9 @@ csg(Shape s, enum csg_ops_enum op, Shape left_child, Shape right_child)
     s->world_to_object = shape_world_to_object;
     s->divide = csg_divide;
     s->includes = csg_includes;
+
+    s->bounds = csg_bounds_alloc;
+    s->parent_space_bounds = shape_parent_space_bounds_alloc;
 }
 
 Shape

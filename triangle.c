@@ -45,6 +45,17 @@ triangle_local_normal_at(Shape sh, Point local_point, Intersection hit)
                   sh->fields.triangle.u_normals.normal[2]);
 }
 
+Bounding_box
+triangle_bounds_alloc(Shape triangle)
+{
+    Bounding_box box = bounding_box_alloc();
+
+    bounding_box_add_array(box, triangle->fields.triangle.p1);
+    bounding_box_add_array(box, triangle->fields.triangle.p2);
+    bounding_box_add_array(box, triangle->fields.triangle.p3);
+
+    return box;
+}
 
 void
 triangle(Shape s, double p1[4], double p2[4], double p3[4])
@@ -78,6 +89,9 @@ triangle(Shape s, double p1[4], double p2[4], double p3[4])
     s->divide = shape_divide;
     s->includes = shape_includes;
 
+    s->bounds = triangle_bounds_alloc;
+    s->parent_space_bounds = shape_parent_space_bounds_alloc;
+
     vector_free(normal);
     vector_free(cross);
 }
@@ -96,8 +110,6 @@ triangle_point_alloc(Point p1, Point p2, Point p3)
 {
     return triangle_array_alloc(p1->arr, p2->arr, p3->arr);
 }
-
-
 
 
 
@@ -135,7 +147,6 @@ smooth_triangle_local_intersect(Shape triangle, Ray r)
 Vector
 smooth_triangle_local_normal_at(Shape s, Point local_point, Intersection hit)
 {
-//         return self.n2 * hit.u + self.n3 * hit.v + self.n1 * (1 - hit.u - hit.v)
     Vector v2 = vector(s->fields.triangle.u_normals.s_normals.n2[0],
                        s->fields.triangle.u_normals.s_normals.n2[1],
                        s->fields.triangle.u_normals.s_normals.n2[2]);
@@ -194,6 +205,9 @@ smooth_triangle(Shape s,
     s->world_to_object = shape_world_to_object;
     s->divide = shape_divide;
     s->includes = shape_includes;
+
+    s->bounds = triangle_bounds_alloc;
+    s->parent_space_bounds = shape_parent_space_bounds_alloc;
 }
 
 

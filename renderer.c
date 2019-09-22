@@ -14,6 +14,7 @@
 #include "triangle.h"
 #include "csg.h"
 #include "group.h"
+#include "toroid.h"
 
 Color
 lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity);

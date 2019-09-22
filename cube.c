@@ -22,15 +22,16 @@ check_axis(double origin, double direction)
         tmin = tmin_numerator / direction;
         tmax = tmax_numerator / direction;
     } else {
-        tmin = tmin_numerator * DBL_MAX;
+        tmin = tmin_numerator * INFINITY;
         if (isnan(tmin)) {
-            tmin = DBL_MAX;
+            tmin = INFINITY;
             if (tmin_numerator < 0) {
                 tmin = -tmin;
             }
         }
-        tmax = tmax_numerator * DBL_MAX;
+        tmax = tmax_numerator * INFINITY;
         if (isnan(tmax)) {
+            tmax = INFINITY;
             if (tmax_numerator < 0) {
                 tmax = -tmax;
             }
@@ -108,6 +109,9 @@ cube(Shape s)
     s->world_to_object = shape_world_to_object;
     s->divide = shape_divide;
     s->includes = shape_includes;
+
+    s->bounds = shape_bounds_alloc;
+    s->parent_space_bounds = shape_parent_space_bounds_alloc;
 }
 
 Shape

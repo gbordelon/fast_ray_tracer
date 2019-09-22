@@ -4,6 +4,7 @@
 #include "linalg.h"
 #include "plane.h"
 #include "shapes.h"
+#include "bounding_box.h"
 
 Intersections
 plane_local_intersect(Shape plane, Ray r)
@@ -26,6 +27,22 @@ plane_local_normal_at(Shape sh, Point local_point, Intersection hit)
     return vector(0,1,0);
 }
 
+Bounding_box
+plane_bounds_alloc()
+{
+    double arr[4] = {-INFINITY, 0.0, -INFINITY, 1.0};
+
+    Bounding_box box = bounding_box_alloc();
+
+    bounding_box_add_array(box, arr);
+    arr[0] = INFINITY;
+    arr[1] = 0.0;
+    arr[2] = INFINITY;
+    bounding_box_add_array(box, arr);
+
+    return box;
+}
+
 void
 plane(Shape s)
 {
@@ -46,6 +63,9 @@ plane(Shape s)
     s->world_to_object = shape_world_to_object;
     s->divide = shape_divide;
     s->includes = shape_includes;
+
+    s->bounds = plane_bounds_alloc;
+    s->parent_space_bounds = shape_parent_space_bounds_alloc;
 }
 
 Shape
