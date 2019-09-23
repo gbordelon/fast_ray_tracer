@@ -91,7 +91,7 @@ class CSG(Shape):
     Shape shape_{0} = {1} + {4};
     csg(shape_{0}, {3}, shape_{0}_left, shape_{0}_right);
     shape_set_transform(shape_{0}, transform_{0});
-//    shape_{0}->divide(shape_{0}, divide_threshold);
+    shape_{0}->divide(shape_{0}, divide_threshold);
 """.format(name,
            parent_name,
            transform.c_repr(name),
