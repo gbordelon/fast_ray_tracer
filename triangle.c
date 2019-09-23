@@ -212,16 +212,10 @@ smooth_triangle(Shape s,
 
 
 Shape
-smooth_triangle_array_alloc(double p1[4], double p2[4], double p3[4], double n1[4], double n2[4], double n3[4])
+smooth_triangle_alloc(double p1[4], double p2[4], double p3[4], double n1[4], double n2[4], double n3[4])
 {
     Shape s = (Shape) malloc(sizeof(struct shape));
     smooth_triangle(s, p1, p2, p3, n1, n2, n3);
     return s;
-}
-
-Shape
-smooth_triangle_point_alloc(Point p1, Point p2, Point p3, Vector n1, Vector n2, Vector n3)
-{
-    return smooth_triangle_array_alloc(p1->arr, p2->arr, p3->arr, n1->arr, n2->arr, n3->arr);
 }
 

@@ -147,6 +147,21 @@ material_set_pattern(Material m, Pattern p)
     }
 }
 
+Shape
+array_of_shapes(size_t num)
+{
+    return (Shape)malloc(num * sizeof(struct shape));
+}
+
+void
+free_shape(Shape s)
+{
+    if (s != NULL) {
+        free(s);
+    }
+}
+
+
 void
 ray_transform(Ray original, Matrix m, Ray res)
 {

@@ -86,6 +86,7 @@ typedef struct camera {
     double field_of_view;
     double canvas_distance;
     enum aperture_shape aperture_shape;
+    bool jitter;
     double half_width;
     double half_height;
     double pixel_size;
@@ -93,7 +94,7 @@ typedef struct camera {
     Matrix transform_inverse;
 } *Camera;
 
-Camera camera(size_t hsize, size_t vsize, double field_of_view, double aperture_size, double canvas_distance, enum aperture_shape aperture_shape, size_t sample_num, Matrix transform);
+Camera camera(size_t hsize, size_t vsize, double field_of_view, double aperture_size, double canvas_distance, enum aperture_shape aperture_shape, size_t sample_num, bool jitter, Matrix transform);
 Matrix view_transform(Point fr, Point to, Vector up);
 void camera_set_transform(Camera c, Matrix m);
 

@@ -1,27 +1,28 @@
 class GlobalConfig(object):
-    def __init__(self, thread_count=4, timeout=30, divide_threshold=1, clamping=False):
-        self.thread_count = thread_count
-        self.timeout = timeout
-        self.divide_threshold = divide_threshold
-        self.clamping = clamping
+    def __init__(self, yaml_obj):
+        self.yaml_obj = yaml_obj
 
     @classmethod
     def from_yaml(cls, obj):
-        thread_count = 4
-        timeout = 30
-        divide_threshold = 1
-        clamping = False
+        if 'thread-count' not in obj:
+            obj['thread-count'] = 4
+        if 'timeout' not in obj:
+            obj['timeout'] = 30
+        if 'divide-threshold' not in obj:
+            obj['divide-threshold'] = 1
+        if 'clamping' not in obj:
+            obj['clamping'] = False
 
-        if 'thread-count' in obj:
-            thread_count = int(obj['thread-count'])
-        if 'timeout' in obj:
-            timeout = int(obj['timeout'])
-        if 'divide-threshold' in obj:
-            divide_threshold = int(obj['divide-threshold'])
-        if 'clamping' in obj:
-            clamping = obj['clamping']
+        return cls(yaml_obj=obj)
 
-        return cls(thread_count=thread_count,
-                   timeout=timeout,
-                   divide_threshold=divide_threshold,
-                   clamping=clamping)
+    def c_repr(self):
+        return """    /* config */
+    size_t thread_count = {0};
+    size_t timeout = {1};
+    size_t divide_threshold = {2};
+    bool clamping = {3};
+    /* end config */
+""".format(self.yaml_obj['thread-count'],
+           self.yaml_obj['timeout'],
+           self.yaml_obj['divide-threshold'],
+           self.yaml_obj['clamping'])

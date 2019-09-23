@@ -553,6 +553,16 @@ matrix_multiply_alloc(Matrix a, Matrix b)
     return res;
 }
 
+Matrix
+transform_chain(Matrix a, Matrix b)
+{
+    Matrix res = matrix_multiply_alloc(a, b);
+    matrix_free(a);
+    matrix_free(b);
+    return res;
+}
+
+
 void
 matrix_point_multiply(Matrix a, Point b, Point res)
 {

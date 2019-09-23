@@ -194,6 +194,12 @@ point_light_alloc(Point p, Color intensity)
     return l;
 }
 
+Light
+array_of_lights(size_t num)
+{
+    return (Light)malloc(num * sizeof(struct light));
+}
+
 Camera
 camera(size_t hsize,
        size_t vsize,
@@ -202,6 +208,7 @@ camera(size_t hsize,
        double canvas_distance,
        enum aperture_shape aperture_shape,
        size_t sample_num,
+       bool jitter,
        Matrix transform)
 {
     Camera c = (Camera) malloc(sizeof(struct camera));
@@ -214,6 +221,7 @@ camera(size_t hsize,
     c->canvas_distance = canvas_distance;
     c->aperture_shape = aperture_shape;
     c->sample_num = sample_num;
+    c->jitter = jitter;
 
 
     double half_view = canvas_distance * tan(field_of_view / 2.0);

@@ -1,7 +1,7 @@
-from renderer import Camera, Light
-from shapes import Shape, Group, Material
-from matrix import matrix4x4identity
+from renderer import Camera, Light, allocate_lights
+from shapes import Shape, Group, Material, allocate_shapes
 from config import GlobalConfig
+from transform import Transform
 
 from copy import deepcopy
 import yaml
@@ -59,12 +59,10 @@ def yaml_file_to_world_objects(file_path):
                 if possible_item is not None:
                     rv['world'].append(possible_item)
 
-    g = Group(material=Material(), transform=matrix4x4identity(), children=rv['world'])
-    rv['world'] = [g]
     return rv
 
 def recursive_add(tree, defines):
-    return Shape._recursive_helper(tree, defines)
+    return Shape.from_yaml(tree, defines)
 
 # replace occurrences of previous defines in the tree
 def expand_defines_in_tree(tree, defines):
@@ -136,8 +134,64 @@ def expand_defines_in_tree(tree, defines):
                 #    expand_defines_in_tree(obj["left"], defines)
                 #    expand_defines_in_tree(obj["right"], defines)
 
+
+def world_objects_to_c_file(obj):
+    c_code = """
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+#include <math.h>
+
+#include "linalg.h"
+#include "canvas.h"
+#include "renderer.h"
+#include "shapes.h"
+
+int main()
+{{
+{0}
+{1}
+{2}
+{4}
+    World w = world();
+    w->lights = all_lights;
+    w->lights_num = {3};
+    w->shapes = all_shapes;
+    w->shapes_num = {5};
+    Canvas c = render(cam, w, cam->sample_num/*usteps*/, cam->sample_num/*vsteps*/, cam->jitter/*jitter*/);
+    Ppm ppm = construct_ppm(c, true);
+
+    FILE * pFile;
+    pFile = fopen ("/tmp/{6}.ppm", "wb");
+    fwrite (ppm->arr, sizeof(unsigned char), ppm->len, pFile);
+    fclose (pFile);
+
+    ppm_free(ppm);
+    ppm = construct_ppm(c, false);
+
+    pFile = fopen("/tmp/{7}.ppm", "wb");
+    fwrite (ppm->arr, sizeof(unsigned char), ppm->len, pFile);
+    fclose (pFile);
+
+    ppm_free(ppm);
+    canvas_free(c);
+
+    return 0;
+}}
+""".format(obj['config'].c_repr(),
+           obj['camera'].c_repr(),
+           allocate_lights(obj['lights']),
+           len(obj['lights']),
+           allocate_shapes(obj['world']),
+           len(obj['world']),
+           "unclamped",
+           "clapmed")
+
+    print(c_code)
+    
 if __name__ == '__main__':
     import sys
     x = yaml_file_to_world_objects(sys.argv[1])
-    print(x['camera']);
-    print(x['lights']);
+    world_objects_to_c_file(x)
+
+

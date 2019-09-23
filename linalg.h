@@ -182,6 +182,7 @@ Matrix matrix_shear_alloc(double xy, double xz, double yx, double yz, double zx,
 
 void matrix_multiply(Matrix a, Matrix b, Matrix res);
 Matrix matrix_multiply_alloc(Matrix a, Matrix b);
+Matrix transform_chain(Matrix a, Matrix b);
 
 void matrix_vector_multiply(Matrix a, Vector b, Vector res);
 Vector matrix_vector_multiply_alloc(Matrix a, Vector b);

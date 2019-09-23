@@ -315,6 +315,8 @@ Pattern perturbed_pattern_alloc(Pattern p1, double frequency, double scale_facto
 Pattern texture_map_pattern_alloc(Pattern faces, enum uv_map_type type);
 
 
+Shape array_of_shapes(size_t num);
+void free_shape(Shape s);
 
 void intersection(double t, Shape sh, Intersection x);
 Intersection intersection_alloc(double t, Shape sh);
