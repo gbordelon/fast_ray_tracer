@@ -8,11 +8,6 @@
 #include "linalg.h"
 #include "shapes.h"
 
-// PointLight
-// AreaLight
-// shade hit
-// is shadowed
-
 typedef struct world *World;
 
 enum light_enum {
@@ -93,6 +88,18 @@ typedef struct camera {
     Matrix transform;
     Matrix transform_inverse;
 } *Camera;
+
+Light array_of_lights(size_t num);
+void point_light(Point p, Color intensity, Light l);
+void
+area_light(double corner[4]/*point*/,
+           double full_uvec[4]/*vector*/,
+           size_t usteps,
+           double full_vvec[4]/*vector*/,
+           size_t vsteps,
+           bool jitter,
+           double intensity[4],
+           Light l);
 
 Camera camera(size_t hsize, size_t vsize, double field_of_view, double aperture_size, double canvas_distance, enum aperture_shape aperture_shape, size_t sample_num, bool jitter, Matrix transform);
 Matrix view_transform(Point fr, Point to, Vector up);

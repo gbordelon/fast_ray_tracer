@@ -146,6 +146,14 @@ def world_objects_to_c_file(obj):
 #include "canvas.h"
 #include "renderer.h"
 #include "shapes.h"
+#include "cone.h"
+#include "csg.h"
+#include "cube.h"
+#include "cylinder.h"
+#include "group.h"
+#include "plane.h"
+#include "sphere.h"
+#include "triangle.h"
 
 int main()
 {{

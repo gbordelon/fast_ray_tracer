@@ -17,6 +17,9 @@ class Camera(object):
         return cls(yaml_obj=obj)
 
     def c_repr(self):
+        bool_str = "false"
+        if self.yaml_obj['jitter']:
+            bool_str = "true"
         return """    /* camera */
     Point from = point({:.10f}, {:.10f}, {:.10f});
     Point to = point({:f}, {:f}, {:f});
@@ -30,7 +33,7 @@ class Camera(object):
 """.format(self.yaml_obj['from'][0], self.yaml_obj['from'][1], self.yaml_obj['from'][2],
            self.yaml_obj['to'][0], self.yaml_obj['to'][1], self.yaml_obj['to'][2],
            self.yaml_obj['up'][0], self.yaml_obj['up'][1], self.yaml_obj['up'][2],
-           self.yaml_obj['width'], self.yaml_obj['height'], self.yaml_obj['field-of-view'], self.yaml_obj['aperture-size'], self.yaml_obj['focal-length'], self.yaml_obj['aperture-shape'], self.yaml_obj['samples-per-pixel'], self.yaml_obj['jitter'])
+           self.yaml_obj['width'], self.yaml_obj['height'], self.yaml_obj['field-of-view'], self.yaml_obj['aperture-size'], self.yaml_obj['focal-length'], self.yaml_obj['aperture-shape'], self.yaml_obj['samples-per-pixel'], bool_str)
 
 class Light(object):
     def __init__(self, yaml_obj):
@@ -56,7 +59,7 @@ class PointLight(Light):
     Light point_light_{0} = all_lights + {0};
     Point point_light_{0}_point = point({1:.10f}, {2:.10f}, {3:.10f});
     Color point_light_{0}_intensity = color({4:.10f}, {5:.10f}, {6:.10f});
-    point_light(point_light_{0}, point_light_{0}_intensity);
+    point_light(point_light_{0}_point, point_light_{0}_intensity, point_light_{0});
 
     color_free(point_light_{0}_intensity);
     point_free(point_light_{0}_point);
@@ -74,6 +77,9 @@ class AreaLight(Light):
         return cls(obj)
 
     def c_repr(self, name):
+        bool_str = "false"
+        if self.yaml_obj['jitter']:
+            bool_str = "true"
         return """
     /* area light {0} */
     Light area_light_{0} = all_lights + {0};
@@ -93,7 +99,7 @@ class AreaLight(Light):
            self.yaml_obj['intensity'][0], self.yaml_obj['intensity'][1], self.yaml_obj['intensity'][2],
            self.yaml_obj['uvec'][0], self.yaml_obj['uvec'][1], self.yaml_obj['uvec'][2],
            self.yaml_obj['vvec'][0], self.yaml_obj['vvec'][1], self.yaml_obj['vvec'][2],
-           self.yaml_obj['usteps'], self.yaml_obj['vsteps'], self.yaml_obj['jitter'])
+           self.yaml_obj['usteps'], self.yaml_obj['vsteps'], bool_str)
 
 
 

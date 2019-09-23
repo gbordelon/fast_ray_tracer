@@ -12,8 +12,8 @@
 # ======================================================
 
 - add: camera
-  width: 1024
-  height: 1024
+  width: 400
+  height: 400
   field-of-view: 0.5
   from: [-2, 3, -6]
   to: [0, 0, 0]
@@ -28,14 +28,15 @@
   at: [ 2, 10, -2 ]
   intensity: [ 1, 1, 1 ]
 
-- add: light
-  corner: [-1, 2, 4]
-  uvec: [2, 0, 0]
-  vvec: [0, 2, 0]
-  usteps: 10
-  vsteps: 10
-  jitter: true
-  intensity: [1.5, 1.5, 1.5]
+
+#- add: light
+#  corner: [-1, 2, 4]
+#  uvec: [2, 0, 0]
+#  vvec: [0, 2, 0]
+#  usteps: 10
+#  vsteps: 10
+#  jitter: true
+#  intensity: [1.5, 1.5, 1.5]
 
 # ======================================================
 # These describe groups that will be reused within

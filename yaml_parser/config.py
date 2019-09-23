@@ -16,6 +16,9 @@ class GlobalConfig(object):
         return cls(yaml_obj=obj)
 
     def c_repr(self):
+        bool_str = "false"
+        if self.yaml_obj['clamping']:
+            bool_str = "true"
         return """    /* config */
     size_t thread_count = {0};
     size_t timeout = {1};
@@ -25,4 +28,4 @@ class GlobalConfig(object):
 """.format(self.yaml_obj['thread-count'],
            self.yaml_obj['timeout'],
            self.yaml_obj['divide-threshold'],
-           self.yaml_obj['clamping'])
+           bool_str)
