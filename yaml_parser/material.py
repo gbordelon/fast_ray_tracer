@@ -1,3 +1,5 @@
+from pattern import Pattern
+
 class Material(object):
     def __init__(self, yaml_obj):
         self.yaml_obj = yaml_obj
@@ -45,6 +47,7 @@ class Material(object):
         if 'shadow' not in obj:
             obj['shadow'] = casts_shadow
 
+
         return Material(yaml_obj=obj)
 
     def c_repr(self, name):
@@ -52,7 +55,13 @@ class Material(object):
         if self.yaml_obj['shadow']:
             shadow_str = 'true'
 
-        return """Material material_{0} = material_alloc();
+        if 'pattern' not in self.yaml_obj:
+            pat = Pattern.from_yaml({})
+        else:
+            pat = Pattern.from_yaml(self.yaml_obj['pattern'])
+        return """
+{1}
+Material material_{0} = material_alloc();
     material_{0}->color[0] = {2:.10f};
     material_{0}->color[1] = {3:.10f};
     material_{0}->color[2] = {4:.10f};
@@ -64,9 +73,9 @@ class Material(object):
     material_{0}->transparency = {10:.10f};
     material_{0}->refractive_index = {11:.10f};
     material_{0}->casts_shadow = {12};
-//    material_{0}->pattern = pattern_{0};
+    material_{0}->pattern = pattern_{0};
 """.format(name,
-           "",
+           self.yaml_obj['pattern'].c_repr(name),
            self.yaml_obj['color'][0], self.yaml_obj['color'][1], self.yaml_obj['color'][2],
            self.yaml_obj['ambient'],
            self.yaml_obj['diffuse'],

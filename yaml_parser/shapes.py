@@ -134,7 +134,7 @@ class Group(Shape):
     Shape shape_{0} = {1} + {4};
     group(shape_{0}, shape_{0}_children, {3});
     shape_set_transform(shape_{0}, transform_{0});
-//    shape_{0}->divide(shape_{0}, divide_threshold);
+    shape_{0}->divide(shape_{0}, divide_threshold);
 """.format(name,
           parent_name,
           transform.c_repr(name),

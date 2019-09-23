@@ -295,6 +295,7 @@ void blended_pattern(Pattern p1, Pattern p2, Pattern res);
 void nested_pattern(Pattern p1, Pattern p2, Pattern p3, Pattern res);
 void perturbed_pattern(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed, Pattern res);
 
+Pattern array_of_patterns(size_t num);
 void texture_map_pattern(Pattern faces, enum uv_map_type type, Pattern res);
 
 

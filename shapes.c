@@ -941,8 +941,14 @@ perturbed_pattern(Pattern p1, double frequency, double scale_factor, double pers
     res->pattern_at_shape = perturbed_pattern_at_shape;
 }
 
+Pattern
+array_of_patterns(size_t num)
+{
+    return (Pattern) malloc(num * sizeof(struct pattern));
+}
+
 void
-texture_map_pattern(Pattern faces /* should be one */, enum uv_map_type type, Pattern res)
+texture_map_pattern(Pattern faces, enum uv_map_type type, Pattern res)
 {
     default_pattern_constructor(res);
     res->type = TEXTURE_MAP_PATTERN;
