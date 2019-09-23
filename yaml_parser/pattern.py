@@ -1,3 +1,8 @@
+import subprocess
+import os
+
+from transform import Transform
+
 class Pattern(object):
     def __init__(self, yaml_obj):
         self.yaml_obj = yaml_obj
@@ -8,13 +13,13 @@ class Pattern(object):
 
     def c_repr(self, name):
         if len(self.yaml_obj) == 0:
-            return "Pattern pattern_{0} = NULL;\n"
+            return "    Pattern pattern_{0} = NULL;\n".format(name)
 
         if 'transform' not in self.yaml_obj:
             self.yaml_obj['transform'] = []
 
         transform = Transform.from_yaml(self.yaml_obj['transform'])
-        buf = transform.c_repr("pattern_{0}".format(name)))
+        buf = "    {}".format(transform.c_repr("pattern_{0}".format(name)))
 
         typ = self.yaml_obj['type']
         # base patterns
@@ -33,7 +38,7 @@ class Pattern(object):
         # nested patterns
         elif typ == 'blended':
             pattern1 = Pattern.from_yaml(self.yaml_obj['left'])
-            pattern2 = Pattern.from_yaml(self.yaml_obj['right']))
+            pattern2 = Pattern.from_yaml(self.yaml_obj['right'])
 
             buf += """
 {1}
@@ -79,12 +84,12 @@ class Pattern(object):
         elif typ == 'map':
             mapping = self.yaml_obj['mapping']
             if mapping in ['cube', 'cubic']:
-                uv_left = Pattern.uv_from_yaml(self.yaml_obj['left'])
-                uv_front = Pattern.uv_from_yaml(self.yaml_obj['front'])
-                uv_right = Pattern.uv_from_yaml(self.yaml_obj['right'])
-                uv_back = Pattern.uv_from_yaml(self.yaml_obj['back'])
-                uv_up = Pattern.uv_from_yaml(self.yaml_obj['up'])
-                uv_down = Pattern.uv_from_yaml(self.yaml_obj['down'])
+                uv_left = UVPattern.uv_from_yaml(self.yaml_obj['left'])
+                uv_front = UVPattern.uv_from_yaml(self.yaml_obj['front'])
+                uv_right = UVPattern.uv_from_yaml(self.yaml_obj['right'])
+                uv_back = UVPattern.uv_from_yaml(self.yaml_obj['back'])
+                uv_up = UVPattern.uv_from_yaml(self.yaml_obj['up'])
+                uv_down = UVPattern.uv_from_yaml(self.yaml_obj['down'])
 
                 buf += """
     Pattern pattern_{0} = array_of_patterns(7);
@@ -113,8 +118,8 @@ class Pattern(object):
 
             elif mapping in ['cylindrical', 'cylinder']:
                 if 'uv_pattern' in self.yaml_obj:
-                    uv_cap = Pattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
-                    uv_body = Pattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
+                    uv_cap = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
+                    uv_body = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
 
                     buf += """
     Pattern pattern_{0} = array_of_patterns(2);
@@ -124,9 +129,9 @@ class Pattern(object):
 """.format(name)
 
                 else:
-                    uv_top = Pattern.uv_from_yaml(self.yaml_obj['top'])
-                    uv_bottom = Pattern.uv_from_yaml(self.yaml_obj['bottom'])
-                    uv_body = Pattern.uv_from_yaml(self.yaml_obj['front'])
+                    uv_top = UVPattern.uv_from_yaml(self.yaml_obj['top'])
+                    uv_bottom = UVPattern.uv_from_yaml(self.yaml_obj['bottom'])
+                    uv_body = UVPattern.uv_from_yaml(self.yaml_obj['front'])
 
                     buf += """
     Pattern pattern_{0} = array_of_patterns(4);
@@ -147,7 +152,7 @@ class Pattern(object):
            uv_bottom.c_repr('pattern_{0}_bottom'.format(name)))
 
             elif mapping in ['planar', 'plane']:
-                uv_pattern = Pattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
+                uv_pattern = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
                 buf += """
     Pattern pattern_{0} = array_of_patterns(2);
     Pattern pattern_{0}_body = pattern_{0} + 1;
@@ -155,7 +160,7 @@ class Pattern(object):
     texture_map_pattern(pattern_{0} + 1, PLANE_UV_MAP, pattern_{0});
 """.format(name, uv_pattern.c_repr('pattern_{0}_body'.format(name)))
             elif mapping in ['spherical', 'sphere']:
-                uv_pattern = Pattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
+                uv_pattern = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
                 buf += """
     Pattern pattern_{0} = array_of_patterns(2);
     Pattern pattern_{0}_body = pattern_{0} + 1;
@@ -165,11 +170,19 @@ class Pattern(object):
         else:
             raise ValueError('Unable to parse pattern type: {}'.format(typ))
 
+        buf += "    pattern_set_transform(pattern_{0}, transform_pattern_{0});\n".format(name)
         return buf
 
 
+class UVPattern(object):
+    def __init__(self, yaml_obj):
+        self.yaml_obj = yaml_obj
+
     @classmethod
     def uv_from_yaml(cls, obj):
+        return cls(obj)
+
+    def c_repr(self, name):
         typ = self.yaml_obj['type']
         if typ in ['checkers', 'check']:
             buf = """
@@ -177,10 +190,10 @@ class Pattern(object):
     Color {0}_color_1 = color({5:.10f}, {6:.10f}, {7:.10f});
     uv_check_pattern({0}_color_0, {0}_color_1, {8}, {9}, {0});
 
-    color_free(pattern_{0}_color_1);
-    color_free(pattern_{0}_color_0);
+    color_free({0}_color_1);
+    color_free({0}_color_0);
 """.format(name,
-           ""
+           "",
            self.yaml_obj['colors'][0][0],
            self.yaml_obj['colors'][0][1],
            self.yaml_obj['colors'][0][2],
@@ -227,9 +240,17 @@ class Pattern(object):
            self.yaml_obj['colors']['br'][2])
         elif typ == 'image':
             file_path = self.yaml_obj['file']
-            buf = """
-    uv_texture_pattern(construct_canvas_from_ppm_file("{1}"), {0});
-""".format(name, file_path)
+            ppm_file_path = file_path[:-3] + 'ppm';
+            if file_path[-3:] != 'ppm':
+                # check for existence of ppm extension file name
+                if not (os.path.exists(ppm_file_path) and os.path.isfile(ppm_file_path)):
+                    # if it does not exist, create it with 'convert'
+                    subprocess.run(['convert', file_path, '-compress', 'none', ppm_file_path])
+            buf = """    if (access("{1}", F_OK ) == -1 ) {{
+        printf("file '{1}' does not exist.");
+        return 1;
+    }}
+    uv_texture_pattern(construct_canvas_from_ppm_file("{1}"), {0});""".format(name, ppm_file_path)
         else:
             raise ValueError('Unable to parse uv pattern type: {}'.format(typ))
 

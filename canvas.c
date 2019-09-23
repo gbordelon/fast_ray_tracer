@@ -224,6 +224,10 @@ construct_canvas_from_ppm_file(const char * file_path)
     double *out;
 
     FILE *file = fopen(file_path, "r");
+    if (file == NULL) {
+        printf("Error opening file %s", file_path);
+        return NULL;
+    }
     fscanf(file, "%s", buf); // P6
     fscanf(file, "%zu", &width); // width
     fscanf(file, "%zu", &height); // height

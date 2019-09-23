@@ -750,6 +750,12 @@ plane_uv_map(Point pt)
 {
     double u = fmod(pt->arr[0], 1.0);
     double v = fmod(pt->arr[2], 1.0);
+    if (u < 0) {
+        u += 1.0;
+    }
+    if (v < 0) {
+        v += 1.0;
+    }
 
     return uv_map_return_type_alloc(0, u, v);
 }

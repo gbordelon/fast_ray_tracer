@@ -61,7 +61,7 @@ class Material(object):
             pat = Pattern.from_yaml(self.yaml_obj['pattern'])
         return """
 {1}
-Material material_{0} = material_alloc();
+    Material material_{0} = material_alloc();
     material_{0}->color[0] = {2:.10f};
     material_{0}->color[1] = {3:.10f};
     material_{0}->color[2] = {4:.10f};
@@ -75,7 +75,7 @@ Material material_{0} = material_alloc();
     material_{0}->casts_shadow = {12};
     material_{0}->pattern = pattern_{0};
 """.format(name,
-           self.yaml_obj['pattern'].c_repr(name),
+           pat.c_repr(name),
            self.yaml_obj['color'][0], self.yaml_obj['color'][1], self.yaml_obj['color'][2],
            self.yaml_obj['ambient'],
            self.yaml_obj['diffuse'],

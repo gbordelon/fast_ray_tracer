@@ -144,6 +144,7 @@ def world_objects_to_c_file(obj):
 #include <string.h>
 #include <stdbool.h>
 #include <math.h>
+#include <unistd.h>
 
 #include "linalg.h"
 #include "canvas.h"
