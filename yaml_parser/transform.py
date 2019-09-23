@@ -21,8 +21,19 @@ class Transform(object):
         elif item[0] == 'shear':
             return "matrix_shear_alloc({:.10f}, {:.10f}, {:.10f}, {:.10f}, {:.10f}, {:.10f})".format(item[1], item[2], item[3], item[4], item[5], item[6])
         else:
-            raise ValueError('Unknown translation type: {}'.format(l[0]))
+            raise ValueError('Unknown translation type: {}'.format(item[0]))
 
+
+
+##
+## should be
+##    transform_chain(transform_chain(matrix_rotate_y_alloc(), matrix_rotate_x_alloc()),
+##                    matrix_scale_alloc());
+##
+## was
+##    ransform_chain(transform_chain(matrix_rotate_y_alloc(), matrix_scale_alloc()),
+##                   matrix_rotate_x_alloc());
+##  
     def c_repr(self, name):
         buf = "Matrix transform_{0} = ".format(name)
         if len(self.yaml_obj) == 0:

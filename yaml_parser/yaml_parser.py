@@ -136,6 +136,9 @@ def expand_defines_in_tree(tree, defines):
 
 
 def world_objects_to_c_file(obj):
+    if 'config' not in obj or obj['config'] is None:
+        obj['config'] = GlobalConfig.from_yaml(dict())
+    
     c_code = """
 #include <stdio.h>
 #include <string.h>

@@ -91,7 +91,7 @@ class CSG(Shape):
     Shape shape_{0} = {1} + {4};
     csg(shape_{0}, {3}, shape_{0}_left, shape_{0}_right);
     shape_set_transform(shape_{0}, transform_{0});
-    shape_{0}->divide(shape_{0}, divide_threshold);
+//    shape_{0}->divide(shape_{0}, divide_threshold);
 """.format(name,
            parent_name,
            transform.c_repr(name),
@@ -116,7 +116,7 @@ class Group(Shape):
         transform = Transform.from_yaml(self.yaml_obj['transform'])
         children = []
         for child in self.yaml_obj['children']:
-            children.add(Shape.from_yaml(self.yaml_obj, self.defines))
+            children.append(Shape.from_yaml(child, self.defines))
             
         buf = """
     /* children for {0} */
@@ -134,7 +134,7 @@ class Group(Shape):
     Shape shape_{0} = {1} + {4};
     group(shape_{0}, shape_{0}_children, {3});
     shape_set_transform(shape_{0}, transform_{0});
-    shape_{0}->divide(shape_{0}, divide_threshold);
+//    shape_{0}->divide(shape_{0}, divide_threshold);
 """.format(name,
           parent_name,
           transform.c_repr(name),
@@ -248,12 +248,15 @@ class Cone(Shape):
            transform.c_repr(name),
            offset)
 
-        if 'minimum' in obj:
-            buf += "    shape_{0}->fields.cone.minimum = {1:.10f};\n".format(name, self.yaml_obj['minimum'])
-        if 'maximum' in obj:
-            buf += "    shape_{0}->fields.cone.maximum = {1:.10f};\n".format(name, self.yaml_obj['maximum'])
-        if 'closed' in obj:
-            buf += "    shape_{0}->fields.cone.closed = {1};\n".format(name, self.yaml_obj['closed'])
+        if 'min' in self.yaml_obj:
+            buf += "    shape_{0}->fields.cone.minimum = {1:.10f};\n".format(name, self.yaml_obj['min'])
+        if 'max' in self.yaml_obj:
+            buf += "    shape_{0}->fields.cone.maximum = {1:.10f};\n".format(name, self.yaml_obj['max'])
+        if 'closed' in self.yaml_obj:
+            bool_str = 'false'
+            if self.yaml_obj['closed']:
+                bool_str = 'true'
+            buf += "    shape_{0}->fields.cone.closed = {1};\n".format(name, bool_str)
 
         return buf
 
@@ -277,18 +280,23 @@ class Cylinder(Shape):
     {3}
     Shape shape_{0} = {1} + {4};
     cylinder(shape_{0});
+    shape_set_material(shape_{0}, material_{0});
+    shape_set_transform(shape_{0}, transform_{0});
 """.format(name,
            parent_name,
            material.c_repr(name),
            transform.c_repr(name),
            offset)
 
-        if 'minimum' in obj:
-            buf += "    shape_{0}->fields.cylinder.minimum = {1:.10f};\n".format(name, self.yaml_obj['minimum'])
-        if 'maximum' in obj:
-            buf += "    shape_{0}->fields.cylinder.maximum = {1:.10f};\n".format(name, self.yaml_obj['maximum'])
-        if 'closed' in obj:
-            buf += "    shape_{0}->fields.cylinder.closed = {1};\n".format(name, self.yaml_obj['closed'])
+        if 'min' in self.yaml_obj:
+            buf += "    shape_{0}->fields.cylinder.minimum = {1:.10f};\n".format(name, self.yaml_obj['min'])
+        if 'max' in self.yaml_obj:
+            buf += "    shape_{0}->fields.cylinder.maximum = {1:.10f};\n".format(name, self.yaml_obj['max'])
+        if 'closed' in self.yaml_obj:
+            bool_str = 'false'
+            if self.yaml_obj['closed']:
+                bool_str = 'true'
+            buf += "    shape_{0}->fields.cylinder.closed = {1};\n".format(name, bool_str)
 
         return buf
 
