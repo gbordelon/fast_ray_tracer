@@ -131,9 +131,6 @@ group_includes(Shape group, Shape other)
     return false;
 }
 
-
-
-
 void
 shape_swap(Shape l, Shape r)
 {
@@ -160,14 +157,14 @@ partition_children(Shape group)
     bool *right_map = (bool*)malloc(group->fields.group.num_children * sizeof(bool));
     size_t left_count = 0, middle_count = 0, right_count = 0;
     int left_start = -1, middle_start = -1, right_start = -1;
-    
+
     Shape from;
     int i, j;
     for (i = 0, from = group->fields.group.children;
             i < group->fields.group.num_children;
             i++, from++) {
 
-        child_box = from->parent_space_bounds(from); // or just bounds?
+        child_box = from->parent_space_bounds(from); // TODO parent_space_bounds or bounds?
 
         left_map[i] = false;
         right_map[i] = false;
@@ -187,7 +184,6 @@ partition_children(Shape group)
     // put left children into the beginning of the children array
     // then middle
     // then right
-    // need from and to pointers initialized to 0 offset
     // while to and from are still pointing in the array:
     // if to is left, increment to and from
     // if to is not left, increment from until a left is found, then swap, then increment to and from
@@ -210,6 +206,12 @@ partition_children(Shape group)
             }
             if (j < group->fields.group.num_children) {
                 shape_swap(group->fields.group.children + i, group->fields.group.children + j);
+                *(left_map + i) ^= *(left_map + j);
+                *(left_map + j) ^= *(left_map + i);
+                *(left_map + i) ^= *(left_map + j);
+                *(right_map + i) ^= *(right_map + j);
+                *(right_map + j) ^= *(right_map + i);
+                *(right_map + i) ^= *(right_map + j);
             }
         }
     }
@@ -231,6 +233,12 @@ partition_children(Shape group)
             }
             if (j < group->fields.group.num_children) {
                 shape_swap(group->fields.group.children + i, group->fields.group.children + j);
+                *(left_map + i) ^= *(left_map + j);
+                *(left_map + j) ^= *(left_map + i);
+                *(left_map + i) ^= *(left_map + j);
+                *(right_map + i) ^= *(right_map + j);
+                *(right_map + j) ^= *(right_map + i);
+                *(right_map + i) ^= *(right_map + j);
             }
         }
     }
@@ -242,14 +250,23 @@ partition_children(Shape group)
 
     right_start = i;
 
+
     struct partition_children_return_value rv;
+
     rv.left_count = left_count;
     rv.middle_count = middle_count;
     rv.right_count = right_count;
     rv.left_start = left_start;
     rv.middle_start = middle_start;
     rv.right_start = right_start;
-
+/*
+    rv.left_count = 0;
+    rv.middle_count = group->fields.group.num_children;
+    rv.right_count = 0;
+    rv.left_start = -1;
+    rv.middle_start = 0;
+    rv.right_start = -1;
+*/
     free(right_map);
     free(left_map);
     bounding_box_free(boxes);
@@ -259,8 +276,39 @@ partition_children(Shape group)
 }
 
 void
+group_recursive_parent_update(Shape group, Shape parent)
+{
+    Shape child;
+    int i;
+
+    group->parent = parent;
+
+    if (group->type == SHAPE_GROUP) {
+        for (i = 0, child = group->fields.group.children;
+                i < group->fields.group.num_children;
+                i++, child++) {
+            if (child->type == SHAPE_GROUP || child->type == SHAPE_CSG) {
+                group_recursive_parent_update(child, group);
+            }
+        }
+    } else if (group->type == SHAPE_CSG) {
+        child = group->fields.csg.left;
+        if (child->type == SHAPE_GROUP || child->type == SHAPE_CSG) {
+            group_recursive_parent_update(child, group);
+        }
+        child = group->fields.csg.right;
+        if (child->type == SHAPE_GROUP || child->type == SHAPE_CSG) {
+            group_recursive_parent_update(child, group);
+        }
+    }
+}
+
+void
 group_divide(Shape g, size_t threshold)
 {
+    Shape child;
+    int i;
+
     if (threshold < g->fields.group.num_children) {
         // partition children
         struct partition_children_return_value map = partition_children(g);
@@ -284,8 +332,10 @@ group_divide(Shape g, size_t threshold)
             Shape left_children = (Shape) malloc(map.left_count * sizeof(struct shape));
             memcpy(left_children, g->fields.group.children + map.left_start, map.left_count * sizeof(struct shape));
             group(new_group_pos, left_children, map.left_count);
+            // recursive parent update on children
+            group_recursive_parent_update(new_group_pos, g);
             new_group_pos->fields.group.children_need_free = true;
-            new_group_pos->parent = g;
+            //new_group_pos->parent = g;
             new_group_pos++;
         }
         if (map.right_count > 0) {
@@ -293,8 +343,10 @@ group_divide(Shape g, size_t threshold)
             Shape right_children = (Shape)malloc(map.right_count * sizeof(struct shape));
             memcpy(right_children, g->fields.group.children + map.right_start, map.right_count * sizeof(struct shape));
             group(new_group_pos, right_children, map.right_count);
+            // recursive parent update on children
             new_group_pos->fields.group.children_need_free = true;
-            new_group_pos->parent = g;
+            group_recursive_parent_update(new_group_pos, g);
+            //new_group_pos->parent = g;
             new_group_pos++;
         }
         if (map.middle_count != g->fields.group.num_children) {
@@ -306,11 +358,10 @@ group_divide(Shape g, size_t threshold)
             g->fields.group.children = new_children;
             g->fields.group.children_need_free = true;
             g->fields.group.num_children = new_array_size;
+            group_recursive_parent_update(g, g->parent);
         }
     }
     
-    Shape child;
-    int i;
     for (i = 0, child = g->fields.group.children;
             i < g->fields.group.num_children;
             i++, child++) {

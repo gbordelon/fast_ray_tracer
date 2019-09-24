@@ -20,10 +20,10 @@ class GlobalConfig(object):
         if self.yaml_obj['clamping']:
             bool_str = "true"
         return """    /* config */
-    size_t thread_count = {0};
-    size_t timeout = {1};
+//    size_t thread_count = {0};
+//    size_t timeout = {1};
     size_t divide_threshold = {2};
-    bool clamping = {3};
+//    bool clamping = {3};
     /* end config */
 """.format(self.yaml_obj['thread-count'],
            self.yaml_obj['timeout'],

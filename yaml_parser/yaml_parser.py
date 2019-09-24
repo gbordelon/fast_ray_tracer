@@ -165,11 +165,15 @@ int main()
 {1}
 {2}
 {4}
+    Shape world_group = array_of_shapes(1);
+    group(world_group, all_shapes, {5});
+    world_group->divide(world_group, divide_threshold);
+
     World w = world();
     w->lights = all_lights;
     w->lights_num = {3};
-    w->shapes = all_shapes;
-    w->shapes_num = {5};
+    w->shapes = world_group;
+    w->shapes_num = 1;
     Canvas c = render(cam, w, cam->sample_num/*usteps*/, cam->sample_num/*vsteps*/, cam->jitter/*jitter*/);
     Ppm ppm = construct_ppm(c, true);
 
@@ -197,7 +201,7 @@ int main()
            allocate_shapes(obj['world']),
            len(obj['world']),
            "unclamped",
-           "clapmed")
+           "clamped")
 
     print(c_code)
     

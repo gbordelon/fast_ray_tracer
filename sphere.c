@@ -35,9 +35,7 @@ Vector
 sphere_local_normal_at(Shape sh, Point local_point, Intersection hit)
 {
     double origin[4] = {0.0, 0.0, 0.0, 0.0};
-    Vector v = vector_from_arrays_alloc(local_point->arr, origin);
-
-    return v;
+    return vector_from_arrays_alloc(local_point->arr, origin);
 }
 
 void

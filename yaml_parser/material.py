@@ -59,8 +59,7 @@ class Material(object):
             pat = Pattern.from_yaml({})
         else:
             pat = Pattern.from_yaml(self.yaml_obj['pattern'])
-        return """
-{1}
+        return """{1}
     Material material_{0} = material_alloc();
     material_{0}->color[0] = {2:.10f};
     material_{0}->color[1] = {3:.10f};

@@ -123,9 +123,11 @@ bounding_box_transform(Bounding_box box, Matrix m)
     };
 
     bounding_box(box); // re-use the input box
+    double arr[4];
     int i;
     for (i = 0; i < 8; i++) {
-        bounding_box_add_array(box, points[i]);
+        matrix_array_multiply(m, points[i], arr);
+        bounding_box_add_array(box, arr);
     }
 }
 
@@ -150,14 +152,14 @@ bbox_check_axis(double origin, double direction, double min, double max)
         if (isnan(tmin)) {
             tmin = INFINITY;
             if (tmin_numerator < 0) {
-                tmin = -tmin;
+                tmin = -INFINITY;
             }
         }
         tmax = tmax_numerator * INFINITY;
         if (isnan(tmax)) {
             tmax = INFINITY;
             if (tmax_numerator < 0) {
-                tmax = -tmax;
+                tmax = -INFINITY;
             }
         }
     }
@@ -227,5 +229,13 @@ bounding_box_split_bounds(Bounding_box box)
     (boxes+1)->max[2] = box->max[2];
 
     return boxes;
+}
+
+int
+bounding_box_to_string(char * buf, size_t n, Bounding_box box)
+{
+    return snprintf(buf, n, "Box: [%f %f %f] [%f %f %f]",
+                    box->min[0], box->min[1], box->min[2],
+                    box->max[0], box->max[1], box->max[2]);
 }
 

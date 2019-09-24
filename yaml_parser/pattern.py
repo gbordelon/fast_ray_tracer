@@ -13,19 +13,20 @@ class Pattern(object):
 
     def c_repr(self, name):
         if len(self.yaml_obj) == 0:
-            return "    Pattern pattern_{0} = NULL;\n".format(name)
+            return "Pattern pattern_{0} = NULL;\n".format(name)
 
         if 'transform' not in self.yaml_obj:
             self.yaml_obj['transform'] = []
 
         transform = Transform.from_yaml(self.yaml_obj['transform'])
-        buf = "    {}".format(transform.c_repr("pattern_{0}".format(name)))
+        buf = "{}\n".format(transform.c_repr("pattern_{0}".format(name)))
 
         typ = self.yaml_obj['type']
         # base patterns
-        if typ in ['checkers', 'gradient', 'radial-gradient', 'rings', 'stripe']:
-            buf += """
-    Color pattern_{0}_color_0 = color({2:.10f}, {3:.10f}, {4:.10f});
+        if typ in ['checkers', 'gradient', 'radial-gradient', 'rings', 'ring', 'stripe']:
+            if typ == 'rings':
+                typ = 'ring'
+            buf += """    Color pattern_{0}_color_0 = color({2:.10f}, {3:.10f}, {4:.10f});
     Color pattern_{0}_color_1 = color({5:.10f}, {6:.10f}, {7:.10f});
     Pattern pattern_{0} = {1}_pattern_alloc(pattern_{0}_color_0, pattern_{0}_color_1);
 
@@ -40,8 +41,7 @@ class Pattern(object):
             pattern1 = Pattern.from_yaml(self.yaml_obj['left'])
             pattern2 = Pattern.from_yaml(self.yaml_obj['right'])
 
-            buf += """
-{1}
+            buf += """    {1}
 {2}
     Pattern pattern_{0} = blended_pattern_alloc(pattern_blended_{0}_0, pattern_blended_{0}_1);
 """.format(name, pattern1.c_repr("blended_{0}_0".format(name)), pattern2.c_repr("blended_{0}_1".format(name)))
@@ -50,8 +50,7 @@ class Pattern(object):
             pattern2 = Pattern.from_yaml(self.yaml_obj['left'])
             pattern3 = Pattern.from_yaml(self.yaml_obj['right'])
 
-            buf += """
-{1}
+            buf += """    {1}
 {2}
 {3}
     Pattern pattern_{0} = nested_pattern_alloc(pattern_nested_{0}_0, pattern_nested_{0}_1, pattern_nested_{0}_2);
@@ -75,8 +74,7 @@ class Pattern(object):
 
             pattern1 = Pattern.from_yaml(self.yaml_obj['primary'])
 
-            buf += """
-{1}
+            buf += """    {1}
     Pattern pattern_{0} = perturbed_pattern_alloc(pattern_perturbed_{0}_0, {2:.10f}, {3:.10f}, {4:.10f}, {5}, {6});
 """.format(name, pattern1.c_repr("perturbed_{0}_0".format(name)), freq, scale_factor, persistence, octaves, seed)
 
@@ -91,8 +89,7 @@ class Pattern(object):
                 uv_up = UVPattern.uv_from_yaml(self.yaml_obj['up'])
                 uv_down = UVPattern.uv_from_yaml(self.yaml_obj['down'])
 
-                buf += """
-    Pattern pattern_{0} = array_of_patterns(7);
+                buf += """    Pattern pattern_{0} = array_of_patterns(7);
     Pattern pattern_{0}_right = pattern_{0} + 1;
     Pattern pattern_{0}_left = pattern_{0} + 2;
     Pattern pattern_{0}_up = pattern_{0} + 3;
@@ -121,8 +118,7 @@ class Pattern(object):
                     uv_cap = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
                     uv_body = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
 
-                    buf += """
-    Pattern pattern_{0} = array_of_patterns(2);
+                    buf += """    Pattern pattern_{0} = array_of_patterns(2);
     Pattern pattern_{0}_body = pattern_{0} + 1;
     Pattern pattern_{0}_top = pattern_{0} + 1;
     Pattern pattern_{0}_bottom = pattern_{0} + 1;
@@ -133,15 +129,13 @@ class Pattern(object):
                     uv_bottom = UVPattern.uv_from_yaml(self.yaml_obj['bottom'])
                     uv_body = UVPattern.uv_from_yaml(self.yaml_obj['front'])
 
-                    buf += """
-    Pattern pattern_{0} = array_of_patterns(4);
+                    buf += """    Pattern pattern_{0} = array_of_patterns(4);
     Pattern pattern_{0}_body = pattern_{0} + 1;
     Pattern pattern_{0}_top = pattern_{0} + 2;
     Pattern pattern_{0}_bottom = pattern_{0} + 3;
 """.format(name)
                 # handle single pattern and three patterns for cylinder
-                buf += """
-{1}
+                buf += """{1}
 {2}
 {3}
 
@@ -153,16 +147,14 @@ class Pattern(object):
 
             elif mapping in ['planar', 'plane']:
                 uv_pattern = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
-                buf += """
-    Pattern pattern_{0} = array_of_patterns(2);
+                buf += """    Pattern pattern_{0} = array_of_patterns(2);
     Pattern pattern_{0}_body = pattern_{0} + 1;
 {1}
     texture_map_pattern(pattern_{0} + 1, PLANE_UV_MAP, pattern_{0});
 """.format(name, uv_pattern.c_repr('pattern_{0}_body'.format(name)))
             elif mapping in ['spherical', 'sphere']:
                 uv_pattern = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
-                buf += """
-    Pattern pattern_{0} = array_of_patterns(2);
+                buf += """    Pattern pattern_{0} = array_of_patterns(2);
     Pattern pattern_{0}_body = pattern_{0} + 1;
 {1}
     texture_map_pattern(pattern_{0} + 1, SPHERE_UV_MAP, pattern_{0});
@@ -185,8 +177,7 @@ class UVPattern(object):
     def c_repr(self, name):
         typ = self.yaml_obj['type']
         if typ in ['checkers', 'check']:
-            buf = """
-    Color {0}_color_0 = color({2:.10f}, {3:.10f}, {4:.10f});
+            buf = """    Color {0}_color_0 = color({2:.10f}, {3:.10f}, {4:.10f});
     Color {0}_color_1 = color({5:.10f}, {6:.10f}, {7:.10f});
     uv_check_pattern({0}_color_0, {0}_color_1, {8}, {9}, {0});
 
@@ -208,8 +199,7 @@ class UVPattern(object):
                 typ = 'align_check'
             colors = self.yaml_obj['colors'] # dict
 
-            buf = """
-    Color {0}_color_0 = color({2:.10f}, {3:.10f}, {4:.10f});
+            buf = """    Color {0}_color_0 = color({2:.10f}, {3:.10f}, {4:.10f});
     Color {0}_color_1 = color({5:.10f}, {6:.10f}, {7:.10f});
     Color {0}_color_2 = color({8:.10f}, {9:.10f}, {10:.10f});
     Color {0}_color_3 = color({11:.10f}, {12:.10f}, {13:.10f});

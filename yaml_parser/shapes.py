@@ -91,7 +91,6 @@ class CSG(Shape):
     Shape shape_{0} = {1} + {4};
     csg(shape_{0}, {3}, shape_{0}_left, shape_{0}_right);
     shape_set_transform(shape_{0}, transform_{0});
-    shape_{0}->divide(shape_{0}, divide_threshold);
 """.format(name,
            parent_name,
            transform.c_repr(name),
@@ -134,7 +133,6 @@ class Group(Shape):
     Shape shape_{0} = {1} + {4};
     group(shape_{0}, shape_{0}_children, {3});
     shape_set_transform(shape_{0}, transform_{0});
-    shape_{0}->divide(shape_{0}, divide_threshold);
 """.format(name,
           parent_name,
           transform.c_repr(name),
@@ -393,11 +391,11 @@ def allocate_shapes(list_of_shapes):
     for i, shape in enumerate(list_of_shapes):
         buf += """
     /* shape {0} */
-    {1}
-    /* end shape {0} */
-""".format(i, shape.c_repr(i, "all_shapes", i))
+{1}
+    /* end shape {0} */""".format(i, shape.c_repr(i, "all_shapes", i))
 
     buf += """
     /* end shapes */
 """
+
     return buf

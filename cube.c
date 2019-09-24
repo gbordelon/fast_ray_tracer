@@ -26,14 +26,14 @@ check_axis(double origin, double direction)
         if (isnan(tmin)) {
             tmin = INFINITY;
             if (tmin_numerator < 0) {
-                tmin = -tmin;
+                tmin = -INFINITY;
             }
         }
         tmax = tmax_numerator * INFINITY;
         if (isnan(tmax)) {
             tmax = INFINITY;
             if (tmax_numerator < 0) {
-                tmax = -tmax;
+                tmax = -INFINITY;
             }
         }
     }

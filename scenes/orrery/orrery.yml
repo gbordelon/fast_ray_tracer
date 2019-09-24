@@ -29,8 +29,8 @@
 # ======================================================
 
 - add: camera
-  width: 900
-  height: 450
+  width: 1800
+  height: 900
   field-of-view: 1.2
   from: [2, 4, -10]
   to: [-1, -1, 0]
@@ -298,7 +298,7 @@
       mapping: planar
       uv_pattern:
         type: image
-        file: texture_mapping/orrery/wood.jpg
+        file: scenes/orrery/wood.jpg
       transform:
       - [ scale, 0.5, 0.5, 0.5 ]
 
@@ -325,7 +325,7 @@
         mapping: spherical
         uv_pattern:
           type: image
-          file: texture_mapping/orrery/mercury-small.jpg
+          file: scenes/orrery/mercury-small.jpg
   - add: group
     material: GOLD
     children:
@@ -407,7 +407,7 @@
         mapping: spherical
         uv_pattern:
           type: image
-          file: texture_mapping/orrery/earthmap-small.jpg
+          file: scenes/orrery/earthmap-small.jpg
   - add: group
     material: GOLD
     children:
@@ -451,7 +451,7 @@
         mapping: spherical
         uv_pattern:
           type: image
-          file: texture_mapping/orrery/mars-small.jpg
+          file: scenes/orrery/mars-small.jpg
   - add: group
     material: GOLD
     children:
@@ -494,7 +494,7 @@
         mapping: spherical
         uv_pattern:
           type: image
-          file: texture_mapping/orrery/jupitermap-small.jpg
+          file: scenes/orrery/jupitermap-small.jpg
   - add: group
     material: GOLD
     children:
@@ -538,7 +538,7 @@
         mapping: spherical
         uv_pattern:
           type: image
-          file: texture_mapping/orrery/saturnmap-small.jpg
+          file: scenes/orrery/saturnmap-small.jpg
   # rings
   - add: csg
     operation: difference
@@ -609,7 +609,7 @@
         mapping: spherical
         uv_pattern:
           type: image
-          file: texture_mapping/orrery/uranusmap-small.jpg
+          file: scenes/orrery/uranusmap-small.jpg
   - add: group
     material: GOLD
     children:
@@ -652,7 +652,7 @@
         mapping: spherical
         uv_pattern:
           type: image
-          file: texture_mapping/orrery/neptunemap-small.jpg
+          file: scenes/orrery/neptunemap-small.jpg
   - add: group
     material: GOLD
     children:
@@ -683,7 +683,7 @@
       mapping: spherical
       uv_pattern:
         type: image
-        file: texture_mapping/orrery/artist_workshop_8k.png
+        file: scenes/orrery/artist_workshop_8k.png
       transform:
       - [ rotate-y, -2.7 ]
     diffuse: 0

@@ -32,4 +32,6 @@ bool bounding_box_intersects(Bounding_box, Ray r);
 
 Bounding_box bounding_box_split_bounds(Bounding_box box);
 
+int bounding_box_to_string(char * buf, size_t n, Bounding_box box);
+
 #endif
