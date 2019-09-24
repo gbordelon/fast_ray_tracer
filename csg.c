@@ -78,7 +78,6 @@ csg_local_intersect(Shape s, Ray r)
 {
     Bounding_box box = s->bounds(s);
     if (!bounding_box_intersects(box, r)) {
-        bounding_box_free(box);
         return intersections_empty(0);
     }
 
@@ -117,7 +116,6 @@ csg_local_intersect(Shape s, Ray r)
     }
 
     intersections_free(right_xs);
-    bounding_box_free(box);
 
     return left_xs;
 }
@@ -144,20 +142,20 @@ csg_divide(Shape csg, size_t threshold)
 }
 
 Bounding_box
-csg_bounds_alloc(Shape csg)
+csg_bounds(Shape csg)
 {
-    Bounding_box box = bounding_box_alloc();
+    if (csg->bbox == NULL) {
+        Bounding_box box = bounding_box_alloc();
 
-    Bounding_box lbox = csg->fields.csg.left->parent_space_bounds(csg->fields.csg.left);
-    Bounding_box rbox = csg->fields.csg.right->parent_space_bounds(csg->fields.csg.right);
+        Bounding_box lbox = csg->fields.csg.left->parent_space_bounds(csg->fields.csg.left);
+        Bounding_box rbox = csg->fields.csg.right->parent_space_bounds(csg->fields.csg.right);
 
-    bounding_box_add_box(box, lbox);
-    bounding_box_add_box(box, rbox);
-
-    bounding_box_free(rbox);
-    bounding_box_free(lbox);
-
-    return box;
+        bounding_box_add_box(box, lbox);
+        bounding_box_add_box(box, rbox);
+        csg->bbox = box;
+        csg->bbox_inverse =  bounding_box_transform(box, csg->transform);
+    }
+    return csg->bbox;
 }
 
 void
@@ -171,6 +169,8 @@ csg(Shape s, enum csg_ops_enum op, Shape left_child, Shape right_child)
     s->material = material_alloc();
     s->parent = NULL;
     s->type = SHAPE_CSG;
+    s->bbox = NULL;
+    s->bbox_inverse = NULL;
 
     s->fields.csg.op = op;
     s->fields.csg.left = left_child;
@@ -188,8 +188,8 @@ csg(Shape s, enum csg_ops_enum op, Shape left_child, Shape right_child)
     s->divide = csg_divide;
     s->includes = csg_includes;
 
-    s->bounds = csg_bounds_alloc;
-    s->parent_space_bounds = shape_parent_space_bounds_alloc;
+    s->bounds = csg_bounds;
+    s->parent_space_bounds = shape_parent_space_bounds;
 }
 
 Shape

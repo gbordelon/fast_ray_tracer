@@ -49,6 +49,8 @@ sphere(Shape s)
     s->material = material_alloc();
     s->parent = NULL;
     s->type = SHAPE_SPHERE;
+    s->bbox = NULL;
+    s->bbox_inverse = NULL;
 
     s->intersect = shape_intersect;
     s->local_intersect = sphere_local_intersect;
@@ -59,8 +61,8 @@ sphere(Shape s)
     s->divide = shape_divide;
     s->includes = shape_includes;
 
-    s->bounds = shape_bounds_alloc;
-    s->parent_space_bounds = shape_parent_space_bounds_alloc;
+    s->bounds = shape_bounds;
+    s->parent_space_bounds = shape_parent_space_bounds;
 }
 
 Shape

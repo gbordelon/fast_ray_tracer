@@ -114,9 +114,11 @@ class Pattern(object):
            uv_back.c_repr('pattern_{0}_back'.format(name)))
 
             elif mapping in ['cylindrical', 'cylinder']:
+                # handle single pattern and three patterns for cylinder
                 if 'uv_pattern' in self.yaml_obj:
-                    uv_cap = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
-                    uv_body = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
+                    uv_top = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
+                    uv_bottom = uv_top
+                    uv_body = uv_top
 
                     buf += """    Pattern pattern_{0} = array_of_patterns(2);
     Pattern pattern_{0}_body = pattern_{0} + 1;
@@ -134,7 +136,7 @@ class Pattern(object):
     Pattern pattern_{0}_top = pattern_{0} + 2;
     Pattern pattern_{0}_bottom = pattern_{0} + 3;
 """.format(name)
-                # handle single pattern and three patterns for cylinder
+
                 buf += """{1}
 {2}
 {3}

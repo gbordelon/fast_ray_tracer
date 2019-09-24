@@ -25,8 +25,7 @@ bool bounding_box_contains_point(Bounding_box box, Point p);
 bool bounding_box_contains_array(Bounding_box box, double point[4]);
 bool bounding_box_contains_box(Bounding_box box, Bounding_box other);
 
-// this alters box
-void bounding_box_transform(Bounding_box box, Matrix m);
+Bounding_box bounding_box_transform(Bounding_box box, Matrix m);
 
 bool bounding_box_intersects(Bounding_box, Ray r);
 

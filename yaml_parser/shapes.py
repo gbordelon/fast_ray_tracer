@@ -25,6 +25,10 @@ class Shape(object):
             return Cone.from_yaml(obj)
         elif obj["add"] == "cylinder":
             return Cylinder.from_yaml(obj)
+        elif obj["add"] == "triangle":
+            return Triangle.from_yaml(obj)
+        elif obj["add"] == "smooth-triangle":
+            return SmoothTriangle.from_yaml(obj)
         elif obj["add"] == "group":
             if "material" in obj:
                 for child in obj["children"]:
@@ -308,12 +312,15 @@ class Triangle(Shape):
         return cls(yaml_obj=obj)
 
     def c_repr(self, name, parent_name, offset):
+        if 'material' not in self.yaml_obj:
+            self.yaml_obj['material'] = {}
+        if 'transform' not in self.yaml_obj:
+            self.yaml_obj['transform'] = []
         material = Material.from_yaml(self.yaml_obj['material'])
         transform = Transform.from_yaml(self.yaml_obj['transform'])
         buf = """
     {1}
     {2}
-    //void triangle(Shape s, double p1[4], double p2[4], double p3[4]);
     Point shape_{0}_p1 = point({3:.10f}, {4:.10f}, {5:.10f});
     Point shape_{0}_p2 = point({6:.10f}, {7:.10f}, {8:.10f});
     Point shape_{0}_p3 = point({9:.10f}, {10:.10f}, {11:.10f});
@@ -345,6 +352,10 @@ class SmoothTriangle(Shape):
         return cls(yaml_obj=obj)
 
     def c_repr(self, name, parent_name, offset):
+        if 'material' not in self.yaml_obj:
+            self.yaml_obj['material'] = {}
+        if 'transform' not in self.yaml_obj:
+            self.yaml_obj['transform'] = []
         material = Material.from_yaml(self.yaml_obj['material'])
         transform = Transform.from_yaml(self.yaml_obj['transform'])
         buf = """

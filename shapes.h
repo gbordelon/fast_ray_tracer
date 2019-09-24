@@ -123,7 +123,8 @@ typedef struct shape {
     Matrix transform_inverse;
     Material material;
     struct shape *parent;
-    // a bounding box?
+    Bounding_box bbox;
+    Bounding_box bbox_inverse;
 
     enum shape_enum type;
     union {
@@ -330,6 +331,7 @@ Intersections intersections_empty(size_t num);
 void intersections_free(Intersections xs);
 
 
+void ray_array(double origin[4], double direction[4], Ray ray);
 Ray ray_alloc(Point origin, Vector direction);
 void ray_free(Ray r);
 int ray_to_string(char *s, size_t n, Ray r);
@@ -353,7 +355,7 @@ void material();
 Material material_alloc();
 void material_set_pattern(Material m, Pattern p);
 
-Bounding_box shape_bounds_alloc(Shape sh);
-Bounding_box shape_parent_space_bounds_alloc(Shape sh);
+Bounding_box shape_bounds(Shape sh);
+Bounding_box shape_parent_space_bounds(Shape sh);
 
 #endif

@@ -28,19 +28,23 @@ plane_local_normal_at(Shape sh, Point local_point, Intersection hit)
 }
 
 Bounding_box
-plane_bounds_alloc()
+plane_bounds(Shape plane)
 {
-    double arr[4] = {-INFINITY, 0.0, -INFINITY, 1.0};
+    if (plane->bbox == NULL) {
+        double arr[4] = {-INFINITY, 0.0, -INFINITY, 1.0};
 
-    Bounding_box box = bounding_box_alloc();
+        Bounding_box box = bounding_box_alloc();
 
-    bounding_box_add_array(box, arr);
-    arr[0] = INFINITY;
-    arr[1] = 0.0;
-    arr[2] = INFINITY;
-    bounding_box_add_array(box, arr);
+        bounding_box_add_array(box, arr);
+        arr[0] = INFINITY;
+        arr[1] = 0.0;
+        arr[2] = INFINITY;
+        bounding_box_add_array(box, arr);
+        plane->bbox = box;
+        plane->bbox_inverse = bounding_box_transform(box, plane->transform);
+    }
 
-    return box;
+    return plane->bbox;
 }
 
 void
@@ -54,6 +58,8 @@ plane(Shape s)
     s->material = material_alloc();
     s->parent = NULL;
     s->type = SHAPE_PLANE;
+    s->bbox = NULL;
+    s->bbox_inverse = NULL;
 
     s->intersect = shape_intersect;
     s->local_intersect = plane_local_intersect;
@@ -64,8 +70,8 @@ plane(Shape s)
     s->divide = shape_divide;
     s->includes = shape_includes;
 
-    s->bounds = plane_bounds_alloc;
-    s->parent_space_bounds = shape_parent_space_bounds_alloc;
+    s->bounds = plane_bounds;
+    s->parent_space_bounds = shape_parent_space_bounds;
 }
 
 Shape

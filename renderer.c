@@ -332,19 +332,23 @@ default_world()
 bool
 is_shadowed(World w, double light_position[4], Point pt)
 {
-    Vector v = vector_from_arrays_alloc(light_position, pt->arr); // from pt to light
-    double distance = vector_magnitude(v); // distance between pt and light
-    Vector direction = vector_normalize_alloc(v);
-    Ray r = ray_alloc(pt, direction);
-    Intersections xs = intersect_world(w, r);
+    struct v v;
+    vector_from_arrays(light_position, pt->arr, &v); // from pt to light
+
+    double distance = vector_magnitude(&v); // distance between pt and light
+
+    struct v direction;
+    vector_normalize(&v, &direction);
+
+    struct ray r;
+    ray_array(pt->arr, direction.arr, &r);
+
+    Intersections xs = intersect_world(w, &r);
 
     Intersection h = hit(xs, true);
     bool retval = h != NULL && h->t < distance;
 
     intersections_free(xs);
-    ray_free(r);
-    vector_free(direction);
-    vector_free(v);
 
     return retval;
 }
@@ -536,12 +540,11 @@ render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
     for (j = 0; j < cam->vsize; ++j) {
         for (i = 0; i < cam->hsize; ++i) {
             Color c = pixel_multi_sample(cam, w, (double)i, (double)j, usteps, vsteps, jitter);
-            //Color c = pixel_single_sample(cam, w, i, j);
             canvas_write_pixel(image, i, j, c);
             color_free(c);
         }
         k += 1;
-        //printf("Wrote %d rows out of %lu\n", k, cam->vsize);
+        printf("Wrote %d rows out of %lu\n", k, cam->vsize);
     }
     return image;
 }

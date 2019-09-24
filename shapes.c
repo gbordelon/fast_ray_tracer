@@ -89,13 +89,18 @@ intersections_free(Intersections xs)
     }
 }
 
+void
+ray_array(double origin[4], double direction[4], Ray ray)
+{
+    memcpy(ray->origin, origin, 4 * sizeof(double));
+    memcpy(ray->direction, direction, 4 * sizeof(double));
+}
+
 Ray
 ray_array_alloc(double origin[4], double direction[4])
 {
     Ray ray = (Ray) malloc(sizeof(struct ray));
-    memcpy(ray->origin, origin, sizeof(ray->origin));
-    memcpy(ray->direction, direction, sizeof(ray->direction));
-
+    ray_array(origin, direction, ray);
     return ray;
 }
 Ray
@@ -189,10 +194,10 @@ Intersections
 shape_intersect(Shape sh, Ray r)
 {
     Matrix m = sh->transform_inverse;
-    Ray r2 = ray_transform_alloc(r, m);
-    Intersections xs = sh->local_intersect(sh, r2);
+    struct ray transformed_ray;
 
-    ray_free(r2);
+    ray_transform(r, m, &transformed_ray);
+    Intersections xs = sh->local_intersect(sh, &transformed_ray);
 
     return xs;
 }
@@ -289,28 +294,34 @@ shape_set_material(Shape obj, Material m)
 
 // bounding boxes
 Bounding_box
-shape_bounds_alloc(Shape sh)
+shape_bounds(Shape sh)
 {
-    double arr[4] = {-1.0, -1.0, -1.0, 1.0};
+    if (sh->bbox == NULL) {
+        double arr[4] = {-1.0, -1.0, -1.0, 1.0};
 
-    Bounding_box box = bounding_box_alloc();
+        Bounding_box box = bounding_box_alloc();
 
-    bounding_box_add_array(box, arr);
-    arr[0] = 1.0;
-    arr[1] = 1.0;
-    arr[2] = 1.0;
-    bounding_box_add_array(box, arr);
+        bounding_box_add_array(box, arr);
+        arr[0] = 1.0;
+        arr[1] = 1.0;
+        arr[2] = 1.0;
+        bounding_box_add_array(box, arr);
 
-    return box;
+        sh->bbox = box;
+        sh->bbox_inverse = bounding_box_transform(box, sh->transform);
+    }
+
+    return sh->bbox;
 }
 
 Bounding_box
-shape_parent_space_bounds_alloc(Shape sh)
+shape_parent_space_bounds(Shape sh)
 {
-    Bounding_box box = sh->bounds(sh);
-    bounding_box_transform(box, sh->transform);
+    if (sh->bbox_inverse == NULL) {
+        sh->bounds(sh);
+    }
 
-    return box;
+    return sh->bbox_inverse;
 }
 
 int

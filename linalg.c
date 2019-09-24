@@ -108,18 +108,23 @@ vector_from_points_alloc(Point pt1, Point pt2)
     return vector_from_arrays_alloc(pt1->arr, pt2->arr);
 }
 
+void
+vector_from_arrays(double pt1[4], double pt2[4], Vector v)
+{
+
+    v->arr[0] = pt1[0] - pt2[0];
+    v->arr[1] = pt1[1] - pt2[1];
+    v->arr[2] = pt1[2] - pt2[2];
+    v->arr[3] = 0.0;
+}
+
 Vector
 vector_from_arrays_alloc(double pt1[4], double pt2[4])
 {
     Vector v = vector_default();
 
     linalg_null_check(v,NULL)
-
-    v->arr[0] = pt1[0] - pt2[0];
-    v->arr[1] = pt1[1] - pt2[1];
-    v->arr[2] = pt1[2] - pt2[2];
-    // v->arr[3] is already set
-
+    vector_from_arrays(pt1, pt2, v);
     return v;
 }
 

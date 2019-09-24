@@ -46,15 +46,19 @@ triangle_local_normal_at(Shape sh, Point local_point, Intersection hit)
 }
 
 Bounding_box
-triangle_bounds_alloc(Shape triangle)
+triangle_bounds(Shape triangle)
 {
-    Bounding_box box = bounding_box_alloc();
+    if (triangle->bbox == NULL) {
+        Bounding_box box = bounding_box_alloc();
 
-    bounding_box_add_array(box, triangle->fields.triangle.p1);
-    bounding_box_add_array(box, triangle->fields.triangle.p2);
-    bounding_box_add_array(box, triangle->fields.triangle.p3);
+        bounding_box_add_array(box, triangle->fields.triangle.p1);
+        bounding_box_add_array(box, triangle->fields.triangle.p2);
+        bounding_box_add_array(box, triangle->fields.triangle.p3);
+        triangle->bbox = box;
+        triangle->bbox_inverse = bounding_box_transform(box, triangle->transform);
+    }
 
-    return box;
+    return triangle->bbox;
 }
 
 void
@@ -68,6 +72,8 @@ triangle(Shape s, double p1[4], double p2[4], double p3[4])
     s->material = material_alloc();
     s->parent = NULL;
     s->type = SHAPE_TRIANGLE;
+    s->bbox = NULL;
+    s->bbox_inverse = NULL;
 
     memcpy(s->fields.triangle.p1, p1, 4 * sizeof(double));
     memcpy(s->fields.triangle.p2, p2, 4 * sizeof(double));
@@ -89,8 +95,8 @@ triangle(Shape s, double p1[4], double p2[4], double p3[4])
     s->divide = shape_divide;
     s->includes = shape_includes;
 
-    s->bounds = triangle_bounds_alloc;
-    s->parent_space_bounds = shape_parent_space_bounds_alloc;
+    s->bounds = triangle_bounds;
+    s->parent_space_bounds = shape_parent_space_bounds;
 
     vector_free(normal);
     vector_free(cross);
@@ -185,6 +191,8 @@ smooth_triangle(Shape s,
     s->material = material_alloc();
     s->parent = NULL;
     s->type = SHAPE_SMOOTH_TRIANGLE;
+    s->bbox = NULL;
+    s->bbox_inverse = NULL;
 
     memcpy(s->fields.triangle.p1, p1, 4 * sizeof(double));
     memcpy(s->fields.triangle.p2, p2, 4 * sizeof(double));
@@ -206,8 +214,8 @@ smooth_triangle(Shape s,
     s->divide = shape_divide;
     s->includes = shape_includes;
 
-    s->bounds = triangle_bounds_alloc;
-    s->parent_space_bounds = shape_parent_space_bounds_alloc;
+    s->bounds = triangle_bounds;
+    s->parent_space_bounds = shape_parent_space_bounds;
 }
 
 

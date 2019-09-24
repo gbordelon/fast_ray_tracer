@@ -108,7 +108,7 @@ bounding_box_contains_box(Bounding_box box, Bounding_box other)
            && bounding_box_contains_array(box, other->max));
 }
 
-void
+Bounding_box
 bounding_box_transform(Bounding_box box, Matrix m)
 {
     double points[8][4] = {
@@ -122,13 +122,15 @@ bounding_box_transform(Bounding_box box, Matrix m)
         {box->max[0], box->max[1], box->max[2], 1.0 },
     };
 
-    bounding_box(box); // re-use the input box
+    Bounding_box tr = bounding_box_alloc();
     double arr[4];
     int i;
     for (i = 0; i < 8; i++) {
         matrix_array_multiply(m, points[i], arr);
-        bounding_box_add_array(box, arr);
+        bounding_box_add_array(tr, arr);
     }
+
+    return tr;
 }
 
 struct two_doubles {

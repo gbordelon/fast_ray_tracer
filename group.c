@@ -66,7 +66,6 @@ group_local_intersect(Shape group, Ray r)
 {
     Bounding_box box = group->bounds(group);
     if (!bounding_box_intersects(box, r)) {
-        bounding_box_free(box);
         return intersections_empty(0);
     }
 
@@ -104,7 +103,6 @@ group_local_intersect(Shape group, Ray r)
     intersections_sort(all_xs);
 
     free(children_xs);
-    bounding_box_free(box);
 
     return all_xs;
 }
@@ -164,7 +162,7 @@ partition_children(Shape group)
             i < group->fields.group.num_children;
             i++, from++) {
 
-        child_box = from->parent_space_bounds(from); // TODO parent_space_bounds or bounds?
+        child_box = from->parent_space_bounds(from);
 
         left_map[i] = false;
         right_map[i] = false;
@@ -177,8 +175,6 @@ partition_children(Shape group)
         } else {
             middle_count++;
         }
-
-        bounding_box_free(child_box);
     }
 
     // put left children into the beginning of the children array
@@ -259,18 +255,10 @@ partition_children(Shape group)
     rv.left_start = left_start;
     rv.middle_start = middle_start;
     rv.right_start = right_start;
-/*
-    rv.left_count = 0;
-    rv.middle_count = group->fields.group.num_children;
-    rv.right_count = 0;
-    rv.left_start = -1;
-    rv.middle_start = 0;
-    rv.right_start = -1;
-*/
+
     free(right_map);
     free(left_map);
     bounding_box_free(boxes);
-    bounding_box_free(box);
 
     return rv;
 }
@@ -370,21 +358,23 @@ group_divide(Shape g, size_t threshold)
 }
 
 Bounding_box
-group_bounds_alloc(Shape group)
+group_bounds(Shape group)
 {
-    Bounding_box box = bounding_box_alloc();
-    Shape child;
-    Bounding_box bbox;
-    int i;
-    for (i = 0, child = group->fields.group.children;
-            i < group->fields.group.num_children;
-            i++, child++) {
-        bbox = child->parent_space_bounds(child);
-        bounding_box_add_box(box, bbox);
-        bounding_box_free(bbox);
+    if (group->bbox == NULL) {
+        Bounding_box box = bounding_box_alloc();
+        Shape child;
+        Bounding_box bbox;
+        int i;
+        for (i = 0, child = group->fields.group.children;
+                i < group->fields.group.num_children;
+                i++, child++) {
+            bbox = child->parent_space_bounds(child);
+            bounding_box_add_box(box, bbox);
+        }
+        group->bbox = box;
+        group->bbox_inverse = bounding_box_transform(box, group->transform);
     }
-
-    return box;
+    return group->bbox;
 }
 
 void
@@ -402,6 +392,8 @@ group(Shape s, Shape children, size_t num_children)
     s->fields.group.children = children;
     s->fields.group.num_children = num_children;
     s->fields.group.children_need_free = false;
+    s->bbox = NULL;
+    s->bbox_inverse = NULL;
 
     Shape child;
     int i;
@@ -418,8 +410,8 @@ group(Shape s, Shape children, size_t num_children)
     s->divide = group_divide;
     s->includes = group_includes;
 
-    s->bounds = group_bounds_alloc;
-    s->parent_space_bounds = shape_parent_space_bounds_alloc;
+    s->bounds = group_bounds;
+    s->parent_space_bounds = shape_parent_space_bounds;
 }
 
 Shape

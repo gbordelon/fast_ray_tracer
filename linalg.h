@@ -137,6 +137,7 @@ void matrix_free(Matrix m);
 // subtract pt2 from pt1
 void vector_from_points(Point pt1, Point pt2, Vector res);
 Vector vector_from_points_alloc(Point pt1, Point pt2);
+void vector_from_arrays(double pt1[4], double pt2[4], Vector res);
 Vector vector_from_arrays_alloc(double pt1[4], double pt2[4]);
 void array_from_arrays(double pt1[4], double pt2[4], double res[4]);
 Vector vector_cross_arrays_alloc(double a[4], double b[4]);
