@@ -66,6 +66,7 @@ class OBJParser(object):
             print(e, line)
             raise
 
+    # TODO should also check for existence of // instead of just /
     def _fan_triangulation(self, line):
         triangles = []
         if '/' in line[1]:
@@ -100,15 +101,15 @@ class OBJParser(object):
                             'n2':self.normals[int(n2)],
                             'n3':self.normals[int(n3)]}
                 else:
-                    tri =  {'add':'smooth-triangle',
+                    tri =  {'add':'triangle',
                             'p1':self.vertices[int(v1)],
                             'p2':self.vertices[int(v2)],
                             'p3':self.vertices[int(v3)]}
 
                 if len(self.textures) > 0:
                     tri['t1'] = self.textures[int(t1)]
-                    tri['t1'] = self.textures[int(t1)]
-                    tri['t1'] = self.textures[int(t1)]
+                    tri['t2'] = self.textures[int(t2)]
+                    tri['t3'] = self.textures[int(t3)]
 
                 triangles.append(tri)
             except IndexError as e:

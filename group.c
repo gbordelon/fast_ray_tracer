@@ -13,7 +13,7 @@
 void
 group_add_children(Shape group, Shape children, size_t num_children)
 {
-    if (group == children) {
+    if (group == children) { // TODO this only checks the first child in the array
         printf("Error trying to add a group to its own children list\n");
         return;
     }

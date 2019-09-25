@@ -101,6 +101,9 @@ struct triangle_fields {
     double p1[4];
     double p2[4];
     double p3[4];
+    double t1[4];
+    double t2[4];
+    double t3[4];
     double e1[4];
     double e2[4];
     union {
@@ -318,7 +321,7 @@ Pattern texture_map_pattern_alloc(Pattern faces, enum uv_map_type type);
 
 
 Shape array_of_shapes(size_t num);
-void free_shape(Shape s);
+void shape_free(Shape s);
 
 void intersection(double t, Shape sh, Intersection x);
 Intersection intersection_alloc(double t, Shape sh);

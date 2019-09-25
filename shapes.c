@@ -159,7 +159,7 @@ array_of_shapes(size_t num)
 }
 
 void
-free_shape(Shape s)
+shape_free(Shape s)
 {
     if (s != NULL) {
         free(s);
