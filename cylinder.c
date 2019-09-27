@@ -40,7 +40,8 @@ cylinder_intersect_caps(Shape cylinder, Ray r, Intersections xs)
 Intersections
 cylinder_local_intersect(Shape cylinder, Ray r)
 {
-    Intersections xs = intersections_empty(4);
+    Intersections xs = cylinder->xs;
+    xs->num = 0;
     Intersection x = xs->xs;
 
     double a = r->direction[0] * r->direction[0] +
@@ -83,18 +84,25 @@ cylinder_local_intersect(Shape cylinder, Ray r)
     return xs;
 }
 
-Vector
-cylinder_local_normal_at(Shape sh, Point local_point, Intersection hit)
+void
+cylinder_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
 {
     double dist = local_point->arr[0] * local_point->arr[0] +
                   local_point->arr[2] * local_point->arr[2];
-    if (dist < 1 && ((sh->fields.cylinder.maximum - EPSILON) <= local_point->arr[1])) {
-        return vector(0,1,0);
-    } else if (dist < 1 && ((sh->fields.cylinder.minimum + EPSILON) >= local_point->arr[1])) {
-        return vector(0,-1,0);
-    }
 
-    return vector(local_point->arr[0], 0, local_point->arr[2]);
+    res->arr[0] = 0;
+    res->arr[1] = 0;
+    res->arr[2] = 0;
+    res->arr[3] = 0.0;
+
+    if (dist < 1 && ((sh->fields.cylinder.maximum - EPSILON) <= local_point->arr[1])) {
+        res->arr[1] = 1;
+    } else if (dist < 1 && ((sh->fields.cylinder.minimum + EPSILON) >= local_point->arr[1])) {
+        res->arr[1] = -1;
+    } else {
+        res->arr[0] = local_point->arr[0];
+        res->arr[2] = local_point->arr[2];
+    }
 }
 
 Bounding_box
@@ -131,6 +139,7 @@ cylinder(Shape s)
     s->type = SHAPE_CYLINDER;
     s->bbox = NULL;
     s->bbox_inverse = NULL;
+    s->xs = intersections_empty(4);
 
     s->fields.cylinder.minimum = -INFINITY;
     s->fields.cylinder.maximum = INFINITY;

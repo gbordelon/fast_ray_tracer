@@ -84,6 +84,7 @@ intersections_free(Intersections xs)
     if (xs != NULL) {
         if (xs->xs != NULL) {
             free(xs->xs);
+            xs->xs = NULL;
         }
         free(xs);
     }
@@ -205,56 +206,50 @@ shape_intersect(Shape sh, Ray r)
 Vector
 shape_normal_at(Shape sh, Point world_point, Intersection hit)
 {
-    Point local_point = sh->world_to_object(sh, world_point);
-    Vector local_normal = sh->local_normal_at(sh, local_point, hit);
-    Vector world_normal = sh->normal_to_world(sh, local_normal);
-    Vector n = vector_normalize_alloc(world_normal);
+    struct pt local_point;
+    struct v local_normal;
+    struct v world_normal;
 
-    vector_free(world_normal);
-    vector_free(local_normal);
-    point_free(local_point);
+    sh->world_to_object(sh, world_point, &local_point);
+    sh->local_normal_at(sh, &local_point, hit, &local_normal);
+    sh->normal_to_world(sh, &local_normal, &world_normal);
+    Vector n = vector_normalize_alloc(&world_normal);
 
     return n;
 }
 
-Vector
-shape_normal_to_world(Shape sh, Vector local_normal)
+void
+shape_normal_to_world(Shape sh, Vector local_normal, Vector res)
 {
+    struct m tr;
+    struct v un_normal;
+    struct v normal;
     Matrix inv = sh->transform_inverse;
-    Matrix tr = matrix_transpose_alloc(inv);
+
+    matrix_transpose(inv, &tr);
     
-    Vector un_normal = matrix_vector_multiply_alloc(tr, local_normal);
-    
-    Vector normal = vector_normalize_alloc(un_normal);
+    matrix_vector_multiply(&tr, local_normal, &un_normal);
+    vector_normalize(&un_normal, &normal);
 
     if (sh->parent != NULL) {
-        Vector new_normal = sh->parent->normal_to_world(sh->parent, normal);
-        vector_free(normal);
-        normal = new_normal;
+        sh->parent->normal_to_world(sh->parent, &normal, res);
+    } else {
+        memcpy(res->arr, normal.arr, 4 * sizeof(double));
     }
-
-    vector_free(un_normal);
-    matrix_free(tr);
-
-    return normal;
 }
 
-Point
-shape_world_to_object(Shape sh, Point pt)
+void
+shape_world_to_object(Shape sh, Point pt, Point res)
 {
-    Point pt_new = pt;
+    struct pt tmp;
     if (sh->parent != NULL) {
-        pt_new = sh->parent->world_to_object(sh->parent, pt);
+        sh->parent->world_to_object(sh->parent, pt, &tmp);
+    } else {
+        memcpy(tmp.arr, pt->arr, 4 * sizeof(double));
     }
 
     Matrix m = sh->transform_inverse;
-    Point p = matrix_point_multiply_alloc(m, pt_new);
-
-    if (sh->parent != NULL) {
-        point_free(pt_new);
-    }
-
-    return p;
+    matrix_point_multiply(m, &tmp, res);
 }
 
 void
@@ -388,12 +383,11 @@ base_pattern_at_shape(Pattern p, Shape s, Point pt)
 {
     Matrix inv = p->transform_inverse;
 
-    Point object_point = s->world_to_object(s, pt);
-    Point pattern_point = matrix_point_multiply_alloc(inv, object_point);
-    Color c = p->pattern_at(p, pattern_point);
-
-    point_free(pattern_point);
-    point_free(object_point);
+    struct pt object_point;
+    s->world_to_object(s, pt, &object_point);
+    struct pt pattern_point;
+    matrix_point_multiply(inv, &object_point, &pattern_point);
+    Color c = p->pattern_at(p, &pattern_point);
 
     return c;
 }
@@ -479,10 +473,12 @@ perturbed_pattern_at_shape(Pattern p, Shape s, Point pt)
                             p->fields.perturbed.octaves,
                             p->fields.perturbed.seed);
 
-    Point perturbed = point(new_x, new_y, new_z);
-    Color c = p->fields.perturbed.pattern1->pattern_at_shape(p->fields.perturbed.pattern1, s, perturbed);
+    struct pt perturbed;
+    perturbed.arr[0] = new_x;
+    perturbed.arr[1] = new_y;
+    perturbed.arr[2] = new_z;
 
-    point_free(perturbed);
+    Color c = p->fields.perturbed.pattern1->pattern_at_shape(p->fields.perturbed.pattern1, s, &perturbed);
 
     return c;
 }
@@ -775,14 +771,13 @@ UVMapReturnType
 sphere_uv_map(Point pt)
 {
     double theta = atan2(pt->arr[0], pt->arr[2]);
-    Vector vec = vector(pt->arr[0], pt->arr[1], pt->arr[2]);
-    double radius = vector_magnitude(vec);
+    struct v vec;
+    memcpy(vec.arr, pt->arr, 4 * sizeof(double));
+    double radius = vector_magnitude(&vec);
     double phi = acos(pt->arr[1] / radius);
     double raw_u = theta / (2 * M_PI);
     double u = 1 - (raw_u + 0.5);
     double v = 1 - phi / M_PI;
-
-    vector_free(vec);
 
     return uv_map_return_type_alloc(0, u, v);
 }

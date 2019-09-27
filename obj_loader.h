@@ -3,6 +3,6 @@
 
 #include "shapes.h"
 
-Shape construct_group_from_obj_file(const char * file_path); // returns a group object
+void construct_group_from_obj_file(const char * file_path, Shape result_group);
 
 #endif

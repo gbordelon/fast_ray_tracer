@@ -1,5 +1,6 @@
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "sphere.h"
 #include "shapes.h"
@@ -8,34 +9,35 @@ Intersections
 sphere_local_intersect(Shape sphere, Ray r)
 {
     double sphere_origin[4] = { 0.0, 0.0, 0.0, 0.0 };
-    Vector sphere_to_ray = vector_from_arrays_alloc(r->origin, sphere_origin);
+    struct v sphere_to_ray;
+    vector_from_arrays(r->origin, sphere_origin, &sphere_to_ray);
     double a = array_dot(r->direction, r->direction);
-    double b = 2 * array_dot(r->direction, sphere_to_ray->arr);
-    double c = vector_dot(sphere_to_ray, sphere_to_ray) - 1.0;
+    double b = 2 * array_dot(r->direction, sphere_to_ray.arr);
+    double c = vector_dot(&sphere_to_ray, &sphere_to_ray) - 1.0;
     double discriminant = b * b - 4 * a * c;
 
     if (discriminant < 0) {
-        return intersections_empty(0);
+        return NULL;
     }
     discriminant = sqrt(discriminant);
     a = 1.0 / (2 * a);
 
-    Intersections xs = intersections_empty(2);
+    Intersections xs = sphere->xs;
+    xs->num = 0;
+
     Intersection x = xs->xs;
     intersection((-b - discriminant) * a, sphere, x++);
     intersection((-b + discriminant) * a, sphere, x);
     xs->num = 2;
 
-    vector_free(sphere_to_ray);
-
     return xs;
 }
 
-Vector
-sphere_local_normal_at(Shape sh, Point local_point, Intersection hit)
+void
+sphere_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
 {
-    double origin[4] = {0.0, 0.0, 0.0, 0.0};
-    return vector_from_arrays_alloc(local_point->arr, origin);
+    memcpy(res->arr, local_point->arr, 3 * sizeof(double));
+    res->arr[3] = 0.0;
 }
 
 void
@@ -51,6 +53,7 @@ sphere(Shape s)
     s->type = SHAPE_SPHERE;
     s->bbox = NULL;
     s->bbox_inverse = NULL;
+    s->xs = intersections_empty(2);
 
     s->intersect = shape_intersect;
     s->local_intersect = sphere_local_intersect;

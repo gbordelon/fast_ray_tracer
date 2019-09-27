@@ -12,37 +12,37 @@ triangle_local_intersect(Shape triangle, Ray r)
     Vector dir_cross_e2 = vector_cross_arrays_alloc(r->direction, triangle->fields.triangle.e2);
     double det = array_dot(triangle->fields.triangle.e1, dir_cross_e2->arr);
     if (fabs(det) < EPSILON) {
-        return intersections_empty(0);
+        return NULL;
     }
 
     double f = 1.0 / det;
     Vector p1_to_origin = vector_from_arrays_alloc(r->origin, triangle->fields.triangle.p1);
     double u = f * vector_dot(p1_to_origin, dir_cross_e2);
     if (u < 0 || u > 1) {
-        return intersections_empty(0);
+        return NULL;
     }
 
     Vector origin_cross_e1 = vector_cross_arrays_alloc(p1_to_origin->arr, triangle->fields.triangle.e1);
 
     double v = f * array_dot(r->direction, origin_cross_e1->arr);
     if (v < 0 || ((u + v) > 1)) {
-        return intersections_empty(0);
+        return NULL;
     }
 
     double t = f * array_dot(triangle->fields.triangle.e2, origin_cross_e1->arr);
-    Intersections xs = intersections_empty(1);
+    Intersections xs = triangle->xs;
+    xs->num = 0;
+
     intersection(t, triangle, xs->xs);
     xs->num = 1;
 
     return xs;
 }
 
-Vector
-triangle_local_normal_at(Shape sh, Point local_point, Intersection hit)
+void
+triangle_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
 {
-    return vector(sh->fields.triangle.u_normals.normal[0],
-                  sh->fields.triangle.u_normals.normal[1], 
-                  sh->fields.triangle.u_normals.normal[2]);
+    memcpy(res->arr, sh->fields.triangle.u_normals.normal, 4 * sizeof(double));
 }
 
 Bounding_box
@@ -74,6 +74,7 @@ triangle(Shape s, double p1[4], double p2[4], double p3[4])
     s->type = SHAPE_TRIANGLE;
     s->bbox = NULL;
     s->bbox_inverse = NULL;
+    s->xs = intersections_empty(1);
 
     memcpy(s->fields.triangle.p1, p1, 4 * sizeof(double));
     memcpy(s->fields.triangle.p2, p2, 4 * sizeof(double));
@@ -82,9 +83,11 @@ triangle(Shape s, double p1[4], double p2[4], double p3[4])
     array_from_arrays(p2, p1, &s->fields.triangle.e1[0]);
     array_from_arrays(p3, p1, &s->fields.triangle.e2[0]);
 
-    Vector cross = vector_cross_arrays_alloc(s->fields.triangle.e2, s->fields.triangle.e1);
-    Vector normal = vector_normalize_alloc(cross);
-    memcpy(s->fields.triangle.u_normals.normal, normal->arr, sizeof(normal->arr));
+    struct v cross;
+    vector_cross_arrays(s->fields.triangle.e2, s->fields.triangle.e1, &cross);
+    struct v normal;
+    vector_normalize(&cross, &normal);
+    memcpy(s->fields.triangle.u_normals.normal, normal.arr, 4 * sizeof(double));
 
     s->intersect = shape_intersect;
     s->local_intersect = triangle_local_intersect;
@@ -97,9 +100,6 @@ triangle(Shape s, double p1[4], double p2[4], double p3[4])
 
     s->bounds = triangle_bounds;
     s->parent_space_bounds = shape_parent_space_bounds;
-
-    vector_free(normal);
-    vector_free(cross);
 }
 
 
@@ -122,59 +122,55 @@ triangle_point_alloc(Point p1, Point p2, Point p3)
 Intersections
 smooth_triangle_local_intersect(Shape triangle, Ray r)
 {
-    Vector dir_cross_e2 = vector_cross_arrays_alloc(r->direction, triangle->fields.triangle.e2);
-    double det = array_dot(triangle->fields.triangle.e1, dir_cross_e2->arr);
+    struct v dir_cross_e2;
+    vector_cross_arrays(r->direction, triangle->fields.triangle.e2, &dir_cross_e2);
+    double det = array_dot(triangle->fields.triangle.e1, dir_cross_e2.arr);
     if (fabs(det) < EPSILON) {
-        return intersections_empty(0);
+        return NULL;
     }
 
     double f = 1.0 / det;
-    Vector p1_to_origin = vector_from_arrays_alloc(r->origin, triangle->fields.triangle.p1);
-    double u = f * vector_dot(p1_to_origin, dir_cross_e2);
+    struct v p1_to_origin;
+    vector_from_arrays(r->origin, triangle->fields.triangle.p1, &p1_to_origin);
+    double u = f * vector_dot(&p1_to_origin, &dir_cross_e2);
     if (u < 0 || u > 1) {
-        return intersections_empty(0);
+        return NULL;
     }
 
-    Vector origin_cross_e1 = vector_cross_arrays_alloc(p1_to_origin->arr, triangle->fields.triangle.e1);
+    struct v origin_cross_e1;
+    vector_cross_arrays(p1_to_origin.arr, triangle->fields.triangle.e1, &origin_cross_e1);
 
-    double v = f * array_dot(r->direction, origin_cross_e1->arr);
+    double v = f * array_dot(r->direction, origin_cross_e1.arr);
     if (v < 0 || ((u + v) > 1)) {
-        return intersections_empty(0);
+        return NULL;
     }
 
-    double t = f * array_dot(triangle->fields.triangle.e2, origin_cross_e1->arr);
-    Intersections xs = intersections_empty(1);
+    double t = f * array_dot(triangle->fields.triangle.e2, origin_cross_e1.arr);
+    Intersections xs = triangle->xs;
+    xs->num = 0;
+
     intersection_with_uv(t, u, v, triangle, xs->xs);
     xs->num = 1;
 
     return xs;
 }
 
-Vector
-smooth_triangle_local_normal_at(Shape s, Point local_point, Intersection hit)
+void
+smooth_triangle_local_normal_at(Shape s, Point local_point, Intersection hit, Vector res)
 {
-    Vector v2 = vector(s->fields.triangle.u_normals.s_normals.n2[0],
-                       s->fields.triangle.u_normals.s_normals.n2[1],
-                       s->fields.triangle.u_normals.s_normals.n2[2]);
-    Vector v3 = vector(s->fields.triangle.u_normals.s_normals.n3[0],
-                       s->fields.triangle.u_normals.s_normals.n3[1],
-                       s->fields.triangle.u_normals.s_normals.n3[2]);
-    Vector v1 = vector(s->fields.triangle.u_normals.s_normals.n1[0],
-                       s->fields.triangle.u_normals.s_normals.n1[1],
-                       s->fields.triangle.u_normals.s_normals.n1[2]);
+    struct v v2;
+    struct v v3;
+    memcpy(res->arr, s->fields.triangle.u_normals.s_normals.n1, 4 * sizeof(double));
+    memcpy(v2.arr, s->fields.triangle.u_normals.s_normals.n2, 4 * sizeof(double));
+    memcpy(v3.arr, s->fields.triangle.u_normals.s_normals.n3, 4 * sizeof(double));
 
-    vector_scale(v2, hit->u);
-    vector_scale(v3, hit->v);
-    vector_scale(v1, 1 - hit->u - hit->v);
+    vector_scale(&v2, hit->u);
+    vector_scale(&v3, hit->v);
+    vector_scale(res, 1 - hit->u - hit->v);
 
-    v1->arr[0] += v2->arr[0] + v3->arr[0];
-    v1->arr[1] += v2->arr[1] + v3->arr[1];
-    v1->arr[2] += v2->arr[2] + v3->arr[2];
-
-    vector_free(v2);
-    vector_free(v3);
-
-    return v1;
+    res->arr[0] += v2.arr[0] + v3.arr[0];
+    res->arr[1] += v2.arr[1] + v3.arr[1];
+    res->arr[2] += v2.arr[2] + v3.arr[2];
 }
 
 
@@ -193,6 +189,7 @@ smooth_triangle(Shape s,
     s->type = SHAPE_SMOOTH_TRIANGLE;
     s->bbox = NULL;
     s->bbox_inverse = NULL;
+    s->xs = intersections_empty(1);
 
     memcpy(s->fields.triangle.p1, p1, 4 * sizeof(double));
     memcpy(s->fields.triangle.p2, p2, 4 * sizeof(double));

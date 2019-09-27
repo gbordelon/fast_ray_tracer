@@ -40,7 +40,9 @@ intersect_caps(Shape cone, Ray r, Intersections xs)
 Intersections
 cone_local_intersect(Shape cone, Ray r)
 {
-    Intersections xs = intersections_empty(4);
+    Intersections xs = cone->xs;
+    xs->num = 0;
+
     Intersection x = xs->xs;
 
     double a = r->direction[0] * r->direction[0] +
@@ -91,21 +93,29 @@ cone_local_intersect(Shape cone, Ray r)
     return xs;
 }
 
-Vector
-cone_local_normal_at(Shape sh, Point local_point, Intersection hit)
+void
+cone_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
 {
     double dist = local_point->arr[0] * local_point->arr[0] + local_point->arr[2] * local_point->arr[2];
-    if (dist < 1 && ((sh->fields.cone.maximum - EPSILON) <= local_point->arr[1])) {
-        return vector(0,1,0);
-    } else if (dist < 1 && ((sh->fields.cone.minimum + EPSILON) >= local_point->arr[1])) {
-        return vector(0,-1,0);
-    }
+    res->arr[0] = 0;
+    res->arr[1] = 0;
+    res->arr[2] = 0;
+    res->arr[3] = 0.0;
 
-    double y = sqrt(dist);
-    if (local_point->arr[1] > 0) {
-        y = -y;
+    if (dist < 1 && ((sh->fields.cone.maximum - EPSILON) <= local_point->arr[1])) {
+        res->arr[1] = 1;
+    } else if (dist < 1 && ((sh->fields.cone.minimum + EPSILON) >= local_point->arr[1])) {
+        res->arr[1] = -1;
+    } else {
+        double y = sqrt(dist);
+        if (local_point->arr[1] > 0) {
+            y = -y;
+        }
+
+        res->arr[0] = local_point->arr[0];
+        res->arr[1] = y;
+        res->arr[2] = local_point->arr[2];
     }
-    return vector(local_point->arr[0], y, local_point->arr[2]);
 }
 
 Bounding_box
@@ -145,6 +155,7 @@ cone(Shape s)
     s->type = SHAPE_CONE;
     s->bbox = NULL;
     s->bbox_inverse = NULL;
+    s->xs = intersections_empty(4);
 
     s->fields.cone.minimum = -DBL_MAX;
     s->fields.cone.maximum = DBL_MAX;

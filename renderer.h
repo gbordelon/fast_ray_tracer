@@ -62,6 +62,7 @@ typedef struct world {
     Shape shapes;
     size_t lights_num;
     size_t shapes_num;
+    Intersections xs;
 } *World;
 
 enum aperture_shape {
@@ -109,17 +110,15 @@ World world();
 World default_world();
 
 
-// pixel x and pixel y
-//Ray ray_for_pixel(Camera cam, size_t px, size_t py, double x_offset, double y_offset);
-Color color_at(World w, Ray r, size_t remaining);
-Color shade_hit(World w, Computations comps, size_t remaining);
+void color_at(World w, Ray r, size_t remaining, Color res);
+void shade_hit(World w, Computations comps, size_t remaining, Color res);
 bool is_shadowed(World w, double light_position[4], Point pt);
 Intersections intersect_world(World w, Ray r);
 
 void intersections_sort(Intersections xs);
 void intersections_reverse(Intersections xs);
 
-Computations prepare_computations(Intersection i, Ray r, Intersections xs);
+void prepare_computations(Intersection i, Ray r, Intersections xs, Computations res);
 Canvas render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter);
 
 #endif

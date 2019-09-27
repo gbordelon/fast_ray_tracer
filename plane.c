@@ -10,10 +10,11 @@ Intersections
 plane_local_intersect(Shape plane, Ray r)
 {
     if (fabs(r->direction[1]) < EPSILON) {
-        return intersections_empty(0);
+        return NULL;
     }
 
-    Intersections xs = intersections_empty(1);
+    Intersections xs = plane->xs;
+    xs->num = 0;
     Intersection x = xs->xs;
     intersection(-r->origin[1] / r->direction[1], plane, x);
     xs->num = 1;
@@ -21,10 +22,13 @@ plane_local_intersect(Shape plane, Ray r)
     return xs;
 }
 
-Vector
-plane_local_normal_at(Shape sh, Point local_point, Intersection hit)
+void
+plane_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
 {
-    return vector(0,1,0);
+    res->arr[0] = 0;
+    res->arr[1] = 1;
+    res->arr[2] = 0;
+    res->arr[3] = 0.0;
 }
 
 Bounding_box
@@ -60,6 +64,7 @@ plane(Shape s)
     s->type = SHAPE_PLANE;
     s->bbox = NULL;
     s->bbox_inverse = NULL;
+    s->xs = intersections_empty(1);
 
     s->intersect = shape_intersect;
     s->local_intersect = plane_local_intersect;

@@ -81,9 +81,8 @@ struct csg_fields {
 struct group_fields {
     struct shape *children;
     size_t num_children;
+    size_t size_children_array;
     bool children_need_free;
-    // partition children this can probably be private to the .c file
-    // make subgroup this can probably be private to the .c file
 };
 
 struct cone_cylinder_fields {
@@ -128,6 +127,7 @@ typedef struct shape {
     struct shape *parent;
     Bounding_box bbox;
     Bounding_box bbox_inverse;
+    Intersections xs;
 
     enum shape_enum type;
     union {
@@ -142,9 +142,9 @@ typedef struct shape {
     Intersections (*intersect)(struct shape *sh, Ray r);
     Intersections (*local_intersect)(struct shape *sh, Ray r);
     Vector (*normal_at)(struct shape *sh, Point world_point, Intersection hit);
-    Vector (*local_normal_at)(struct shape *sh, Point local_point, Intersection hit);
-    Vector (*normal_to_world)(struct shape *sh, Vector local_normal);
-    Point (*world_to_object)(struct shape *sh, Point pt);
+    void (*local_normal_at)(struct shape *sh, Point local_point, Intersection hit, Vector res);
+    void (*normal_to_world)(struct shape *sh, Vector local_normal, Vector res);
+    void (*world_to_object)(struct shape *sh, Point pt, Point res);
 
     Bounding_box (*bounds)(struct shape *sh);
     Bounding_box (*parent_space_bounds)(struct shape *sh);
@@ -341,8 +341,8 @@ int ray_to_string(char *s, size_t n, Ray r);
 
 Intersections shape_intersect(Shape sh, Ray r);
 Vector shape_normal_at(Shape sh, Point world_point, Intersection hit);
-Vector shape_normal_to_world(Shape sh, Vector local_normal);
-Point shape_world_to_object(Shape sh, Point pt);
+void shape_normal_to_world(Shape sh, Vector local_normal, Vector res);
+void shape_world_to_object(Shape sh, Point pt, Point res);
 void shape_divide(Shape sh, size_t threshold);
 bool shape_includes(Shape a, Shape b);
 

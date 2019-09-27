@@ -139,8 +139,7 @@ def world_objects_to_c_file(obj):
     if 'config' not in obj or obj['config'] is None:
         obj['config'] = GlobalConfig.from_yaml(dict())
     
-    c_code = """
-#include <stdio.h>
+    c_code = """#include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 #include <math.h>
@@ -158,6 +157,7 @@ def world_objects_to_c_file(obj):
 #include "plane.h"
 #include "sphere.h"
 #include "triangle.h"
+#include "obj_loader.h"
 
 int main()
 {{

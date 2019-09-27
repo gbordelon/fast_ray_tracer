@@ -60,10 +60,11 @@ cube_local_intersect(Shape cube, Ray r)
     double tmax = fmin(fmin(xtmin_xtmax.a[1], ytmin_ytmax.a[1]), ztmin_ztmax.a[1]);
 
     if (tmin > tmax) {
-        return intersections_empty(0);
+        return NULL;
     }
 
-    Intersections xs = intersections_empty(2);
+    Intersections xs = cube->xs;
+    xs->num = 0;
     Intersection x = xs->xs;
     intersection(tmin, cube, x++);
     intersection(tmax, cube, x);
@@ -72,21 +73,26 @@ cube_local_intersect(Shape cube, Ray r)
     return xs;
 }
 
-Vector
-cube_local_normal_at(Shape sh, Point local_point, Intersection hit)
+void
+cube_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
 {
     double abs_x = fabs(local_point->arr[0]);
     double abs_y = fabs(local_point->arr[1]);
     double abs_z = fabs(local_point->arr[2]);
     double maxc = fmax(fmax(abs_x, abs_y), abs_z);
 
-    if (equal(maxc, abs_x)) {
-        return vector(local_point->arr[0], 0, 0);
-    } else if (equal(maxc, abs_y)) {
-        return vector(0, local_point->arr[1], 0);
-    }
+    res->arr[0] = 0;
+    res->arr[1] = 0;
+    res->arr[2] = 0;
+    res->arr[3] = 0.0;
 
-    return vector(0,0,local_point->arr[2]);
+    if (equal(maxc, abs_x)) {
+        res->arr[0] = local_point->arr[0];
+    } else if (equal(maxc, abs_y)) {
+        res->arr[1] = local_point->arr[1];
+    } else {
+        res->arr[2] = local_point->arr[2];
+    }
 }
 
 void
@@ -102,6 +108,7 @@ cube(Shape s)
     s->type = SHAPE_CUBE;
     s->bbox = NULL;
     s->bbox_inverse = NULL;
+    s->xs = intersections_empty(2);
 
     s->intersect = shape_intersect;
     s->local_intersect = cube_local_intersect;

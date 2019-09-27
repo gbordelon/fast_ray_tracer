@@ -78,27 +78,39 @@ csg_local_intersect(Shape s, Ray r)
 {
     Bounding_box box = s->bounds(s);
     if (!bounding_box_intersects(box, r)) {
-        return intersections_empty(0);
+        return NULL;
     }
 
     Intersections left_xs = s->fields.csg.left->intersect(s->fields.csg.left, r);
     Intersections right_xs = s->fields.csg.right->intersect(s->fields.csg.right, r);
+    size_t total_num_intersections = 0;
+    if (left_xs != NULL) {
+        total_num_intersections += left_xs->num;
+    }
+    if (right_xs != NULL) {
+        total_num_intersections += right_xs->num;
+    }
 
-    if ((left_xs->num + right_xs->num) > 0) {
-        if (left_xs->num == 0) {
+    if (total_num_intersections > 0) {
+        if (left_xs == NULL || left_xs->num == 0) {
             // filter
             csg_filter_intersections(s, right_xs);
-            intersections_free(left_xs);
             return right_xs;
-        } else if (right_xs->num == 0) {
+        } else if (right_xs == NULL || right_xs->num == 0) {
             // filter
             csg_filter_intersections(s, left_xs);
-            intersections_free(right_xs);
             return left_xs;
         }
 
+        if (s->xs->array_len <= left_xs->num + right_xs->num) {
+            Intersections new_xs = intersections_empty(left_xs->num + right_xs->num);
+            intersections_free(s->xs);
+            s->xs = new_xs;
+        }
+
         // both arrays together
-        Intersections both = intersections_empty(left_xs->num + right_xs->num);
+        Intersections both = s->xs;
+        both->num = 0;
         memcpy(both->xs, left_xs->xs, left_xs->num * sizeof(struct intersection));
         memcpy(both->xs + left_xs->num, right_xs->xs, right_xs->num * sizeof(struct intersection));
         both->num = left_xs->num + right_xs->num;
@@ -109,22 +121,16 @@ csg_local_intersect(Shape s, Ray r)
         // filter
         csg_filter_intersections(s, both);
 
-        intersections_free(left_xs);
-        intersections_free(right_xs);
-
         return both;
     }
-
-    intersections_free(right_xs);
 
     return left_xs;
 }
 
-Vector
-csg_local_normal_at(Shape sh, Point local_point, Intersection hit)
+void
+csg_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
 {
-    printf("CSG local_normal_at called. This makes no sense. Returning null\n");
-    return NULL;
+    printf("CSG local_normal_at called. This makes no sense.\n");
 }
 
 bool
@@ -171,6 +177,7 @@ csg(Shape s, enum csg_ops_enum op, Shape left_child, Shape right_child)
     s->type = SHAPE_CSG;
     s->bbox = NULL;
     s->bbox_inverse = NULL;
+    s->xs = intersections_empty(64);
 
     s->fields.csg.op = op;
     s->fields.csg.left = left_child;
