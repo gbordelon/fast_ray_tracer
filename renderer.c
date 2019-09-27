@@ -173,9 +173,9 @@ void
 point_light(Point p, Color intensity, Light l)
 {
     l->type = POINT_LIGHT;
-    memcpy(l->intensity, intensity, sizeof(l->intensity));
+    memcpy(l->intensity, intensity, 3 * sizeof(double));
     l->num_samples = 1;
-    memcpy(l->u.point.position, p->arr, sizeof(l->u.point.position));
+    memcpy(l->u.point.position, p->arr, 4 * sizeof(double));
     l->light_surface_points = point_light_surface_points;
     l->intensity_at = point_light_intensity_at;
 
@@ -261,29 +261,30 @@ camera_set_transform(Camera c, Matrix m)
 Matrix
 view_transform(Point fr, Point to, Vector up)
 {
-    Vector v = vector_from_points_alloc(to,fr);
-    Vector forward = vector_normalize_alloc(v);
+    struct v v;
+    struct v forward;
+    struct v upn;
+    struct v left;
+    struct v true_up;
+    struct m orientation;
+    struct m m;
 
-    Vector upn = vector_normalize_alloc(up);
-    Vector left = vector_cross_alloc(forward, upn);
-    Vector true_up = vector_cross_alloc(left, forward);
-    Matrix orientation = matrix_alloc(left->arr[0], left->arr[1], left->arr[2], 0,
-                                      true_up->arr[0], true_up->arr[1], true_up->arr[2], 0,
-                                      -forward->arr[0], -forward->arr[1], -forward->arr[2], 0,
-                                      0, 0, 0, 1);
-    Matrix m = matrix_translate_alloc(-fr->arr[0], -fr->arr[1], -fr->arr[2]);
+    vector_from_points(to,fr, &v);
+    vector_normalize(&v, &forward);
 
-    Matrix retval = matrix_multiply_alloc(orientation, m);
+    vector_normalize(up, &upn);
+    vector_cross(&forward, &upn, &left);
+    vector_cross(&left, &forward, &true_up);
 
-    matrix_free(m);
-    matrix_free(orientation);
-    vector_free(true_up);
-    vector_free(left);
-    vector_free(upn);
-    vector_free(forward);
-    vector_free(v);
+    matrix(left.arr[0], left.arr[1], left.arr[2], 0,
+           true_up.arr[0], true_up.arr[1], true_up.arr[2], 0,
+           -forward.arr[0], -forward.arr[1], -forward.arr[2], 0,
+           0, 0, 0, 1,
+           &orientation);
 
-    return retval;
+    matrix_translate(-fr->arr[0], -fr->arr[1], -fr->arr[2], &m);
+
+    return matrix_multiply_alloc(&orientation, &m);
 }
 
 World
@@ -312,7 +313,7 @@ default_world()
     Shape s1 = shapes;
     Shape s2 = shapes + 1;
 
-    sphere(s1);
+    cube(s1);
     sphere(s2);
 
     s1->material->color[0] = 0.8;
@@ -320,9 +321,12 @@ default_world()
     s1->material->color[2] = 0.6;
     s1->material->diffuse = 0.7;
     s1->material->specular = 0.2;
+    s1->material->casts_shadow = false;
+    s1->material->transparency = 0.8;
 
     Matrix scaling = matrix_scale_alloc(0.5, 0.5, 0.5);
     shape_set_transform(s2, scaling);
+    shape_set_transform(s1, transform_chain(matrix_translate_alloc(10,0,0), matrix_rotate_y_alloc(M_PI_4)));
 
     w->shapes = shapes;
     w->shapes_num = 2;
@@ -363,19 +367,20 @@ ray_for_pixel(Camera cam, double px, double py, double x_offset, double y_offset
     struct pt origin;
     struct v direction;
     struct pt p;
+    struct pt pixel;
     struct v v;
 
     p.arr[0] = world_x;
     p.arr[1] = world_y;
     p.arr[2] = -cam->canvas_distance;
     p.arr[3] = 1.0;
+    matrix_point_multiply(inv, &p, &pixel);
 
-    Point pixel = matrix_point_multiply_alloc(inv, &p);
     p.arr[0] = 0 + (-0.5 + jitter_by(true)) * cam->aperture_size; // aperture size of 1
     p.arr[1] = 0 + (-0.5 + jitter_by(true)) * cam->aperture_size; // aperture size of 1
     p.arr[2] = 0;
     matrix_point_multiply(inv, &p, &origin);
-    vector_from_points(pixel, &origin, &v);
+    vector_from_points(&pixel, &origin, &v);
     vector_normalize(&v, &direction);
 
     ray_array(origin.arr, direction.arr, res);
@@ -400,9 +405,13 @@ pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_
     double x_offset, y_offset;
     size_t u, v;
     double total_steps = (double)usteps * (double)vsteps;
-
     struct ray r;
     struct color c;
+    struct color acc;
+
+    acc.arr[0] = 0;
+    acc.arr[1] = 0;
+    acc.arr[2] = 0;
 
     for (v = 0; v < vsteps; v++) {
         for (u = 0; u < usteps; u++) {
@@ -411,13 +420,22 @@ pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_
             c.arr[0] = 0;
             c.arr[1] = 0;
             c.arr[2] = 0;
+            r.origin[0] = 0;
+            r.origin[1] = 0;
+            r.origin[2] = 0;
+            r.origin[3] = 1;
+            r.direction[0] = 0;
+            r.direction[1] = 0;
+            r.direction[2] = 0;
+            r.direction[0] = 0;
             ray_for_pixel(cam, x, y, x_offset, y_offset, &r);
             color_at(w, &r, 5, &c);
-            color_accumulate(res, &c);
+            color_accumulate(&acc, &c);
         }
     }
 
-    color_scale(res, 1.0 / total_steps);
+    color_scale(&acc, 1.0 / total_steps);
+    memcpy(res->arr, acc.arr, 3 * sizeof(double));
 }
 
 Canvas
@@ -475,17 +493,18 @@ color_at(World w, Ray r, size_t remaining, Color res)
     Intersections xs = intersect_world(w, r);
     Intersection i = hit(xs, false);
     struct computations comps;
+    struct color c;
 
-    res->arr[0] = 0;
-    res->arr[1] = 0;
-    res->arr[2] = 0;
+    c.arr[0] = 0;
+    c.arr[1] = 0;
+    c.arr[2] = 0;
 
-    if (i == NULL) {
-    } else {
+    if (i != NULL) {
         prepare_computations(i, r, xs, &comps);
-        shade_hit(w, &comps, remaining, res);
+        shade_hit(w, &comps, remaining, &c);
         computations_free(&comps); // this is okay because it just frees the objects comps points to
     }
+    memcpy(res->arr, c.arr, 3 * sizeof(double));
 }
 
 int
@@ -531,38 +550,34 @@ intersections_sort(Intersections xs)
 Intersections
 intersect_world(World w, Ray r)
 {
-    Shape itr;
-    Intersections xs = w->xs;
-    xs->num = 0;
     int i;
 
-    for (itr = w->shapes, i = 0;
-         i < w->shapes_num;
-         itr++, i++) {
-        Intersections xs_1 = itr->intersect(itr, r);
+    w->xs->num = 0;
+    for (i = 0; i < w->shapes_num; i++) {
+        Intersections xs_1 = (w->shapes + i)->intersect(w->shapes + i, r);
         if (xs_1 == NULL || xs_1->num == 0) {
             continue;
         }
 
-        // realloc and copy xs
-        if (xs_1->num + xs->num >= xs->array_len) {
-            Intersections xs_2 = intersections_empty(2 * xs->array_len);
-            memcpy(xs_2->xs, xs->xs, xs->array_len * sizeof(struct intersection));
-            xs_2->num = xs->num;
-            intersections_free(xs);
-            xs = w->xs = xs_2;
+        // realloc
+        if (xs_1->num + w->xs->num >= w->xs->array_len) {
+            Intersections xs_2 = intersections_empty(2 * w->xs->array_len);
+            memcpy(xs_2->xs, w->xs->xs, w->xs->array_len * sizeof(struct intersection));
+            xs_2->num = w->xs->num;
+            intersections_free(w->xs);
+            w->xs = xs_2;
         }
 
         // copy from xs_1 into xs + xs->num
-        memcpy(xs->xs + xs->num, xs_1->xs, xs_1->num * sizeof(struct intersection));
-        xs->num += xs_1->num;
+        memcpy(w->xs->xs + w->xs->num, xs_1->xs, xs_1->num * sizeof(struct intersection));
+        w->xs->num += xs_1->num;
     }
 
-    if (xs->num > 1) {
-        intersections_sort(xs);
+    if (w->xs->num > 1) {
+        intersections_sort(w->xs);
     }
 
-    return xs;
+    return w->xs;
 }
 
 Point
@@ -690,10 +705,10 @@ prepare_computations(Intersection i, Ray r, Intersections xs, Computations res)
 void
 reflected_color(World w, Computations comps, size_t remaining, Color res)
 {
-    res->arr[0] = 0;
-    res->arr[1] = 0;
-    res->arr[2] = 0;
     if (remaining == 0 || equal(comps->obj->material->reflective, 0)) {
+        res->arr[0] = 0;
+        res->arr[1] = 0;
+        res->arr[2] = 0;
     } else {
         struct ray reflect_ray;
         struct color c;
@@ -710,10 +725,10 @@ reflected_color(World w, Computations comps, size_t remaining, Color res)
 void
 refracted_color(World w, Computations comps, size_t remaining, Color res)
 {
-    res->arr[0] = 0;
-    res->arr[1] = 0;
-    res->arr[2] = 0;
     if (remaining == 0 || equal(comps->obj->material->transparency,0)) {
+        res->arr[0] = 0;
+        res->arr[1] = 0;
+        res->arr[2] = 0;
         return;
     }
 
@@ -722,6 +737,9 @@ refracted_color(World w, Computations comps, size_t remaining, Color res)
     double sin2_t = n_ratio * n_ratio * (1.0 - cos_i * cos_i);
 
     if (sin2_t > 1.0) {
+        res->arr[0] = 0;
+        res->arr[1] = 0;
+        res->arr[2] = 0;
         return;
     }
 
@@ -732,6 +750,8 @@ refracted_color(World w, Computations comps, size_t remaining, Color res)
 
     struct v t1;
     struct v t2;
+    struct v direction;
+    struct ray refracted_ray;
 
     double cos_t = sqrt(1.0 - sin2_t);
     memcpy(t1.arr, comps->normalv->arr, 4 * sizeof(double));
@@ -739,13 +759,11 @@ refracted_color(World w, Computations comps, size_t remaining, Color res)
     memcpy(t2.arr, comps->eyev->arr, 4 * sizeof(double));
 
     vector_scale(&t2, n_ratio);
-    struct v direction;
     direction.arr[0] = t1.arr[0] - t2.arr[0];
     direction.arr[1] = t1.arr[1] - t2.arr[1];
     direction.arr[2] = t1.arr[2] - t2.arr[2];
     direction.arr[3] = 0.0;
 
-    struct ray refracted_ray;
     ray_array(comps->under_point->arr, direction.arr, &refracted_ray);
     color_at(w, &refracted_ray, remaining - 1, &c);
     color_scale(&c, comps->obj->material->transparency);
@@ -774,20 +792,21 @@ schlick(Computations comps)
 void
 shade_hit(World w, Computations comps, size_t remaining, Color res)
 {
-    Color surface = res;
     Light itr;
     size_t i;
     struct color c;
+    struct color surface;
+    double intensity;
 
-    surface->arr[0] = 0;
-    surface->arr[1] = 0;
-    surface->arr[2] = 0;
+    surface.arr[0] = 0;
+    surface.arr[1] = 0;
+    surface.arr[2] = 0;
 
     for (i = 0, itr = w->lights; i < w->lights_num; i++, itr++) {
         c.arr[0] = 0;
         c.arr[1] = 0;
         c.arr[2] = 0;
-        double intensity = itr->intensity_at(itr, w, comps->over_point);
+        intensity = itr->intensity_at(itr, w, comps->over_point);
         lighting(comps->obj->material,
                  comps->obj,
                  itr,
@@ -797,7 +816,7 @@ shade_hit(World w, Computations comps, size_t remaining, Color res)
                  intensity,
                  &c);
 
-        color_accumulate(surface, &c);
+        color_accumulate(&surface, &c);
     }
 
     struct color reflected;
@@ -820,32 +839,33 @@ shade_hit(World w, Computations comps, size_t remaining, Color res)
         color_scale(&refracted, 1.0 - reflectance);
     }
 
-    color_accumulate(surface, &reflected);
-    color_accumulate(surface, &refracted);
+    color_accumulate(&surface, &reflected);
+    color_accumulate(&surface, &refracted);
+
+    memcpy(res->arr, surface.arr, 3 * sizeof(double));
 }
 
 void
 lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity, Color res)
 {
-    Color pcolor;
+    struct color scolor;
+    struct color ambient;
+    Color pcolor = &scolor;
 
     if (material->pattern != NULL) {
         pcolor = material->pattern->pattern_at_shape(material->pattern, shape, point);
     } else {
-        pcolor = color_default();
         memcpy(pcolor->arr, material->color, 3 * sizeof(double));
     }
-
-    Color effective_color = pcolor;
 
     pcolor->arr[0] *= light->intensity[0];
     pcolor->arr[1] *= light->intensity[1];
     pcolor->arr[2] *= light->intensity[2];
 
-    struct color ambient;
-    memcpy(ambient.arr, effective_color->arr, 3 * sizeof(double));
+    memcpy(ambient.arr, pcolor->arr, 3 * sizeof(double));
+
     color_scale(&ambient, material->ambient);
-    if (equal(shade_intensity,0.0)) {
+    if (equal(shade_intensity, 0.0)) {
         color_accumulate(res, &ambient);
         return;
     }
@@ -864,10 +884,7 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
         double light_dot_normal = vector_dot(&lightv, normalv);
         if (light_dot_normal >= 0) {
             // diffuse
-            diffuse.arr[0] = effective_color->arr[0];
-            diffuse.arr[1] = effective_color->arr[1];
-            diffuse.arr[2] = effective_color->arr[2];
-
+            memcpy(diffuse.arr, pcolor->arr, 3 * sizeof(double));
             color_scale(&diffuse, material->diffuse);
             color_scale(&diffuse, light_dot_normal);
             color_accumulate(res, &diffuse);
@@ -878,7 +895,7 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
             vector_scale(&lightv, -1);
 
             double reflect_dot_eye = vector_dot(&reflectv, eyev);
-            if (reflect_dot_eye > 0) {
+            if (reflect_dot_eye > 0 && material->specular > 0) {
                 double factor = pow(reflect_dot_eye, material->shininess);
                 res->arr[0] += light->intensity[0] * material->specular * factor;
                 res->arr[1] += light->intensity[1] * material->specular * factor;
@@ -891,5 +908,7 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
     color_scale(res, scaling);
     color_accumulate(res, &ambient);
 
-    color_free(pcolor);
+    if (material->pattern != NULL) {
+        color_free(pcolor);
+    }
 }

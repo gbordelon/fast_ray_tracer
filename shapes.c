@@ -213,9 +213,7 @@ shape_normal_at(Shape sh, Point world_point, Intersection hit)
     sh->world_to_object(sh, world_point, &local_point);
     sh->local_normal_at(sh, &local_point, hit, &local_normal);
     sh->normal_to_world(sh, &local_normal, &world_normal);
-    Vector n = vector_normalize_alloc(&world_normal);
-
-    return n;
+    return vector_normalize_alloc(&world_normal);
 }
 
 void
@@ -231,11 +229,13 @@ shape_normal_to_world(Shape sh, Vector local_normal, Vector res)
     matrix_vector_multiply(&tr, local_normal, &un_normal);
     vector_normalize(&un_normal, &normal);
 
+    struct v tmp;
     if (sh->parent != NULL) {
-        sh->parent->normal_to_world(sh->parent, &normal, res);
+        sh->parent->normal_to_world(sh->parent, &normal, &tmp);
     } else {
-        memcpy(res->arr, normal.arr, 4 * sizeof(double));
+        memcpy(tmp.arr, normal.arr, 4 * sizeof(double));
     }
+    memcpy(res->arr, tmp.arr, 4 * sizeof(double));
 }
 
 void
@@ -772,7 +772,8 @@ sphere_uv_map(Point pt)
 {
     double theta = atan2(pt->arr[0], pt->arr[2]);
     struct v vec;
-    memcpy(vec.arr, pt->arr, 4 * sizeof(double));
+    memcpy(vec.arr, pt->arr, 3 * sizeof(double));
+    vec.arr[3] = 0.0;
     double radius = vector_magnitude(&vec);
     double phi = acos(pt->arr[1] / radius);
     double raw_u = theta / (2 * M_PI);

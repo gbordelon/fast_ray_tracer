@@ -97,6 +97,7 @@ vector_from_points(Point pt1, Point pt2, Vector res)
     res->arr[0] = pt1->arr[0] - pt2->arr[0];
     res->arr[1] = pt1->arr[1] - pt2->arr[1];
     res->arr[2] = pt1->arr[2] - pt2->arr[2];
+    res->arr[3] = 0.0;
 }
 
 Vector
@@ -134,6 +135,7 @@ array_from_arrays(double pt1[4], double pt2[4], double res[4])
     res[0] = pt1[0] - pt2[0];
     res[1] = pt1[1] - pt2[1];
     res[2] = pt1[2] - pt2[2];
+    res[3] = 0.0;
 }
 
 void
@@ -143,6 +145,7 @@ vector_reflect(Vector input, Vector normal, Vector res)
     res->arr[0] = input->arr[0] - normal->arr[0] * ddot;
     res->arr[1] = input->arr[1] - normal->arr[1] * ddot;
     res->arr[2] = input->arr[2] - normal->arr[2] * ddot;
+    res->arr[3] = 0.0;
 }
 
 Vector
@@ -325,6 +328,7 @@ vector_normalize(Vector v, Vector res)
     for (i = 0; i < 3; i++) {
         res->arr[i] = v->arr[i] / mag;
     }
+    res->arr[3] = 0.0;
 }
 
 Vector
@@ -360,6 +364,7 @@ vector_cross_arrays(double a[4], double b[4], Vector res)
     res->arr[0] = a[1] * b[2] - a[2] * b[1];
     res->arr[1] = a[2] * b[0] - a[0] * b[2];
     res->arr[2] = a[0] * b[1] - a[1] * b[0];
+    res->arr[3] = 0.0;
 }
 
 void

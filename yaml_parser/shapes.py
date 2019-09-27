@@ -137,18 +137,12 @@ class Group(Shape):
     Shape shape_{0} = {1} + {4};
     group(shape_{0}, shape_{0}_children, {3});
     shape_free(shape_{0}_children);
-    shape_{0}_children = shape_{0}->fields.group.children; // DEBUG
     shape_set_transform(shape_{0}, transform_{0});
 """.format(name,
           parent_name,
           transform.c_repr(name),
           len(children),
           offset)
-
-        for i, child in enumerate(children):
-            buf += """
-    shape_{0}_child_{1} = NULL;""".format(name, i)
-        buf += "\n"
 
         return buf
 

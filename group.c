@@ -90,69 +90,6 @@ group_add_children(Shape group, Shape children, size_t num_children)
     }
 }
 
-/*
-void
-group_add_children(Shape group, Shape children, size_t num_children)
-{
-    Shape child, new_child, children_to;
-    int i, j;
-    size_t num_children_to_add = num_children;
-    size_t num_current_children = group->fields.group.num_children;
-    children_to = group->fields.group.children;
-    unsigned char *truth_table = (unsigned char*) malloc(num_children * sizeof(unsigned char));
-
-    // filter out dupes so only only of each child appears in the child array
-    for (j = 0; j < num_children; j++) {
-        *(truth_table + j) = 1;
-    }
-
-    for (i = 0, child = children_to;
-            i < num_current_children;
-            i++, child++) {
-        for (j = 0, new_child = children;
-                j < num_children;
-                j++, new_child++) {
-            if (new_child == child || new_child == group) {
-                *(truth_table + j) = 0;
-                num_children_to_add--;
-                break;
-            }
-        }
-    }
-
-    if (num_children_to_add > 0) {
-        if (num_children_to_add + num_current_children >= group->fields.group.size_children_array) {
-            size_t new_array_len = 2 * ((num_children_to_add + num_current_children >= 2 * group->fields.group.size_children_array) ?
-                (num_children_to_add + num_current_children) :
-                group->fields.group.size_children_array);
-
-            Shape total_children = (Shape)malloc(new_array_len * sizeof(struct shape));
-            memcpy(total_children, children_to, num_current_children * sizeof(struct shape));
-            if (group->fields.group.children_need_free) {
-                free(children_to);
-            }
-            group->fields.group.children_need_free = true;
-            group->fields.group.children = children_to = total_children;
-            printf("allocating more children %lu %lu\n", group->fields.group.size_children_array, new_array_len);
-            group->fields.group.size_children_array = new_array_len;
-        }
-
-        for (j = 0, new_child = children, child = children_to + num_current_children;
-                j < num_children;
-                j++, new_child++) {
-            if (*(truth_table + j) == 1) {
-                *child = *new_child;
-                group_recursive_parent_update(child, group);
-                child++;
-            }
-        }
-        group->fields.group.num_children += num_children_to_add;
-    }
-
-    free(truth_table);
-}
-*/
-
 Intersections
 group_local_intersect(Shape group, Ray r)
 {
@@ -475,6 +412,7 @@ group(Shape s, Shape children, size_t num_children)
     int i;
     for (i = 0, child = s->fields.group.children; i < num_children; i++, child++) {
         group_recursive_parent_update(child, s);
+        recursive_invalidate_bounding_box(child);
     }
 
     s->intersect = shape_intersect;
