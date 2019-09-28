@@ -39,13 +39,6 @@ enum pattern_enum {
     PATTERN_PERTURBED
 };
 
-enum uv_map_enum {
-    SPHERE_MAP,
-    CYLINDER_MAP,
-    PLANE_MAP,
-    CUBE_MAP
-};
-
 enum uv_pattern_enum {
     UV_CHECKER,
     UV_ALIGN_CHECK,
@@ -261,9 +254,9 @@ typedef struct face_uv_retval {
     size_t face;
     double u;
     double v;
-} *UVMapReturnType;
+} UVMapReturnType;
 
-typedef UVMapReturnType (*uv_map_fn)(Shape, Point);
+typedef void (*uv_map_fn)(Shape, Point, UVMapReturnType *);
 
 typedef struct pattern {
     Matrix transform;
@@ -282,9 +275,9 @@ typedef struct pattern {
         struct uv_map_pattern_fields uv_map;
     } fields;
 
-    Color (*pattern_at_shape)(struct pattern *, Shape, Point);
-    Color (*pattern_at)(struct pattern *, Shape, Point);
-    Color (*uv_pattern_at)(struct pattern *, double, double);
+    void (*pattern_at_shape)(struct pattern *, Shape, Point, Color);
+    void (*pattern_at)(struct pattern *, Shape, Point, Color);
+    void (*uv_pattern_at)(struct pattern *, double, double, Color);
     uv_map_fn uv_map;
 } *Pattern;
 

@@ -1042,19 +1042,18 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
 {
     struct color scolor;
     struct color ambient;
-    Color pcolor = &scolor;
 
     if (material->pattern != NULL) {
-        pcolor = material->pattern->pattern_at_shape(material->pattern, shape, point);
+        material->pattern->pattern_at_shape(material->pattern, shape, point, &scolor);
     } else {
-        memcpy(pcolor->arr, material->color, 3 * sizeof(double));
+        memcpy(scolor.arr, material->color, 3 * sizeof(double));
     }
 
-    pcolor->arr[0] *= light->intensity[0];
-    pcolor->arr[1] *= light->intensity[1];
-    pcolor->arr[2] *= light->intensity[2];
+    scolor.arr[0] *= light->intensity[0];
+    scolor.arr[1] *= light->intensity[1];
+    scolor.arr[2] *= light->intensity[2];
 
-    memcpy(ambient.arr, pcolor->arr, 3 * sizeof(double));
+    memcpy(ambient.arr, scolor.arr, 3 * sizeof(double));
 
     color_scale(&ambient, material->ambient);
     if (equal(shade_intensity, 0.0)) {
@@ -1076,7 +1075,7 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
         double light_dot_normal = vector_dot(&lightv, normalv);
         if (light_dot_normal >= 0) {
             // diffuse
-            memcpy(diffuse.arr, pcolor->arr, 3 * sizeof(double));
+            memcpy(diffuse.arr, scolor.arr, 3 * sizeof(double));
             color_scale(&diffuse, material->diffuse);
             color_scale(&diffuse, light_dot_normal);
             color_accumulate(res, &diffuse);
@@ -1099,8 +1098,4 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
     double scaling = shade_intensity / (double)light->num_samples;
     color_scale(res, scaling);
     color_accumulate(res, &ambient);
-
-    if (material->pattern != NULL) {
-        color_free(pcolor);
-    }
 }

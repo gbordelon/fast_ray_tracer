@@ -416,41 +416,44 @@ intersection_to_string(char *buf, size_t n, Intersection x)
  * Patterns
  *
  */
-Color
-base_pattern_at_shape(Pattern p, Shape s, Point pt)
+void
+base_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
 {
     Matrix inv = p->transform_inverse;
 
     struct pt object_point;
     s->world_to_object(s, pt, &object_point);
+
     struct pt pattern_point;
     matrix_point_multiply(inv, &object_point, &pattern_point);
-    Color c = p->pattern_at(p, s, &pattern_point);
 
-    return c;
+    struct color c;
+    p->pattern_at(p, s, &pattern_point, &c);
+
+    memcpy(res->arr, c.arr, 3 * sizeof(double));
 }
 
-Color
-blended_pattern_at_shape(Pattern p, Shape s, Point pt)
+void
+blended_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
 {
-    Color c1 = p->fields.blended.pattern1->pattern_at_shape(p->fields.blended.pattern1, s, pt);
-    Color c2 = p->fields.blended.pattern2->pattern_at_shape(p->fields.blended.pattern2, s, pt);
+    struct color c1;
+    struct color c2;
+    p->fields.blended.pattern1->pattern_at_shape(p->fields.blended.pattern1, s, pt, &c1);
+    p->fields.blended.pattern2->pattern_at_shape(p->fields.blended.pattern2, s, pt, &c2);
 
-    Color c3 = color((c1->arr[0] + c2->arr[0]) / 2,
-                     (c1->arr[1] + c2->arr[1]) / 2,
-                     (c1->arr[2] + c2->arr[2]) / 2);
-
-    color_free(c1);
-    color_free(c2);
-
-    return c3;
+    res->arr[0] = (c1.arr[0] + c2.arr[0]) / 2.0;
+    res->arr[1] = (c1.arr[1] + c2.arr[1]) / 2.0;
+    res->arr[2] = (c1.arr[2] + c2.arr[2]) / 2.0;
 }
 
-Color
-nested_pattern_at_shape(Pattern p, Shape s, Point pt)
+void
+nested_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
 {
-    Color c1 = p->fields.nested.pattern2->pattern_at_shape(p->fields.nested.pattern2, s, pt);
-    Color c2 = p->fields.nested.pattern3->pattern_at_shape(p->fields.nested.pattern3, s, pt);
+    struct color c1;
+    struct color c2;
+    struct color c3;
+    p->fields.nested.pattern2->pattern_at_shape(p->fields.nested.pattern2, s, pt, &c1);
+    p->fields.nested.pattern3->pattern_at_shape(p->fields.nested.pattern3, s, pt, &c2);
 
     switch(p->fields.nested.pattern1->type) {
     case CHECKER_PATTERN:
@@ -458,8 +461,8 @@ nested_pattern_at_shape(Pattern p, Shape s, Point pt)
     case RADIAL_GRADIENT_PATTERN:
     case RING_PATTERN:
     case STRIPE_PATTERN:
-        memcpy(p->fields.nested.pattern1->fields.concrete.a, c1->arr, 3 * sizeof(double));
-        memcpy(p->fields.nested.pattern1->fields.concrete.b, c2->arr, 3 * sizeof(double));
+        memcpy(p->fields.nested.pattern1->fields.concrete.a, c1.arr, 3 * sizeof(double));
+        memcpy(p->fields.nested.pattern1->fields.concrete.b, c2.arr, 3 * sizeof(double));
         break;
     // TODO I can't think of anything to do for these other patterns...
     case UV_ALIGN_CHECKER_PATTERN:
@@ -475,14 +478,12 @@ nested_pattern_at_shape(Pattern p, Shape s, Point pt)
         break;
     }
 
-    color_free(c1);
-    color_free(c2);
-
-    return p->fields.nested.pattern1->pattern_at_shape(p->fields.nested.pattern1, s, pt);
+    p->fields.nested.pattern1->pattern_at_shape(p->fields.nested.pattern1, s, pt, &c3);
+    memcpy(res->arr, c3.arr, 3 * sizeof(double));
 }
 
-Color
-perturbed_pattern_at_shape(Pattern p, Shape s, Point pt)
+void
+perturbed_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
 {
     double x = pt->arr[0] / 10.0;
     double y = pt->arr[1] / 10.0;
@@ -516,20 +517,20 @@ perturbed_pattern_at_shape(Pattern p, Shape s, Point pt)
     perturbed.arr[1] = new_y;
     perturbed.arr[2] = new_z;
 
-    Color c = p->fields.perturbed.pattern1->pattern_at_shape(p->fields.perturbed.pattern1, s, &perturbed);
-
-    return c;
+    struct color c;
+    p->fields.perturbed.pattern1->pattern_at_shape(p->fields.perturbed.pattern1, s, &perturbed, &c);
+    memcpy(res->arr, c.arr, 3 * sizeof(double));
 }
 
-Color
-base_pattern_at(Pattern p, Shape s, Point pt)
+void
+base_pattern_at(Pattern p, Shape s, Point pt, Color res)
 {
     printf("calling base_pattern_at which should only happen for tests.\n");
-    return color(pt->arr[0], pt->arr[1], pt->arr[2]);
+    memcpy(res->arr, pt->arr, 3 * sizeof(double));
 }
 
-Color
-checker_pattern_at(Pattern p, Shape s, Point pt)
+void
+checker_pattern_at(Pattern p, Shape s, Point pt, Color res)
 {
     int t = (int)floor(pt->arr[0]) + (int)floor(pt->arr[1]) + (int)floor(pt->arr[2]);
     double *arr;
@@ -539,24 +540,25 @@ checker_pattern_at(Pattern p, Shape s, Point pt)
     } else {
         arr = p->fields.concrete.b;
     }
-    return color(arr[0], arr[1], arr[2]);
+
+    memcpy(res->arr, arr, 3 * sizeof(double));
 }
 
-Color
-gradient_pattern_at(Pattern p, Shape s, Point pt)
+void
+gradient_pattern_at(Pattern p, Shape s, Point pt, Color res)
 {
     double distance[3] = { p->fields.concrete.b[0] - p->fields.concrete.a[0],
                            p->fields.concrete.b[1] - p->fields.concrete.a[1],
                            p->fields.concrete.b[2] - p->fields.concrete.a[2]};
     double fraction = pt->arr[0] - floor(pt->arr[0]);
 
-    return color(p->fields.concrete.a[0] + distance[0] * fraction,
-                 p->fields.concrete.a[1] + distance[1] * fraction,
-                 p->fields.concrete.a[2] + distance[2] * fraction);
+    res->arr[0] = p->fields.concrete.a[0] + distance[0] * fraction;
+    res->arr[1] = p->fields.concrete.a[1] + distance[1] * fraction;
+    res->arr[2] = p->fields.concrete.a[2] + distance[2] * fraction;
 }
 
-Color
-radial_gradient_pattern_at(Pattern p, Shape s, Point pt)
+void
+radial_gradient_pattern_at(Pattern p, Shape s, Point pt, Color res)
 {
     double distance[3] = { p->fields.concrete.b[0] - p->fields.concrete.a[0],
                            p->fields.concrete.b[1] - p->fields.concrete.a[1],
@@ -566,13 +568,13 @@ radial_gradient_pattern_at(Pattern p, Shape s, Point pt)
 
     double fraction = magnitude - floor(magnitude);
 
-    return color(p->fields.concrete.a[0] + distance[0] * fraction,
-                 p->fields.concrete.a[1] + distance[1] * fraction,
-                 p->fields.concrete.a[2] + distance[2] * fraction);
+    res->arr[0] = p->fields.concrete.a[0] + distance[0] * fraction;
+    res->arr[1] = p->fields.concrete.a[1] + distance[1] * fraction;
+    res->arr[2] = p->fields.concrete.a[2] + distance[2] * fraction;
 }
 
-Color
-ring_pattern_at(Pattern p, Shape s, Point pt)
+void
+ring_pattern_at(Pattern p, Shape s, Point pt, Color res)
 {
     int t = (int)floor(sqrt(pt->arr[0] * pt->arr[0] + pt->arr[2] * pt->arr[2]));
     double *arr;
@@ -582,11 +584,11 @@ ring_pattern_at(Pattern p, Shape s, Point pt)
     } else {
         arr = p->fields.concrete.b;
     }
-    return color(arr[0], arr[1], arr[2]);
+    memcpy(res->arr, arr, 3 * sizeof(double));
 }
 
-Color
-stripe_pattern_at(Pattern p, Shape s, Point pt)
+void
+stripe_pattern_at(Pattern p, Shape s, Point pt, Color res)
 {
     int t = (int)floor(pt->arr[0]);
     double *arr;
@@ -596,52 +598,33 @@ stripe_pattern_at(Pattern p, Shape s, Point pt)
     } else {
         arr = p->fields.concrete.b;
     }
-    return color(arr[0], arr[1], arr[2]);
+    memcpy(res->arr, arr, 3 * sizeof(double));
 }
 
 
-UVMapReturnType
-uv_map_return_type_alloc(size_t face, double u, double v)
+void
+texture_map_pattern_at(Pattern p, Shape s, Point pt, Color res)
 {
-    UVMapReturnType rv = (UVMapReturnType) malloc(sizeof(struct face_uv_retval));
-    rv->face = face;
-    rv->u = u;
-    rv->v = v;
+    UVMapReturnType face_u_v;
+    p->uv_map(s, pt, &face_u_v);
+    Pattern face = p->fields.uv_map.uv_faces + face_u_v.face;
 
-    return rv;
+    struct color c;
+    face->uv_pattern_at(face, face_u_v.u, face_u_v.v, &c);
+    memcpy(res->arr, c.arr, 3 * sizeof(double));
 }
 
 void
-uv_map_return_type_free(UVMapReturnType p)
-{
-    if (p != NULL) {
-        free(p);
-    }
-}
-
-
-Color
-texture_map_pattern_at(Pattern p, Shape s, Point pt)
-{
-    UVMapReturnType face_u_v = p->uv_map(s, pt);
-    Pattern face = p->fields.uv_map.uv_faces + face_u_v->face;
-
-    Color c = face->uv_pattern_at(face, face_u_v->u, face_u_v->v);
-
-    uv_map_return_type_free(face_u_v);
-
-    return c;
-}
-
-Color
-base_uv_pattern_at(Pattern p, double u, double v)
+base_uv_pattern_at(Pattern p, double u, double v, Color res)
 {
     printf("calling base_uv_pattern_at which should never happen.\n");
-    return color(u, v, 0);
+    res->arr[0] = u;
+    res->arr[1] = v;
+    res->arr[2] = 0;
 }
 
-Color
-uv_align_check_uv_pattern_at(Pattern p, double u, double v)
+void
+uv_align_check_uv_pattern_at(Pattern p, double u, double v, Color res)
 {
     // remember v=0 at the bottom, v=1 at the top
     double *arr = p->fields.uv_align_check.main;
@@ -660,11 +643,11 @@ uv_align_check_uv_pattern_at(Pattern p, double u, double v)
         }
     }
 
-    return color(arr[0], arr[1], arr[2]);
+    memcpy(res->arr, arr, 3 * sizeof(double));
 }
 
-Color
-uv_check_uv_pattern_at(Pattern p, double u, double v)
+void
+uv_check_uv_pattern_at(Pattern p, double u, double v, Color res)
 {
     double *arr;
     int u2 = (int)floor(u * (double)p->fields.uv_check.width),
@@ -676,32 +659,34 @@ uv_check_uv_pattern_at(Pattern p, double u, double v)
         arr = p->fields.uv_check.b;
     }
 
-    return color(arr[0], arr[1], arr[2]);
+    memcpy(res->arr, arr, 3 * sizeof(double));
 }
 
-Color
-uv_texture_uv_pattern_at(Pattern p, double u, double v)
+void
+uv_texture_uv_pattern_at(Pattern p, double u, double v, Color res)
 {
     // remember v=0 at the bottom, v=1 at the top
     v = 1 - v;
     int y = (int)round(u * (double)(p->fields.uv_texture.canvas->width - 1));
     int x = (int)round(v * (double)(p->fields.uv_texture.canvas->height - 1));
 
-    Color c = color(0,0,0);
-    canvas_pixel_at(p->fields.uv_texture.canvas, y, x, c);
+    struct color c;
+    canvas_pixel_at(p->fields.uv_texture.canvas, y, x, &c);
 
-    return c;
+    memcpy(res->arr, c.arr, 3 * sizeof(double));
 }
 
-UVMapReturnType
-base_uv_map(Shape s, Point pt)
+void
+base_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 {
     printf("calling base_uv_pattern_at which should never happen.\n");
-    return uv_map_return_type_alloc(0, pt->arr[0], pt->arr[1]);
+    retval->face = 0;
+    retval->u = pt->arr[0];
+    retval->v = pt->arr[1];
 }
 
-UVMapReturnType
-cube_uv_map(Shape s, Point pt)
+void
+cube_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 {
     double abs_x = fabs(pt->arr[0]);
     double abs_y = fabs(pt->arr[1]);
@@ -720,7 +705,7 @@ cube_uv_map(Shape s, Point pt)
                         ? 4
                         : 5;
 
-    UVMapReturnType retval = uv_map_return_type_alloc(face, 0, 0);
+    retval->face = face;
 
     switch (face) {
     case 0: // right
@@ -748,12 +733,10 @@ cube_uv_map(Shape s, Point pt)
         retval->v = fmod((pt->arr[1] + 1.0), 2.0) / 2.0;
         break;
     }
-
-    return retval;
 }
 
-UVMapReturnType
-cylinder_uv_map(Shape s, Point pt)
+void
+cylinder_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 {
     double theta;
     double raw_u;
@@ -765,7 +748,7 @@ cylinder_uv_map(Shape s, Point pt)
             ? 2
             : 0;
 
-    UVMapReturnType retval = uv_map_return_type_alloc(face, 0, 0);
+    retval->face = face;
 
     switch (face) {
     case 0: // cylinder body
@@ -783,12 +766,10 @@ cylinder_uv_map(Shape s, Point pt)
         retval->v = fmod((pt->arr[2] + 1.0), 2.0) / 2.0;
         break;
     }
-
-    return retval;
 }
 
-UVMapReturnType
-plane_uv_map(Shape s, Point pt)
+void
+plane_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 {
     double u = fmod(pt->arr[0], 1.0);
     double v = fmod(pt->arr[2], 1.0);
@@ -799,11 +780,13 @@ plane_uv_map(Shape s, Point pt)
         v += 1.0;
     }
 
-    return uv_map_return_type_alloc(0, u, v);
+    retval->face = 0;
+    retval->u = u;
+    retval->v = v;
 }
 
-UVMapReturnType
-sphere_uv_map(Shape s, Point pt)
+void
+sphere_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 {
     double theta = atan2(pt->arr[0], pt->arr[2]);
     struct v vec;
@@ -815,18 +798,22 @@ sphere_uv_map(Shape s, Point pt)
     double u = 1 - (raw_u + 0.5);
     double v = 1 - phi / M_PI;
 
-    return uv_map_return_type_alloc(0, u, v);
+    retval->face = 0;
+    retval->u = u;
+    retval->v = v;
 }
 
-UVMapReturnType
-toroid_uv_map(Shape s, Point pt)
+void
+toroid_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 {
     double u = (1.0 - (atan2(pt->arr[2], pt->arr[0]) + M_PI) / (2 * M_PI));
     double len = sqrt(pt->arr[0] * pt->arr[0] + pt->arr[2] * pt->arr[2]);
     double x = len - s->fields.toroid.r1;
     double v = (atan2(pt->arr[1], x) + M_PI) / (2 * M_PI);
 
-    return uv_map_return_type_alloc(0, u, v);
+    retval->face = 0;
+    retval->u = u;
+    retval->v = v;
 }
 
 
