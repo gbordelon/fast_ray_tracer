@@ -29,6 +29,8 @@ class Shape(object):
             return Triangle.from_yaml(obj)
         elif obj["add"] == "smooth-triangle":
             return SmoothTriangle.from_yaml(obj)
+        elif obj['add'] in ['toroid', 'torus']:
+            return Toroid.from_yaml(obj);
         elif obj["add"] == "group":
             if "material" in obj:
                 for child in obj["children"]:
@@ -170,6 +172,40 @@ class Sphere(Shape):
            material.c_repr(name),
            transform.c_repr(name),
            offset)
+
+        return buf
+
+class Toroid(Shape):
+    def __init__(self, yaml_obj):
+        Shape.__init__(self, yaml_obj)
+
+    @classmethod
+    def from_yaml(cls, obj) -> 'Toroid':
+        if 'r1' not in obj:
+            obj['r1'] = 0.75
+        if 'r2' not in obj:
+            obj['r2'] = 0.25
+        return cls(obj)
+
+    def c_repr(self, name, parent_name, offset):
+        material = Material.from_yaml(self.yaml_obj['material'])
+        transform = Transform.from_yaml(self.yaml_obj['transform'])
+        buf = """
+    {2}
+    {3}
+    Shape shape_{0} = {1} + {4};
+    toroid(shape_{0});
+    shape_{0}->fields.toroid.r1 = {5};
+    shape_{0}->fields.toroid.r2 = {6};
+    shape_set_material(shape_{0}, material_{0});
+    shape_set_transform(shape_{0}, transform_{0});
+""".format(name,
+           parent_name,
+           material.c_repr(name),
+           transform.c_repr(name),
+           offset,
+           self.yaml_obj['r1'],
+           self.yaml_obj['r2'])
 
         return buf
 

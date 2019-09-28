@@ -157,6 +157,7 @@ def world_objects_to_c_file(obj):
 #include "plane.h"
 #include "sphere.h"
 #include "triangle.h"
+#include "toroid.h"
 #include "obj_loader.h"
 
 int main()
