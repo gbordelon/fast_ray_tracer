@@ -93,8 +93,8 @@ struct cone_cylinder_fields {
 };
 
 struct toroid_fields {
-    double radius1;
-    double radius2;
+    double r1;
+    double r2;
 };
 
 struct triangle_fields {

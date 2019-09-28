@@ -309,7 +309,7 @@ default_world()
     Shape s1 = shapes;
     Shape s2 = shapes + 1;
 
-    cube(s1);
+    toroid(s1);
     sphere(s2);
 
     s1->material->color[0] = 0.8;
@@ -317,12 +317,14 @@ default_world()
     s1->material->color[2] = 0.6;
     s1->material->diffuse = 0.7;
     s1->material->specular = 0.2;
-    s1->material->casts_shadow = false;
-    s1->material->transparency = 0.8;
+    s1->material->casts_shadow = true;
+    s1->material->transparency = 0.0;
+    s1->fields.toroid.r1 = 1.0;
+    s1->fields.toroid.r2 = 0.5;
 
     Matrix scaling = matrix_scale_alloc(0.5, 0.5, 0.5);
     shape_set_transform(s2, scaling);
-    shape_set_transform(s1, transform_chain(matrix_translate_alloc(10,0,0), matrix_rotate_y_alloc(M_PI_4)));
+    shape_set_transform(s1, transform_chain(matrix_rotate_x_alloc(M_PI_4), matrix_scale_alloc(3,3,5)));
 
     w->shapes = shapes;
     w->shapes_num = 2;

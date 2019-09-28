@@ -1,4 +1,8 @@
 *.o
 *.swp
 *.pyc
+*.ppm
+main.c.back
+perlintest.c
+*.dSYM
 ray_tracer
