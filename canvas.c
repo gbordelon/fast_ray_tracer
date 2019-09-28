@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <pthread.h>
 
 #include "canvas.h"
 #include "linalg.h"
@@ -90,6 +91,8 @@ canvas_alloc(size_t width, size_t height)
     c->height = height;
     c->depth = 3;
 
+    pthread_mutex_init(&(c->write_lock), NULL);
+
     return c;
 }
 
@@ -168,7 +171,9 @@ canvas_write_pixel(Canvas c, int col, int row, Color color)
 {
     // null check c
     // null check color
+    pthread_mutex_lock(&c->write_lock);
     memcpy(c->arr + c->depth * (row * c->width + col), color->arr, sizeof(color->arr));
+    pthread_mutex_unlock(&c->write_lock);
 }
 
 void

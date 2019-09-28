@@ -161,6 +161,13 @@ class Pattern(object):
 {1}
     texture_map_pattern(pattern_{0} + 1, SPHERE_UV_MAP, pattern_{0});
 """.format(name, uv_pattern.c_repr('pattern_{0}_body'.format(name)))
+            elif mapping in ['toroidal', 'toroid', 'torus']:
+                uv_pattern = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
+                buf += """    Pattern pattern_{0} = array_of_patterns(2);
+    Pattern pattern_{0}_body = pattern_{0} + 1;
+{1}
+    texture_map_pattern(pattern_{0} + 1, TOROID_UV_MAP, pattern_{0});
+""".format(name, uv_pattern.c_repr('pattern_{0}_body'.format(name)))
         else:
             raise ValueError('Unable to parse pattern type: {}'.format(typ))
 

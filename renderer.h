@@ -156,5 +156,6 @@ void intersections_reverse(Intersections xs);
 
 void prepare_computations(Intersection i, Ray r, Intersections xs, Computations res);
 Canvas render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter);
+Canvas render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter);
 
 #endif

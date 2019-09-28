@@ -107,7 +107,7 @@ toroid(Shape s)
     s->divide = shape_divide;
     s->includes = shape_includes;
 
-    s->bounds = shape_bounds;
+    s->bounds = toroid_bounds;
     s->parent_space_bounds = shape_parent_space_bounds;
 }
 

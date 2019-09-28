@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 typedef struct color {
     double arr[3];
@@ -13,6 +14,7 @@ typedef struct canvas {
     size_t width;
     size_t height;
     size_t depth; // probably going to assume three
+    pthread_mutex_t  write_lock;
 } *Canvas;
 
 typedef struct ppm_struct {

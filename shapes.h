@@ -247,7 +247,8 @@ enum uv_map_type {
     CUBE_UV_MAP,
     CYLINDER_UV_MAP,
     PLANE_UV_MAP,
-    SPHERE_UV_MAP
+    SPHERE_UV_MAP,
+    TOROID_UV_MAP
 };
 
 struct uv_map_pattern_fields {
@@ -262,7 +263,7 @@ typedef struct face_uv_retval {
     double v;
 } *UVMapReturnType;
 
-typedef UVMapReturnType (*uv_map_fn)(Point);
+typedef UVMapReturnType (*uv_map_fn)(Shape, Point);
 
 typedef struct pattern {
     Matrix transform;
@@ -282,7 +283,7 @@ typedef struct pattern {
     } fields;
 
     Color (*pattern_at_shape)(struct pattern *, Shape, Point);
-    Color (*pattern_at)(struct pattern *, Point);
+    Color (*pattern_at)(struct pattern *, Shape, Point);
     Color (*uv_pattern_at)(struct pattern *, double, double);
     uv_map_fn uv_map;
 } *Pattern;

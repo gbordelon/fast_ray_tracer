@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include "renderer.h"
+#include "thpool.h"
 
 #include "linalg.h"
 #include "shapes.h"
@@ -575,6 +576,80 @@ render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
         k += 1;
         printf("Wrote %d rows out of %lu\n", k, cam->vsize);
     }
+
+    return image;
+}
+
+struct render_args {
+    Camera cam;
+    World w;
+    Canvas image;
+    size_t x;
+    size_t y;
+    size_t usteps;
+    size_t vsteps;
+    bool jitter;
+};
+
+void
+render_multi_helper(void *args)
+{
+    Camera cam = ((struct render_args *)args)->cam;
+    World w = ((struct render_args *)args)->w;
+    Canvas image = ((struct render_args *)args)->image;
+    size_t x = ((struct render_args *)args)->x;
+    size_t y = ((struct render_args *)args)->y;
+    size_t usteps = ((struct render_args *)args)->usteps;
+    size_t vsteps = ((struct render_args *)args)->vsteps;
+    bool jitter = ((struct render_args *)args)->jitter;
+    struct color c;
+
+    c.arr[0] = 0;
+    c.arr[1] = 0;
+    c.arr[2] = 0;
+
+    pixel_multi_sample(cam, w, (double)x, (double)y, usteps, vsteps, jitter, &c);
+    canvas_write_pixel(image, x, y, &c);
+}
+
+/*
+ * World is not thread safe because of Intersections buffers
+ *
+ * Use realloc instead of malloc to keep references in tact when a thread needs to
+ * resize an Intersections array
+ *
+ * 
+ */
+Canvas
+render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
+{
+    int i,j,k;
+    threadpool thpool = thpool_init(1);
+    Canvas image = canvas_alloc(cam->hsize, cam->vsize);
+
+    struct render_args *args_array = (struct render_args *)malloc(cam->vsize * cam->hsize * sizeof(struct render_args));
+    
+    k = 0;
+    for (j = 0; j < cam->vsize; ++j) {
+        for (i = 0; i < cam->hsize; ++i) {
+            (args_array + k)->cam = cam;
+            (args_array + k)->w = w;
+            (args_array + k)->image = image;
+            (args_array + k)->x = i;
+            (args_array + k)->y = j;
+            (args_array + k)->usteps = usteps;
+            (args_array + k)->vsteps = vsteps;
+            (args_array + k)->jitter = jitter;
+            thpool_add_work(thpool, render_multi_helper, (void*)(args_array + k));
+            k++;
+        }
+        printf("adding work to thpool %d\n", k);
+    }
+
+    thpool_wait(thpool);
+
+    thpool_destroy(thpool);
+    free(args_array);
 
     return image;
 }
