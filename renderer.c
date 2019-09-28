@@ -358,13 +358,11 @@ circle_aperture_fn(double *x, double *y, struct aperture *bounds)
 {
     double u, v;
     do {
-        u = jitter_by(true);
-        v = jitter_by(true);
-        *x = 2 * u - 1;
-        *y = 2 * v - 1;
-    } while (*x * *x + *y * *y > bounds->u.circle.r1);
-    *x = u;
-    *y = v;
+        *x = jitter_by(true);
+        *y = jitter_by(true);
+        u = 2 * *x - 1;
+        v = 2 * *y - 1;
+    } while (u * u + v * v > bounds->u.circle.r1);
 }
 
 void
@@ -373,15 +371,13 @@ cross_aperture_fn(double *x, double *y, struct aperture *bounds)
     double u, v;
     bool check;
     do {
-        u = jitter_by(true);
-        v = jitter_by(true);
-        *x = 2 * u - 1;
-        *y = 2 * v - 1;
-        check = ((*x > bounds->u.cross.x1) && (*x <= bounds->u.cross.x2))
-             || ((*y > bounds->u.cross.y1) && (*y <= bounds->u.cross.y2));
+        *x = jitter_by(true);
+        *y = jitter_by(true);
+        u = 2 * *x - 1;
+        v = 2 * *y - 1;
+        check = ((u > bounds->u.cross.x1) && (u <= bounds->u.cross.x2))
+             || ((v > bounds->u.cross.y1) && (v <= bounds->u.cross.y2));
     } while (!check);
-    *x = u;
-    *y = v;
 }
 
 void
@@ -390,18 +386,16 @@ diamond_aperture_fn(double *x, double *y, struct aperture *bounds)
     double u, v;
     bool check;
     do {
-        u = jitter_by(true);
-        v = jitter_by(true);
-        *x = 2 * u - 1;
-        *y = 2 * v - 1;
-        check = (*x <= 0)
-              ? (-*x + bounds->u.diamond.b1 <= *y) && (*y < *x + bounds->u.diamond.b2)
+        *x = jitter_by(true);
+        *y = jitter_by(true);
+        u = 2 * *x - 1;
+        v = 2 * *y - 1;
+        check = (u <= 0)
+              ? (-u + bounds->u.diamond.b1 <= v) && (v < u + bounds->u.diamond.b2)
               : (0 <= *x)
-              ? (*x + bounds->u.diamond.b3 <= *y) && (*y < -*x + bounds->u.diamond.b4)
+              ? (u + bounds->u.diamond.b3 <= v) && (v < -u + bounds->u.diamond.b4)
               : false;
     } while (!check);
-    *x = u;
-    *y = v;
 }
 
 void
@@ -410,14 +404,12 @@ double_circle_aperture_fn(double *x, double *y, struct aperture *bounds)
     double mag;
     double u, v;
     do {
-        u = jitter_by(true);
-        v = jitter_by(true);
-        *x = 2 * u - 1;
-        *y = 2 * v - 1;
-        mag = *x * *x + *y * *y;
+        *x = jitter_by(true);
+        *y = jitter_by(true);
+        u = 2 * *x - 1;
+        v = 2 * *y - 1;
+        mag = u * u + v * v;
     } while (mag > bounds->u.double_circle.r1 || mag < bounds->u.double_circle.r2);
-    *x = u;
-    *y = v;
 }
 
 void
@@ -511,8 +503,8 @@ ray_for_pixel(Camera cam, double px, double py, double x_jitter, double y_jitter
  * ^  +-----+
  * |  |     |
  * |  |     |
- *    +-----+
- * v u  ---->
+ * |  +-----+
+ * v u------>
  *
  * u ranges from x to x+1
  * v ranges from y to y+1
@@ -526,6 +518,8 @@ pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_
     double x_offset, y_offset;
     size_t u, v;
     double total_steps = (double)usteps * (double)vsteps;
+    double usteps_inv = 1.0 / (double)usteps;
+    double vsteps_inv = 1.0 / (double)vsteps;
     struct ray r;
     struct color c;
     struct color acc;
@@ -536,8 +530,8 @@ pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_
 
     for (v = 0; v < vsteps; v++) {
         for (u = 0; u < usteps; u++) {
-            x_offset = ((double)u + jitter_by(jitter)) / (double)usteps;
-            y_offset = ((double)v + jitter_by(jitter)) / (double)vsteps;
+            x_offset = ((double)u + jitter_by(jitter)) * usteps_inv;
+            y_offset = ((double)v + jitter_by(jitter)) * vsteps_inv;
             c.arr[0] = 0;
             c.arr[1] = 0;
             c.arr[2] = 0;

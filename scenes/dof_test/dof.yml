@@ -1,0 +1,210 @@
+- add: camera
+  width: 600
+  height: 300
+  field-of-view: 2
+  from: [0, .1, -10]
+  to: [0, 3, 0]
+  up: [0, 1, 0]
+  focal-length: 1
+  samples-per-pixel: 2
+  aperture:
+    jitter: false
+    size: 0.4
+#    type: [ CIRCULAR_APERTURE, 1.0 ]
+#    type: [ CROSS_APERTURE, -0.1, 0.1, -0.1, 0.1 ]
+#    type: [ DIAMOND_APERTURE, -1, 1, -1, 1 ]
+    type: [ DOUBLE_CIRCLE_APERTURE, 1.0, 0.5 ]
+#    type: [ POINT_APERTURE ]
+#    type: [ SQUARE_APERTURE ]
+
+- add: light
+  at: [-20, 2, 0]
+  intensity: [10, 10, 10]
+
+- define: glassySphere
+  value:
+    add: sphere
+    material:
+      color: [.1,0,0]
+      ambient: 0.1
+      diffuse: 0
+      specular: 0
+      reflective: 0.3
+
+- define: MappedCube
+  value:
+    add: cube
+    material:
+      ambient: 1
+      diffuse: 0
+      specular: 0
+      shadow: false
+      pattern:
+        type: map
+        mapping: cube
+        left:
+          type: align_check
+          colors:
+            main: [2, 2, 0] # yellow
+            ul: [0, 2, 2]   # cyan
+            ur: [2, 0, 0]   # red
+            bl: [0, 0, 1]   # blue
+            br: [2, 1, 0] # brown
+        front:
+          type: align_check
+          colors:
+            main: [0, 2, 2] # cyan
+            ul: [2, 0, 0]   # red
+            ur: [2, 2, 0]   # yellow
+            bl: [2, 1, 0] # brown
+            br: [0, 2, 0]   # green
+        right:
+          type: align_check
+          colors:
+            main: [2, 0, 0] # red
+            ul: [2, 2, 0]   # yellow
+            ur: [2, 0, 2]   # purple
+            bl: [0, 2, 0]   # green
+            br: [2, 2, 2]   # white
+        back:
+          type: align_check
+          colors:
+            main: [0, 2, 0] # green
+            ul: [2, 0, 2]   # purple
+            ur: [0, 2, 2]   # cyan
+            bl: [2, 2, 2]   # white
+            br: [0, 0, 2]   # blue
+        up:
+          type: align_check
+          colors:
+            main: [2, 1, 0] # brown
+            ul: [0, 2, 2]   # cyan
+            ur: [2, 0, 2]   # purple
+            bl: [2, 0, 0]   # red
+            br: [2, 2, 0]   # yellow
+        down:
+          type: align_check
+          colors:
+            main: [2, 0, 2] # purple
+            ul: [2, 1, 0] # brown
+            ur: [0, 2, 0]   # green
+            bl: [0, 0, 2]   # blue
+            br: [2, 2, 2]   # white
+
+- add: MappedCube
+  transform:
+  - [rotate-y, 0.7854]
+  - [rotate-x, 0.7854]
+  - [translate, -30, 8, 20]
+
+- add: MappedCube
+  transform:
+  - [rotate-y, 2.3562]
+  - [rotate-x, 0.7854]
+  - [translate, -20, 10, 20]
+
+- add: MappedCube
+  transform:
+  - [rotate-y, 3.927]
+  - [rotate-x, 0.7854]
+  - [translate, -10, 10, 20]
+
+- add: MappedCube
+  transform:
+  - [rotate-y, 5.4978]
+  - [rotate-x, 0.7854]
+  - [translate, 10, 12, 20]
+
+- add: MappedCube
+  transform:
+  - [rotate-y, 0.7854]
+  - [rotate-x, -0.7854]
+  - [translate, -30, 2, 20]
+
+- add: MappedCube
+  transform:
+  - [rotate-y, 2.3562]
+  - [rotate-x, -0.7854]
+  - [translate, -20, 4, 20]
+
+- add: MappedCube
+  transform:
+  - [rotate-y, 3.927]
+  - [rotate-x, -0.7854]
+  - [translate, 10, 0, 20]
+
+- add: MappedCube
+  transform:
+  - [rotate-y, 5.4978]
+  - [rotate-x, -0.7854]
+  - [translate, 0, 6, 20]
+
+- add: plane
+  material:
+    color: [ 1, 1, 1 ]
+    ambient: 0.5
+    diffuse: 0
+    specular: 0
+    pattern:
+      type: checker
+      colors:
+      - [ 0.1, 0.1, 0.1 ]
+      - [ 0.0, 0.0, 0.0 ]
+      transform:
+      - [ scale, .1, .1, .1]
+
+- add: glassySphere
+  transform:
+  - [scale, 0.33, 0.33, 0.33]
+  - [translate, 1, 0.33, -10.33]
+
+- add: glassySphere
+  transform:
+  - [scale, 0.33, 0.33, 0.33]
+  - [translate, 1, 0.33, -10]
+
+- add: glassySphere
+  transform:
+  - [scale, 0.33, 0.33, 0.33]
+  - [translate, 1, 0.33, -9.66]
+
+- add: glassySphere
+  transform:
+  - [scale, 0.33, 0.33, 0.33]
+  - [translate, 1, 0.33, -9.33]
+
+- add: glassySphere
+  transform:
+  - [scale, 0.33, 0.33, 0.33]
+  - [translate, 1, 0.33, -9]
+
+- add: glassySphere
+  transform:
+  - [scale, 0.33, 0.33, 0.33]
+  - [translate, 1, 0.33, -8.66]
+
+- add: glassySphere
+  transform:
+  - [scale, 0.33, 0.33, 0.33]
+  - [translate, 1, 0.33, -8.33]
+
+- add: glassySphere
+  transform:
+  - [scale, 0.33, 0.33, 0.33]
+  - [translate, 1, 0.33, -8]
+
+- add: glassySphere
+  transform:
+  - [scale, 0.33, 0.33, 0.33]
+  - [translate, 1, 0.33, -7.66]
+
+- add: glassySphere
+  transform:
+  - [scale, 0.33, 0.33, 0.33]
+  - [translate, 1, 0.33, -7.33]
+
+- add: glassySphere
+  transform:
+  - [scale, 0.33, 0.33, 0.33]
+  - [translate, 1, 0.33, -7]
+
