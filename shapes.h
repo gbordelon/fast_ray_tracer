@@ -65,6 +65,7 @@ typedef struct material {
     double refractive_index;
     bool casts_shadow;
     Pattern pattern;
+    size_t ref_count;
 } *Material;
 
 struct bounding_box_fields {
@@ -267,6 +268,7 @@ typedef struct pattern {
     Matrix transform;
     Matrix transform_inverse;
     enum pattern_type type;
+    size_t ref_count;
 
     union {
         struct concrete_pattern_fields concrete;
@@ -318,7 +320,7 @@ Pattern nested_pattern_alloc(Pattern p1, Pattern p2, Pattern p3);
 Pattern perturbed_pattern_alloc(Pattern p1, double frequency, double scale_factor, double persistence, size_t octaves, int seed);
 
 Pattern texture_map_pattern_alloc(Pattern faces, enum uv_map_type type);
-
+void pattern_free(Pattern p);
 
 Shape array_of_shapes(size_t num);
 void shape_free(Shape s);
@@ -353,10 +355,12 @@ void shape_set_transform(Shape obj, Matrix transform);
 void pattern_set_transform(Pattern pat, Matrix transform);
 
 void shape_set_material(Shape obj, Material m);
+void shape_set_material_recursive(Shape obj, Material m);
 
 void material();
 Material material_alloc();
 void material_set_pattern(Material m, Pattern p);
+void material_free(Material m);
 
 Bounding_box shape_bounds(Shape sh);
 Bounding_box shape_parent_space_bounds(Shape sh);

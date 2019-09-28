@@ -1,17 +1,13 @@
-class Camera(object):
+class Aperture(object):
     def __init__(self, yaml_obj=None):
-       self.yaml_obj = yaml_obj
+        self.yaml_obj = yaml_obj
 
     @classmethod
-    def from_yaml(cls, obj) -> 'Camera':
-        if 'aperture-size' not in obj:
-            obj['aperture-size'] = 0.0
-        if 'focal-length' not in obj:
-            obj['focal-length'] = 1.0
-        if 'aperture-shape' not in obj:
-            obj['aperture-shape'] = 'POINT_APERTURE'
-        if 'samples-per-pixel' not in obj:
-            obj['samples-per-pixel'] = 1
+    def from_yaml(cls, obj) -> 'Aperture':
+        if 'size' not in obj:
+            obj['size'] = 0.0
+        if 'type' not in obj:
+            obj['type'] = [ 'POINT_APERTURE' ]
         if 'jitter' not in obj:
             obj['jitter'] = False
         return cls(yaml_obj=obj)
@@ -20,20 +16,73 @@ class Camera(object):
         bool_str = "false"
         if self.yaml_obj['jitter']:
             bool_str = "true"
+
+        buf = """    struct aperture aperture;
+    aperture.type = {0};
+    aperture.size = {1};
+    aperture.jitter = {2};
+""".format(self.yaml_obj['type'][0],
+           self.yaml_obj['size'],
+           bool_str)
+
+        if self.yaml_obj['type'][0] == 'CIRCULAR_APERTURE':
+            buf += """    aperture.u.circle.r1 = {0:.10f};
+""".format(*self.yaml_obj['type'][1:])
+        elif self.yaml_obj['type'][0] == 'CROSS_APERTURE':
+            buf += """    aperture.u.cross.x1 = {0:.10f};
+    aperture.u.cross.x2 = {1:.10f};
+    aperture.u.cross.y1 = {2:.10f};
+    aperture.u.cross.y2 = {3:.10f};
+""".format(*self.yaml_obj['type'][1:])
+        elif self.yaml_obj['type'][0] == 'DIAMOND_APERTURE':
+            buf += """    aperture.u.diamond.b1 = {0:.10f};
+    aperture.u.diamond.b2 = {1:.10f};
+    aperture.u.diamond.b3 = {2:.10f};
+    aperture.u.diamond.b4 = {3:.10f};
+""".format(*self.yaml_obj['type'][1:])
+        elif self.yaml_obj['type'][0] == 'DOUBLE_CIRCLE_APERTURE':
+            buf += """    aperture.u.double_circle.r1 = {0:.10f};
+    aperture.u.double_circle.r2 = {1:.10f};
+""".format(*self.yaml_obj['type'][1:])
+        else:
+            pass
+
+        return buf
+
+class Camera(object):
+    def __init__(self, yaml_obj=None):
+       self.yaml_obj = yaml_obj
+
+    @classmethod
+    def from_yaml(cls, obj) -> 'Camera':
+        if 'focal-length' not in obj:
+            obj['focal-length'] = 1.0
+        if 'samples-per-pixel' not in obj:
+            obj['samples-per-pixel'] = 1
+        if 'aperture' not in obj:
+            obj['aperture'] = {}
+        return cls(yaml_obj=obj)
+
+    def c_repr(self):
+        aperture = Aperture.from_yaml(self.yaml_obj['aperture'])
         return """    /* camera */
-    Point from = point({:.10f}, {:.10f}, {:.10f});
-    Point to = point({:f}, {:f}, {:f});
-    Vector up = vector({:f}, {:f}, {:f});
-    Camera cam = camera({}, {}, {:f}/*field_of_view*/, {:f}/*aperture*/, {:f}/*distance*/, {}/*aperture shape*/, {}/*sample_num*/, {}/*jitter*/, view_transform(from, to, up));
+{0}
+    Point from = point({1:.10f}, {2:.10f}, {3:.10f});
+    Point to = point({4:.10f}, {5:.10f}, {6:.10f});
+    Vector up = vector({7:.10f}, {8:.10f}, {9:.10f});
+
+    Camera cam = camera({10}, {11}, {12:.10f}/*field_of_view*/, {13:.10f}/*distance*/, aperture, {14}/*sample_num*/, view_transform(from, to, up));
 
     vector_free(up);
     point_free(to);
     point_free(from);
     /* end camera */
-""".format(self.yaml_obj['from'][0], self.yaml_obj['from'][1], self.yaml_obj['from'][2],
+""".format(aperture.c_repr(),
+           self.yaml_obj['from'][0], self.yaml_obj['from'][1], self.yaml_obj['from'][2],
            self.yaml_obj['to'][0], self.yaml_obj['to'][1], self.yaml_obj['to'][2],
            self.yaml_obj['up'][0], self.yaml_obj['up'][1], self.yaml_obj['up'][2],
-           self.yaml_obj['width'], self.yaml_obj['height'], self.yaml_obj['field-of-view'], self.yaml_obj['aperture-size'], self.yaml_obj['focal-length'], self.yaml_obj['aperture-shape'], self.yaml_obj['samples-per-pixel'], bool_str)
+           self.yaml_obj['width'], self.yaml_obj['height'], self.yaml_obj['field-of-view'],
+           self.yaml_obj['focal-length'], self.yaml_obj['samples-per-pixel'])
 
 class Light(object):
     def __init__(self, yaml_obj):

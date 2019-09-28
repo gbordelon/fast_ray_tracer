@@ -28,7 +28,7 @@ class OBJParser(object):
         return 1;
     }}
     construct_group_from_obj_file("{1}", shape_{0});
-    shape_set_material(shape_{0}, material_{0});
+    shape_set_material_recursive(shape_{0}, material_{0});
     shape_set_transform(shape_{0}, transform_{0});
 """.format(name,
            file_path,

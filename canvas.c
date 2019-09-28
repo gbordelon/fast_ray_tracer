@@ -1,11 +1,42 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #include "canvas.h"
+#include "linalg.h"
 
 #define header_len 32
 
+void
+rgb_to_hsl(double rgb[3], double hsl[3])
+{
+    double r = rgb[0];
+    double g = rgb[1];
+    double b = rgb[2];
+    double max = fmax(fmax(r, g), b);
+    double min = fmin(fmin(r, g), b);
+
+    hsl[2] = (max + min) / 2.0;
+
+    if (hsl[2] < 0.5) {
+        hsl[1] = (max - min) / (max + min);
+    } else {
+        hsl[1] = (max - min) / (2.0 - max - min);
+    }
+
+    if (equal(max, r)) {
+        hsl[0] = (g - b) / (max - min);
+    } else if (equal(max, g)) {
+        hsl[0] = 2.0 + (b - r) / (max - min);
+    } else {
+        hsl[0] = 4.0 + (r - g) / (max - min);
+    }
+    hsl[0] *= 60;
+    if (hsl[0] < 0) {
+        hsl[0] += 360.0;
+    }
+}
 
 Color
 color_default()
@@ -161,8 +192,8 @@ Ppm
 construct_ppm(Canvas c, bool use_clamping)
 {
     int n, i, out_len;
-    unsigned char *out, *buf, scaled;
-    double *cur_val, inverse, max_val = 1.0;
+    unsigned char *out, *buf, r_scaled, g_scaled, b_scaled;
+    double *cur_val, r_inverse, g_inverse, b_inverse, r_max_val = 1.0, g_max_val = 1.0, b_max_val = 1.0;
     Ppm ppm;
 
     buf = (unsigned char *) malloc(header_len * sizeof(unsigned char));
@@ -190,24 +221,51 @@ construct_ppm(Canvas c, bool use_clamping)
 
     // iterate over all colors in c->arr and find the max
     if (use_clamping) {
-        for (i = 0; i < c->width * c->height * c->depth; i++) {
-            if (c->arr[i] > max_val) {
-                max_val = c->arr[i];
+        for (i = 0; i < c->width * c->height * c->depth; i += c->depth) {
+            double r = c->arr[i];
+            double g = c->arr[i+1];
+            double b = c->arr[i+2];
+            if (r > r_max_val) {
+                r_max_val = r;
+            }
+            if (g > g_max_val) {
+                g_max_val = g;
+            }
+            if (b > b_max_val) {
+                b_max_val = b;
             }
         }
     }
 
-    inverse = 255 / max_val;
+    r_inverse = 255.0 / r_max_val;
+    g_inverse = 255.0 / g_max_val;
+    b_inverse = 255.0 / b_max_val;
 
-    for (cur_val = c->arr; n < out_len - 1; n++, out++, cur_val++) {
-        if (*cur_val >= max_val) {
-            scaled = 255;
+    for (cur_val = c->arr; n < out_len - 1; n += 3, out += 3, cur_val += 3) {
+        if (*cur_val >= r_max_val) {
+            r_scaled = 255;
         } else if (*cur_val <= 0) {
-            scaled = 0;
+            r_scaled = 0;
         } else {
-            scaled = *cur_val * inverse;
+            r_scaled = *cur_val * r_inverse;
         }
-        *out = scaled;
+        *out = r_scaled;
+        if (*(cur_val+1) >= g_max_val) {
+            g_scaled = 255;
+        } else if (*(cur_val+1) <= 0) {
+            g_scaled = 0;
+        } else {
+            g_scaled = *(cur_val+1) * g_inverse;
+        }
+        *(out+1) = g_scaled;
+        if (*(cur_val+2) >= b_max_val) {
+            b_scaled = 255;
+        } else if (*(cur_val+2) <= 0) {
+            b_scaled = 0;
+        } else {
+            b_scaled = *(cur_val+2) * b_inverse;
+        }
+        *(out+2) = b_scaled;
     }
     *out = '\n';
 

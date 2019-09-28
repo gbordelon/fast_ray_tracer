@@ -132,6 +132,7 @@ material(Material m)
     m->refractive_index = 1.0;
     m->casts_shadow = true;
     m->pattern = NULL;
+    m->ref_count = 0;
 }
 
 Material
@@ -143,13 +144,30 @@ material_alloc()
 }
 
 void
+material_free(Material m)
+{
+    if (m != NULL) {
+        m->ref_count--;
+        if (m->ref_count == 0) {
+            if (m->pattern != NULL) {
+                pattern_free(m->pattern);
+            }
+            free(m);
+        }
+    }
+}
+
+void
 material_set_pattern(Material m, Pattern p)
 {
     if (m != NULL) {
         if (m->pattern != NULL) {
-            // TODO probably don't need to worry about freeing the pattern ATM
+            pattern_free(m->pattern);
         }
         m->pattern = p;
+        if (p != NULL) {
+            p->ref_count++;
+        }
     }
 }
 
@@ -283,7 +301,27 @@ void
 shape_set_material(Shape obj, Material m)
 {
     if (obj != NULL) {
+        if (obj->material != NULL) {
+            material_free(obj->material);
+        }
         obj->material = m;
+        if (m != NULL) {
+            m->ref_count++;
+        }
+    }
+}
+
+void
+shape_set_material_recursive(Shape obj, Material m)
+{
+    if (obj != NULL) {
+        obj->material = m; // i may want to only do this if the material is already null...
+        if (obj->type == SHAPE_GROUP) {
+            int i;
+            for (i = 0; i< obj->fields.group.num_children; i++) {
+                shape_set_material_recursive(obj->fields.group.children + i, m);
+            }
+        }
     }
 }
 
@@ -804,6 +842,7 @@ default_pattern_constructor(Pattern res)
 {
     res->transform = NULL;
     res->transform_inverse = NULL;
+    res->ref_count = 0;
 
     pattern_set_transform(res, matrix_identity_alloc());
 
@@ -959,6 +998,20 @@ array_of_patterns(size_t num)
 {
     return (Pattern) malloc(num * sizeof(struct pattern));
 }
+
+void
+pattern_free(Pattern p)
+{
+    if (p != NULL) {
+        p->ref_count--;
+        if (p->ref_count == 0) {
+            matrix_free(p->transform);
+            matrix_free(p->transform_inverse);
+            free(p);
+        }
+    }
+}
+
 
 void
 texture_map_pattern(Pattern faces, enum uv_map_type type, Pattern res)

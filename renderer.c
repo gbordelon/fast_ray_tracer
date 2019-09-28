@@ -204,11 +204,9 @@ Camera
 camera(size_t hsize,
        size_t vsize,
        double field_of_view,
-       double aperture_size,
        double canvas_distance,
-       enum aperture_shape aperture_shape,
+       struct aperture aperture,
        size_t sample_num,
-       bool jitter,
        Matrix transform)
 {
     Camera c = (Camera) malloc(sizeof(struct camera));
@@ -217,14 +215,12 @@ camera(size_t hsize,
     c->hsize = hsize;
     c->vsize = vsize;
     c->field_of_view = field_of_view;
-    c->aperture_size = aperture_size;
     c->canvas_distance = canvas_distance;
-    c->aperture_shape = aperture_shape;
     c->sample_num = sample_num;
-    c->jitter = jitter;
+    c->aperture = aperture;
 
 
-    double half_view = canvas_distance * tan(field_of_view / 2.0);
+    double half_view = canvas_distance * tan(field_of_view * 0.5);
     double aspect = (double)hsize / (double)vsize;
 
     if (aspect >= 1.0) {
@@ -356,11 +352,101 @@ is_shadowed(World w, double light_position[4], Point pt)
     return retval;
 }
 
+
 void
-ray_for_pixel(Camera cam, double px, double py, double x_offset, double y_offset, Ray res)
+circle_aperture_fn(double *x, double *y, struct aperture *bounds)
 {
-    double xoffset = (px + x_offset) * cam->pixel_size;
-    double yoffset = (py + y_offset) * cam->pixel_size;
+    double u, v;
+    do {
+        u = jitter_by(true);
+        v = jitter_by(true);
+        *x = 2 * u - 1;
+        *y = 2 * v - 1;
+    } while (*x * *x + *y * *y > bounds->u.circle.r1);
+    *x = u;
+    *y = v;
+}
+
+void
+cross_aperture_fn(double *x, double *y, struct aperture *bounds)
+{
+    double u, v;
+    bool check;
+    do {
+        u = jitter_by(true);
+        v = jitter_by(true);
+        *x = 2 * u - 1;
+        *y = 2 * v - 1;
+        check = ((*x > bounds->u.cross.x1) && (*x <= bounds->u.cross.x2))
+             || ((*y > bounds->u.cross.y1) && (*y <= bounds->u.cross.y2));
+    } while (!check);
+    *x = u;
+    *y = v;
+}
+
+void
+diamond_aperture_fn(double *x, double *y, struct aperture *bounds)
+{
+    double u, v;
+    bool check;
+    do {
+        u = jitter_by(true);
+        v = jitter_by(true);
+        *x = 2 * u - 1;
+        *y = 2 * v - 1;
+        check = (*x <= 0)
+              ? (-*x + bounds->u.diamond.b1 <= *y) && (*y < *x + bounds->u.diamond.b2)
+              : (0 <= *x)
+              ? (*x + bounds->u.diamond.b3 <= *y) && (*y < -*x + bounds->u.diamond.b4)
+              : false;
+    } while (!check);
+    *x = u;
+    *y = v;
+}
+
+void
+double_circle_aperture_fn(double *x, double *y, struct aperture *bounds)
+{
+    double mag;
+    double u, v;
+    do {
+        u = jitter_by(true);
+        v = jitter_by(true);
+        *x = 2 * u - 1;
+        *y = 2 * v - 1;
+        mag = *x * *x + *y * *y;
+    } while (mag > bounds->u.double_circle.r1 || mag < bounds->u.double_circle.r2);
+    *x = u;
+    *y = v;
+}
+
+void
+point_aperture_fn(double *x, double *y, struct aperture *bound)
+{
+    *x = 0.5;
+    *x = 0.5;
+}
+
+void
+square_aperture_fn(double *x, double *y, struct aperture *bounds)
+{
+    *x = jitter_by(true);
+    *y = jitter_by(true);
+}
+
+void
+random_point_by_function(double *x, double *y, struct aperture *bounds, void (*fn)(double *, double *, struct aperture *))
+{
+    fn(x, y, bounds);
+    *x -= 0.5;
+    *x -= 0.5;
+}
+
+void
+ray_for_pixel(Camera cam, double px, double py, double x_jitter, double y_jitter, Ray res)
+{
+    double xoffset = (px + x_jitter) * cam->pixel_size;
+    double yoffset = (py + y_jitter) * cam->pixel_size;
     double world_x = cam->half_width - xoffset;
     double world_y = cam->half_height - yoffset;
     Matrix inv = cam->transform_inverse;
@@ -369,6 +455,37 @@ ray_for_pixel(Camera cam, double px, double py, double x_offset, double y_offset
     struct pt p;
     struct pt pixel;
     struct v v;
+    void (*aperture_fn)(double *, double *, struct aperture *);
+
+    switch (cam->aperture.type) {
+    case CIRCULAR_APERTURE:
+        aperture_fn = circle_aperture_fn;
+        break;
+    case CROSS_APERTURE:
+        aperture_fn = cross_aperture_fn;
+        break;
+    case DIAMOND_APERTURE:
+        aperture_fn = diamond_aperture_fn;
+        break;
+    case DOUBLE_CIRCLE_APERTURE:
+        aperture_fn = double_circle_aperture_fn;
+        break;
+    case SQUARE_APERTURE:
+        aperture_fn = square_aperture_fn;
+        break;
+    case HEXAGONAL_APERTURE:
+        // not yet impl
+    case PENTAGONAL_APERTURE:
+        // not yet impl
+    case OCTAGONAL_APERTURE:
+        // not yet impl
+    case POINT_APERTURE:
+    default:
+        // no jittering
+        // no need to do any focal_blur stuff
+        aperture_fn = point_aperture_fn;
+        break;
+    }
 
     p.arr[0] = world_x;
     p.arr[1] = world_y;
@@ -376,8 +493,12 @@ ray_for_pixel(Camera cam, double px, double py, double x_offset, double y_offset
     p.arr[3] = 1.0;
     matrix_point_multiply(inv, &p, &pixel);
 
-    p.arr[0] = 0 + (-0.5 + jitter_by(true)) * cam->aperture_size; // aperture size of 1
-    p.arr[1] = 0 + (-0.5 + jitter_by(true)) * cam->aperture_size; // aperture size of 1
+    p.arr[0] = 0;
+    p.arr[1] = 0;
+    random_point_by_function(p.arr, p.arr+1, &cam->aperture, aperture_fn);
+
+    p.arr[0] *= cam->aperture.size;
+    p.arr[1] *= cam->aperture.size;
     p.arr[2] = 0;
     matrix_point_multiply(inv, &p, &origin);
     vector_from_points(&pixel, &origin, &v);

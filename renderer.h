@@ -65,24 +65,60 @@ typedef struct world {
     Intersections xs;
 } *World;
 
-enum aperture_shape {
-    POINT_APERTURE,
+enum aperture_type {
     CIRCULAR_APERTURE,
-    RECTANGULAR_APERTURE,
+    CROSS_APERTURE,
+    DIAMOND_APERTURE,
+    DOUBLE_CIRCLE_APERTURE,
     HEXAGONAL_APERTURE,
     PENTAGONAL_APERTURE,
+    POINT_APERTURE,
+    SQUARE_APERTURE,
     OCTAGONAL_APERTURE,
+};
+
+struct circle_aperture_args {
+    double r1;
+};
+
+struct cross_aperture_args {
+    double x1;
+    double x2;
+    double y1;
+    double y2;
+};
+
+struct diamond_aperture_args {
+    double b1;
+    double b2;
+    double b3;
+    double b4;
+};
+
+struct double_circle_aperture_args {
+    double r1;
+    double r2;
+};
+
+struct aperture {
+    enum aperture_type type;
+    double size;
+    bool jitter;
+    union {
+        struct circle_aperture_args circle;
+        struct cross_aperture_args cross;
+        struct diamond_aperture_args diamond;
+        struct double_circle_aperture_args double_circle;
+    } u;
 };
 
 typedef struct camera {
     size_t hsize;
     size_t vsize;
-    double aperture_size;
     size_t sample_num;
     double field_of_view;
     double canvas_distance;
-    enum aperture_shape aperture_shape;
-    bool jitter;
+    struct aperture aperture;
     double half_width;
     double half_height;
     double pixel_size;
@@ -102,7 +138,7 @@ area_light(double corner[4]/*point*/,
            double intensity[4],
            Light l);
 
-Camera camera(size_t hsize, size_t vsize, double field_of_view, double aperture_size, double canvas_distance, enum aperture_shape aperture_shape, size_t sample_num, bool jitter, Matrix transform);
+Camera camera(size_t hsize, size_t vsize, double field_of_view, double canvas_distance, struct aperture aperture, size_t sample_num, Matrix transform);
 Matrix view_transform(Point fr, Point to, Vector up);
 void camera_set_transform(Camera c, Matrix m);
 
