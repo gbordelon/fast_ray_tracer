@@ -94,15 +94,15 @@ xyz_to_rgb(double xyz[3], double rgb[3])
     https://en.wikipedia.org/wiki/Illuminant_D65
 */
 static const double tristimulus_2deg[] = {
-    95.047,
-    100.00,
-    108.883
+    0.95047,
+    1.00000,
+    1.08883
 };
 
 static const double tristimulus_10deg[] = {
-    94.8110,
-    100.00,
-    107.304
+    0.948110,
+    1.000000,
+    1.073040
 };
 
 static const double *tristimulus = tristimulus_10deg;
@@ -398,7 +398,6 @@ construct_ppm(Canvas c, bool use_scaling)
                 rgb_max[2] = *(c->arr + i + 2);
             }
         }
-/*
         lab_max[0] = 0;
         lab_max[1] = 0;
         lab_max[2] = 0;
@@ -417,8 +416,7 @@ construct_ppm(Canvas c, bool use_scaling)
         }
 
         printf("lab_max: %f %f %f\n", lab_max[0], lab_max[1], lab_max[2]);
-        //lab_to_rgb(lab_max, rgb_max);
-*/
+        lab_to_rgb(lab_max, rgb_max);
     } else {
         rgb_max[0] = 1.0;
         rgb_max[1] = 1.0;
