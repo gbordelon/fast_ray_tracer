@@ -40,6 +40,11 @@ rgb_to_hsl(double rgb[3], double hsl[3])
     }
 }
 
+void
+hsl_to_rgb(double hsl[3], double rgb[3])
+{
+}
+
 /*
 
     https://www.cs.rit.edu/~ncs/color/t_convert.html
@@ -92,6 +97,7 @@ xyz_to_rgb(double xyz[3], double rgb[3])
 
 /*
     https://en.wikipedia.org/wiki/Illuminant_D65
+    https://www.mathworks.com/help/images/ref/rgb2lab.html
 */
 static const double tristimulus_2deg[] = {
     0.95047,

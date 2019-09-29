@@ -710,7 +710,7 @@ void
 intersections_sort(Intersections xs)
 {
     // sort xs by xs->xs->t ascending
-    mergesort((void*)xs->xs, xs->num, sizeof(struct intersection), sort_intersections_asc);
+    qsort((void*)xs->xs, xs->num, sizeof(struct intersection), sort_intersections_asc);
 }
 
 Intersections
@@ -758,6 +758,9 @@ position(Ray ray, double t, Point position)
 void
 prepare_computations(Intersection i, Ray r, Intersections xs, Computations res)
 {
+    static Shape *container = NULL;
+    static size_t container_size = 0;
+
     res->t = i->t;
 
     res->obj = i->object;
@@ -796,7 +799,12 @@ prepare_computations(Intersection i, Ray r, Intersections xs, Computations res)
     int j, k;
     Intersection x;
     size_t container_len = 0;
-    Shape *container = (Shape*) malloc(xs->num * sizeof(Shape));
+
+    // check size of container array
+    if (xs->num >= container_size) {
+        container = realloc(container, xs->num * sizeof(Shape));
+        container_size = xs->num;
+    }
 
     for (j = 0, x = xs->xs; j < xs->num; x++, j++) {
         if (x == i) {// address compare should be okay.
@@ -834,7 +842,7 @@ prepare_computations(Intersection i, Ray r, Intersections xs, Computations res)
         }
     }
 
-    free(container);
+    //free(container);
 }
 
 void
