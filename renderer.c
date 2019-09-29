@@ -655,31 +655,6 @@ render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
 }
 
 void
-computations_free(Computations comps)
-{
-    if (comps != NULL) {
-        if (comps->p != NULL) {
-            point_free(comps->p);
-        }
-        if (comps->over_point != NULL) {
-            point_free(comps->over_point);
-        }
-        if (comps->under_point != NULL) {
-            point_free(comps->under_point);
-        }
-        if (comps->eyev != NULL) {
-            vector_free(comps->eyev);
-        }
-        if (comps->normalv != NULL) {
-            vector_free(comps->normalv);
-        }
-        if (comps->reflectv != NULL) {
-            vector_free(comps->reflectv);
-        }
-    }
-}
-
-void
 color_at(World w, Ray r, size_t remaining, Color res)
 {
     Intersections xs = intersect_world(w, r);
@@ -694,7 +669,6 @@ color_at(World w, Ray r, size_t remaining, Color res)
     if (i != NULL) {
         prepare_computations(i, r, xs, &comps);
         shade_hit(w, &comps, remaining, &c);
-        computations_free(&comps); // this is okay because it just frees the objects comps points to
     }
     memcpy(res->arr, c.arr, 3 * sizeof(double));
 }
@@ -772,81 +746,50 @@ intersect_world(World w, Ray r)
     return w->xs;
 }
 
-Point
-position_alloc(Ray ray, double t)
+void
+position(Ray ray, double t, Point position)
 {
-    Point position = point(ray->origin[0], ray->origin[1], ray->origin[2]);
+    memcpy(position->arr, ray->origin, 4 * sizeof(double));
     position->arr[0] += ray->direction[0] * t;
     position->arr[1] += ray->direction[1] * t;
     position->arr[2] += ray->direction[2] * t;
-
-    return position;
 }
 
-void
-computations(double t,
-             Shape obj,
-             Point p,
-             Point over_point,
-             Point under_point,
-             Vector eyev,
-             Vector normalv,
-             Vector reflectv,
-             bool inside,
-             Computations comps)
-{
-    comps->t = t;
-    comps->obj = obj;
-    comps->p = p;
-    comps->eyev = eyev;
-    comps->normalv = normalv;
-    comps->reflectv = reflectv;
-    comps->inside = inside;
-    comps->over_point = over_point;
-    comps->under_point = under_point;
-    comps->n1 = 1.0;
-    comps->n2 = 1.0;
-}
-
-/* TODO make a computations struct memcpy so all these functions don't allocate */
 void
 prepare_computations(Intersection i, Ray r, Intersections xs, Computations res)
 {
-    Point p = position_alloc(r, i->t);
-    Vector n = i->object->normal_at(i->object, p, i);
-    Vector eyev = vector(-r->direction[0], -r->direction[1], -r->direction[2]);
-    struct v direction;
-    memcpy(direction.arr, r->direction, 4 * sizeof(double));
+    res->t = i->t;
 
-    Point over_point = point_default();
-    Point under_point = point_default();
-    bool inside = false;
+    res->obj = i->object;
 
-    Vector reflectv = vector_reflect_alloc(&direction, n);
+    position(r, i->t, &res->p);
 
-    if (vector_dot(n, eyev) < 0) {
-        inside = true;
-        vector_scale(n, -1);
+    i->object->normal_at(i->object, &res->p, i, &res->normalv);
+
+    memcpy(&res->eyev.arr, r->direction, 4 * sizeof(double));
+    array_scale(res->eyev.arr, -1.0);
+
+    res->inside = false;
+
+    vector_array_reflect(r->direction, res->normalv.arr, &res->reflectv);
+
+    if (array_dot(res->normalv.arr, res->eyev.arr) < 0) {
+        res->inside = true;
+        array_scale(res->normalv.arr, -1);
     }
 
-    over_point->arr[0] = p->arr[0] + n->arr[0] * EPSILON;
-    over_point->arr[1] = p->arr[1] + n->arr[1] * EPSILON;
-    over_point->arr[2] = p->arr[2] + n->arr[2] * EPSILON;
+    res->over_point.arr[0] = res->p.arr[0] + res->normalv.arr[0] * EPSILON;
+    res->over_point.arr[1] = res->p.arr[1] + res->normalv.arr[1] * EPSILON;
+    res->over_point.arr[2] = res->p.arr[2] + res->normalv.arr[2] * EPSILON;
+    res->over_point.arr[3] = 1.0;
 
-    under_point->arr[0] = p->arr[0] - n->arr[0] * EPSILON;
-    under_point->arr[1] = p->arr[1] - n->arr[1] * EPSILON;
-    under_point->arr[2] = p->arr[2] - n->arr[2] * EPSILON;
+    res->under_point.arr[0] = res->p.arr[0] - res->normalv.arr[0] * EPSILON;
+    res->under_point.arr[1] = res->p.arr[1] - res->normalv.arr[1] * EPSILON;
+    res->under_point.arr[2] = res->p.arr[2] - res->normalv.arr[2] * EPSILON;
+    res->under_point.arr[3] = 1.0;
 
-    computations(i->t,
-                 i->object,
-                 p,
-                 over_point,
-                 under_point,
-                 eyev,
-                 n,
-                 reflectv,
-                 inside,
-                 res);
+    res->n1 = 1.0;
+    res->n2 = 1.0;
 
     Computations c = res;
 
@@ -907,7 +850,7 @@ reflected_color(World w, Computations comps, size_t remaining, Color res)
         c.arr[0] = 0;
         c.arr[1] = 0;
         c.arr[2] = 0;
-        ray_array(comps->over_point->arr, comps->reflectv->arr, &reflect_ray);
+        ray_array(comps->over_point.arr, comps->reflectv.arr, &reflect_ray);
         color_at(w, &reflect_ray, remaining - 1, &c);
         color_scale(&c, comps->obj->material->reflective);
         color_accumulate(res, &c);
@@ -925,7 +868,7 @@ refracted_color(World w, Computations comps, size_t remaining, Color res)
     }
 
     double n_ratio = comps->n1 / comps->n2;
-    double cos_i = vector_dot(comps->eyev, comps->normalv);
+    double cos_i = vector_dot(&comps->eyev, &comps->normalv);
     double sin2_t = n_ratio * n_ratio * (1.0 - cos_i * cos_i);
 
     if (sin2_t > 1.0) {
@@ -946,9 +889,9 @@ refracted_color(World w, Computations comps, size_t remaining, Color res)
     struct ray refracted_ray;
 
     double cos_t = sqrt(1.0 - sin2_t);
-    memcpy(t1.arr, comps->normalv->arr, 4 * sizeof(double));
+    memcpy(t1.arr, comps->normalv.arr, 4 * sizeof(double));
     vector_scale(&t1, n_ratio * cos_i - cos_t);
-    memcpy(t2.arr, comps->eyev->arr, 4 * sizeof(double));
+    memcpy(t2.arr, comps->eyev.arr, 4 * sizeof(double));
 
     vector_scale(&t2, n_ratio);
     direction.arr[0] = t1.arr[0] - t2.arr[0];
@@ -956,7 +899,7 @@ refracted_color(World w, Computations comps, size_t remaining, Color res)
     direction.arr[2] = t1.arr[2] - t2.arr[2];
     direction.arr[3] = 0.0;
 
-    ray_array(comps->under_point->arr, direction.arr, &refracted_ray);
+    ray_array(comps->under_point.arr, direction.arr, &refracted_ray);
     color_at(w, &refracted_ray, remaining - 1, &c);
     color_scale(&c, comps->obj->material->transparency);
     color_accumulate(res, &c);
@@ -965,7 +908,7 @@ refracted_color(World w, Computations comps, size_t remaining, Color res)
 double
 schlick(Computations comps)
 {
-    double co = vector_dot(comps->eyev, comps->normalv);
+    double co = vector_dot(&comps->eyev, &comps->normalv);
     if (comps->n1 > comps->n2) {
         double n = comps->n1 / comps->n2;
         double sin2_t = n * n * (1.0 - co * co);
@@ -998,13 +941,13 @@ shade_hit(World w, Computations comps, size_t remaining, Color res)
         c.arr[0] = 0;
         c.arr[1] = 0;
         c.arr[2] = 0;
-        intensity = itr->intensity_at(itr, w, comps->over_point);
+        intensity = itr->intensity_at(itr, w, &comps->over_point);
         lighting(comps->obj->material,
                  comps->obj,
                  itr,
-                 comps->over_point,
-                 comps->eyev,
-                 comps->normalv,
+                 &comps->over_point,
+                 &comps->eyev,
+                 &comps->normalv,
                  intensity,
                  &c);
 

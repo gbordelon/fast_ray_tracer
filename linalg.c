@@ -139,13 +139,19 @@ array_from_arrays(double pt1[4], double pt2[4], double res[4])
 }
 
 void
+vector_array_reflect(double input[4], double normal[4], Vector res)
+{
+    double ddot = 2 * array_dot(input, normal);
+    res->arr[0] = input[0] - normal[0] * ddot;
+    res->arr[1] = input[1] - normal[1] * ddot;
+    res->arr[2] = input[2] - normal[2] * ddot;
+    res->arr[3] = 0.0;
+}
+
+void
 vector_reflect(Vector input, Vector normal, Vector res)
 {
-    double ddot = 2 * vector_dot(input, normal);
-    res->arr[0] = input->arr[0] - normal->arr[0] * ddot;
-    res->arr[1] = input->arr[1] - normal->arr[1] * ddot;
-    res->arr[2] = input->arr[2] - normal->arr[2] * ddot;
-    res->arr[3] = 0.0;
+    vector_array_reflect(input->arr, normal->arr, res);
 }
 
 Vector

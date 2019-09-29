@@ -135,7 +135,7 @@ typedef struct shape {
 
     Intersections (*intersect)(struct shape *sh, Ray r);
     Intersections (*local_intersect)(struct shape *sh, Ray r);
-    Vector (*normal_at)(struct shape *sh, Point world_point, Intersection hit);
+    void (*normal_at)(struct shape *sh, Point world_point, Intersection hit, Vector res);
     void (*local_normal_at)(struct shape *sh, Point local_point, Intersection hit, Vector res);
     void (*normal_to_world)(struct shape *sh, Vector local_normal, Vector res);
     void (*world_to_object)(struct shape *sh, Point pt, Point res);
@@ -336,7 +336,7 @@ void ray_free(Ray r);
 int ray_to_string(char *s, size_t n, Ray r);
 
 Intersections shape_intersect(Shape sh, Ray r);
-Vector shape_normal_at(Shape sh, Point world_point, Intersection hit);
+void shape_normal_at(Shape sh, Point world_point, Intersection hit, Vector res);
 void shape_normal_to_world(Shape sh, Vector local_normal, Vector res);
 void shape_world_to_object(Shape sh, Point pt, Point res);
 void shape_divide(Shape sh, size_t threshold);

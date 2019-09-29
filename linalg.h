@@ -154,6 +154,7 @@ double array_dot(double a[4], double b[4]);
 void vector_cross(Vector a, Vector b, Vector res);
 Vector vector_cross_alloc(Vector a, Vector b);
 
+void vector_array_reflect(double input[4], double normal[4], Vector res);
 void vector_reflect(Vector a, Vector b, Vector res);
 Vector vector_reflect_alloc(Vector a, Vector b);
 

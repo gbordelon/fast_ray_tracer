@@ -49,12 +49,12 @@ typedef struct computations {
     double n2;
     bool inside;
     Shape obj;
-    Point p;
-    Point over_point;
-    Point under_point;
-    Vector eyev;
-    Vector normalv;
-    Vector reflectv;
+    struct pt p;
+    struct pt over_point;
+    struct pt under_point;
+    struct v eyev;
+    struct v normalv;
+    struct v reflectv;
 } *Computations;
 
 typedef struct world {

@@ -221,8 +221,8 @@ shape_intersect(Shape sh, Ray r)
     return xs;
 }
 
-Vector
-shape_normal_at(Shape sh, Point world_point, Intersection hit)
+void
+shape_normal_at(Shape sh, Point world_point, Intersection hit, Vector res)
 {
     struct pt local_point;
     struct v local_normal;
@@ -231,7 +231,7 @@ shape_normal_at(Shape sh, Point world_point, Intersection hit)
     sh->world_to_object(sh, world_point, &local_point);
     sh->local_normal_at(sh, &local_point, hit, &local_normal);
     sh->normal_to_world(sh, &local_normal, &world_normal);
-    return vector_normalize_alloc(&world_normal);
+    vector_normalize(&world_normal, res);
 }
 
 void
