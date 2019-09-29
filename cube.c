@@ -1,6 +1,7 @@
 #include <math.h>
 #include <float.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "cube.h"
 #include "shapes.h"
@@ -76,32 +77,26 @@ cube_local_intersect(Shape cube, Ray r)
 void
 cube_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
 {
-    double abs_x = fabs(local_point->arr[0]);
-    double abs_y = fabs(local_point->arr[1]);
-    double abs_z = fabs(local_point->arr[2]);
+    double abs_x = fabs(local_point[0]);
+    double abs_y = fabs(local_point[1]);
+    double abs_z = fabs(local_point[2]);
     double maxc = fmax(fmax(abs_x, abs_y), abs_z);
 
-    res->arr[0] = 0;
-    res->arr[1] = 0;
-    res->arr[2] = 0;
-    res->arr[3] = 0.0;
+    vector_default(res);
 
     if (equal(maxc, abs_x)) {
-        res->arr[0] = local_point->arr[0];
+        res[0] = local_point[0];
     } else if (equal(maxc, abs_y)) {
-        res->arr[1] = local_point->arr[1];
+        res[1] = local_point[1];
     } else {
-        res->arr[2] = local_point->arr[2];
+        res[2] = local_point[2];
     }
 }
 
 void
 cube(Shape s)
 {
-    s->transform = NULL;
-    s->transform_inverse = NULL;
-
-    shape_set_transform(s, matrix_identity_alloc());
+    shape_set_transform(s, MATRIX_IDENTITY);
 
     s->material = material_alloc();
     s->parent = NULL;

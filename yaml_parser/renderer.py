@@ -67,15 +67,14 @@ class Camera(object):
         aperture = Aperture.from_yaml(self.yaml_obj['aperture'])
         return """    /* camera */
 {0}
-    Point from = point({1:.10f}, {2:.10f}, {3:.10f});
-    Point to = point({4:.10f}, {5:.10f}, {6:.10f});
-    Vector up = vector({7:.10f}, {8:.10f}, {9:.10f});
+    Point from = {{ {1:.10f}, {2:.10f}, {3:.10f}, 1.0 }};
+    Point to = {{ {4:.10f}, {5:.10f}, {6:.10f}, 1.0 }};
+    Vector up = {{ {7:.10f}, {8:.10f}, {9:.10f}, 0.0 }};
+    Matrix camera_xform;
+    view_transform(from, to, up, camera_xform);
 
-    Camera cam = camera({10}, {11}, {12:.10f}/*field_of_view*/, {13:.10f}/*distance*/, aperture, {14}/*sample_num*/, view_transform(from, to, up));
+    Camera cam = camera({10}, {11}, {12:.10f}/*field_of_view*/, {13:.10f}/*distance*/, aperture, {14}/*sample_num*/, camera_xform);
 
-    vector_free(up);
-    point_free(to);
-    point_free(from);
     /* end camera */
 """.format(aperture.c_repr(),
            self.yaml_obj['from'][0], self.yaml_obj['from'][1], self.yaml_obj['from'][2],
@@ -106,12 +105,11 @@ class PointLight(Light):
     def c_repr(self, name):
         return """    /* point light {0} */
     Light point_light_{0} = all_lights + {0};
-    Point point_light_{0}_point = point({1:.10f}, {2:.10f}, {3:.10f});
+    Point point_light_{0}_point = {{ {1:.10f}, {2:.10f}, {3:.10f}, 1.0 }};
     Color point_light_{0}_intensity = color({4:.10f}, {5:.10f}, {6:.10f});
     point_light(point_light_{0}_point, point_light_{0}_intensity, point_light_{0});
 
     color_free(point_light_{0}_intensity);
-    point_free(point_light_{0}_point);
     /* end point light {0} */
 """.format(name,
            self.yaml_obj['at'][0], self.yaml_obj['at'][1], self.yaml_obj['at'][2],
@@ -132,16 +130,13 @@ class AreaLight(Light):
         return """
     /* area light {0} */
     Light area_light_{0} = all_lights + {0};
-    Point area_light_{0}_corner = point({1:.10f}, {2:.10f}, {3:.10f});
+    Point area_light_{0}_corner = {{ {1:.10f}, {2:.10f}, {3:.10f}, 1.0}};
     Color area_light_{0}_intensity = color({4:.10f}, {5:.10f}, {6:.10f});
     Vector area_light_{0}_uvec = vector({7:.10f}, {8:.10f}, {9:.10f});
     Vector area_light_{0}_vvec = vector({10:.10f}, {11:.10f}, {12:.10f});
     area_light(area_light_{0}_corner->arr, area_light_{0}_uvec->arr, {13}/*usteps*/, area_light_{0}_vvec->arr, {14}/*vsteps*/, {15}/*jitter*/, area_light_{0}_intensity->arr, area_light_{0});
 
-    vector_free(area_light_{0}_vvec);
-    vector_free(area_light_{0}_uvec);
     color_free(area_light_{0}_intensity);
-    point_free(area_light_{0}_corner);
     /* end area light 0 */
 """.format(name,
            self.yaml_obj['corner'][0], self.yaml_obj['corner'][1], self.yaml_obj['corner'][2],

@@ -74,7 +74,7 @@ bounding_box_add_array(Bounding_box box, double point[4])
 void
 bounding_box_add_point(Bounding_box box, Point p)
 {
-    bounding_box_add_array(box, p->arr);
+    bounding_box_add_array(box, p);
 }
 
 void
@@ -97,7 +97,7 @@ bounding_box_contains_array(Bounding_box box, double point[4])
 bool
 bounding_box_contains_point(Bounding_box box, Point p)
 {
-    return bounding_box_contains_array(box, p->arr);
+    return bounding_box_contains_array(box, p);
 }
 
 bool
@@ -123,10 +123,10 @@ bounding_box_transform(Bounding_box box, Matrix m)
     };
 
     Bounding_box tr = bounding_box_alloc();
-    double arr[4];
+    Point arr;
     int i;
     for (i = 0; i < 8; i++) {
-        matrix_array_multiply(m, points[i], arr);
+        matrix_point_multiply(m, points[i], arr);
         bounding_box_add_array(tr, arr);
     }
 

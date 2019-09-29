@@ -91,10 +91,10 @@ intersections_free(Intersections xs)
 }
 
 void
-ray_array(double origin[4], double direction[4], Ray ray)
+ray_array(Point origin, Vector direction, Ray ray)
 {
-    memcpy(ray->origin, origin, 4 * sizeof(double));
-    memcpy(ray->direction, direction, 4 * sizeof(double));
+    memcpy(ray->origin, origin, sizeof(Point));
+    memcpy(ray->direction, direction, sizeof(Vector));
 }
 
 Ray
@@ -107,7 +107,7 @@ ray_array_alloc(double origin[4], double direction[4])
 Ray
 ray_alloc(Point origin, Vector direction)
 {
-    return ray_array_alloc(origin->arr, direction->arr);
+    return ray_array_alloc(origin, direction);
 }
 
 void
@@ -189,8 +189,8 @@ shape_free(Shape s)
 void
 ray_transform(Ray original, Matrix m, Ray res)
 {
-    matrix_array_multiply(m, original->origin, res->origin);
-    matrix_array_multiply(m, original->direction, res->direction);
+    matrix_point_multiply(m, original->origin, res->origin);
+    matrix_vector_multiply(m, original->direction, res->direction);
 }
 
 Ray
@@ -212,10 +212,9 @@ ray_to_string(char *buf, size_t n, Ray r)
 Intersections
 shape_intersect(Shape sh, Ray r)
 {
-    Matrix m = sh->transform_inverse;
     struct ray transformed_ray;
 
-    ray_transform(r, m, &transformed_ray);
+    ray_transform(r, sh->transform_inverse, &transformed_ray);
     Intersections xs = sh->local_intersect(sh, &transformed_ray);
 
     return xs;
@@ -224,50 +223,48 @@ shape_intersect(Shape sh, Ray r)
 void
 shape_normal_at(Shape sh, Point world_point, Intersection hit, Vector res)
 {
-    struct pt local_point;
-    struct v local_normal;
-    struct v world_normal;
+    Point local_point;
+    Vector local_normal;
+    Vector world_normal;
 
-    sh->world_to_object(sh, world_point, &local_point);
-    sh->local_normal_at(sh, &local_point, hit, &local_normal);
-    sh->normal_to_world(sh, &local_normal, &world_normal);
-    vector_normalize(&world_normal, res);
+    sh->world_to_object(sh, world_point, local_point);
+    sh->local_normal_at(sh, local_point, hit, local_normal);
+    sh->normal_to_world(sh, local_normal, world_normal);
+    vector_normalize(world_normal, res);
 }
 
 void
 shape_normal_to_world(Shape sh, Vector local_normal, Vector res)
 {
-    struct m tr;
-    struct v un_normal;
-    struct v normal;
-    Matrix inv = sh->transform_inverse;
+    Matrix tr;
+    Vector un_normal;
+    Vector normal;
 
-    matrix_transpose(inv, &tr);
+    matrix_transpose(sh->transform_inverse, tr);
     
-    matrix_vector_multiply(&tr, local_normal, &un_normal);
-    vector_normalize(&un_normal, &normal);
+    matrix_vector_multiply(tr, local_normal, un_normal);
+    vector_normalize(un_normal, normal);
 
-    struct v tmp;
+    Vector tmp;
     if (sh->parent != NULL) {
-        sh->parent->normal_to_world(sh->parent, &normal, &tmp);
+        sh->parent->normal_to_world(sh->parent, normal, tmp);
     } else {
-        memcpy(tmp.arr, normal.arr, 4 * sizeof(double));
+        memcpy(tmp, normal, sizeof(Vector));
     }
-    memcpy(res->arr, tmp.arr, 4 * sizeof(double));
+    memcpy(res, tmp, sizeof(Vector));
 }
 
 void
 shape_world_to_object(Shape sh, Point pt, Point res)
 {
-    struct pt tmp;
+    Point  tmp;
     if (sh->parent != NULL) {
-        sh->parent->world_to_object(sh->parent, pt, &tmp);
+        sh->parent->world_to_object(sh->parent, pt, tmp);
     } else {
-        memcpy(tmp.arr, pt->arr, 4 * sizeof(double));
+        memcpy(tmp, pt, sizeof(Point));
     }
 
-    Matrix m = sh->transform_inverse;
-    matrix_point_multiply(m, &tmp, res);
+    matrix_point_multiply(sh->transform_inverse, tmp, res);
 }
 
 void
@@ -283,17 +280,11 @@ shape_includes(Shape a, Shape b)
 }
 
 void
-shape_set_transform(Shape obj, Matrix m)
+shape_set_transform(Shape obj, const Matrix m)
 {
     if (obj != NULL) {
-        if (obj->transform_inverse != NULL) {
-            matrix_free(obj->transform_inverse);
-        }
-        if (obj->transform != NULL) {
-            matrix_free(obj->transform);
-        }
-        obj->transform = m;
-        obj->transform_inverse = matrix_inverse_alloc(m);
+        matrix_copy(m, obj->transform);
+        matrix_inverse(m, obj->transform_inverse);
     }
 }
 
@@ -419,16 +410,14 @@ intersection_to_string(char *buf, size_t n, Intersection x)
 void
 base_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
 {
-    Matrix inv = p->transform_inverse;
+    Point  object_point;
+    s->world_to_object(s, pt, object_point);
 
-    struct pt object_point;
-    s->world_to_object(s, pt, &object_point);
-
-    struct pt pattern_point;
-    matrix_point_multiply(inv, &object_point, &pattern_point);
+    Point  pattern_point;
+    matrix_point_multiply(p->transform_inverse, object_point, pattern_point);
 
     struct color c;
-    p->pattern_at(p, s, &pattern_point, &c);
+    p->pattern_at(p, s, pattern_point, &c);
 
     memcpy(res->arr, c.arr, 3 * sizeof(double));
 }
@@ -485,11 +474,11 @@ nested_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
 void
 perturbed_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
 {
-    double x = pt->arr[0] / 10.0;
-    double y = pt->arr[1] / 10.0;
-    double z = pt->arr[2] / 10.0;
+    double x = pt[0] / 10.0;
+    double y = pt[1] / 10.0;
+    double z = pt[2] / 10.0;
 
-    double new_x = pt->arr[0] + p->fields.perturbed.scale_factor *
+    double new_x = pt[0] + p->fields.perturbed.scale_factor *
                    pnoise3d(x, y, z,
                             p->fields.perturbed.persistence,
                             p->fields.perturbed.frequency,
@@ -497,7 +486,7 @@ perturbed_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
                             p->fields.perturbed.seed);
 
     z += 1.0;
-    double new_y = pt->arr[1] + p->fields.perturbed.scale_factor *
+    double new_y = pt[1] + p->fields.perturbed.scale_factor *
                    pnoise3d(x, y, z,
                             p->fields.perturbed.persistence,
                             p->fields.perturbed.frequency,
@@ -505,20 +494,20 @@ perturbed_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
                             p->fields.perturbed.seed);
 
     z += 1.0;
-    double new_z = pt->arr[2] + p->fields.perturbed.scale_factor *
+    double new_z = pt[2] + p->fields.perturbed.scale_factor *
                    pnoise3d(x, y, z,
                             p->fields.perturbed.persistence,
                             p->fields.perturbed.frequency,
                             p->fields.perturbed.octaves,
                             p->fields.perturbed.seed);
 
-    struct pt perturbed;
-    perturbed.arr[0] = new_x;
-    perturbed.arr[1] = new_y;
-    perturbed.arr[2] = new_z;
+    Point  perturbed;
+    perturbed[0] = new_x;
+    perturbed[1] = new_y;
+    perturbed[2] = new_z;
 
     struct color c;
-    p->fields.perturbed.pattern1->pattern_at_shape(p->fields.perturbed.pattern1, s, &perturbed, &c);
+    p->fields.perturbed.pattern1->pattern_at_shape(p->fields.perturbed.pattern1, s, perturbed, &c);
     memcpy(res->arr, c.arr, 3 * sizeof(double));
 }
 
@@ -526,13 +515,13 @@ void
 base_pattern_at(Pattern p, Shape s, Point pt, Color res)
 {
     printf("calling base_pattern_at which should only happen for tests.\n");
-    memcpy(res->arr, pt->arr, 3 * sizeof(double));
+    memcpy(res->arr, pt, 3 * sizeof(double));
 }
 
 void
 checker_pattern_at(Pattern p, Shape s, Point pt, Color res)
 {
-    int t = (int)floor(pt->arr[0]) + (int)floor(pt->arr[1]) + (int)floor(pt->arr[2]);
+    int t = (int)floor(pt[0]) + (int)floor(pt[1]) + (int)floor(pt[2]);
     double *arr;
 
     if (t % 2 == 0) {
@@ -550,7 +539,7 @@ gradient_pattern_at(Pattern p, Shape s, Point pt, Color res)
     double distance[3] = { p->fields.concrete.b[0] - p->fields.concrete.a[0],
                            p->fields.concrete.b[1] - p->fields.concrete.a[1],
                            p->fields.concrete.b[2] - p->fields.concrete.a[2]};
-    double fraction = pt->arr[0] - floor(pt->arr[0]);
+    double fraction = pt[0] - floor(pt[0]);
 
     res->arr[0] = p->fields.concrete.a[0] + distance[0] * fraction;
     res->arr[1] = p->fields.concrete.a[1] + distance[1] * fraction;
@@ -564,7 +553,7 @@ radial_gradient_pattern_at(Pattern p, Shape s, Point pt, Color res)
                            p->fields.concrete.b[1] - p->fields.concrete.a[1],
                            p->fields.concrete.b[2] - p->fields.concrete.a[2]};
 
-    double magnitude = sqrt(pt->arr[0] * pt->arr[0] + pt->arr[2] * pt->arr[2]);
+    double magnitude = sqrt(pt[0] * pt[0] + pt[2] * pt[2]);
 
     double fraction = magnitude - floor(magnitude);
 
@@ -576,7 +565,7 @@ radial_gradient_pattern_at(Pattern p, Shape s, Point pt, Color res)
 void
 ring_pattern_at(Pattern p, Shape s, Point pt, Color res)
 {
-    int t = (int)floor(sqrt(pt->arr[0] * pt->arr[0] + pt->arr[2] * pt->arr[2]));
+    int t = (int)floor(sqrt(pt[0] * pt[0] + pt[2] * pt[2]));
     double *arr;
 
     if (t % 2 == 0) {
@@ -590,7 +579,7 @@ ring_pattern_at(Pattern p, Shape s, Point pt, Color res)
 void
 stripe_pattern_at(Pattern p, Shape s, Point pt, Color res)
 {
-    int t = (int)floor(pt->arr[0]);
+    int t = (int)floor(pt[0]);
     double *arr;
 
     if (t % 2 == 0) {
@@ -681,27 +670,27 @@ base_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 {
     printf("calling base_uv_pattern_at which should never happen.\n");
     retval->face = 0;
-    retval->u = pt->arr[0];
-    retval->v = pt->arr[1];
+    retval->u = pt[0];
+    retval->v = pt[1];
 }
 
 void
 cube_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 {
-    double abs_x = fabs(pt->arr[0]);
-    double abs_y = fabs(pt->arr[1]);
-    double abs_z = fabs(pt->arr[2]);
+    double abs_x = fabs(pt[0]);
+    double abs_y = fabs(pt[1]);
+    double abs_z = fabs(pt[2]);
     double coord = fmax(fmax(abs_x, abs_y), abs_z);
 
-    size_t face = equal(coord, pt->arr[0])
+    size_t face = equal(coord, pt[0])
         ? 0
-        : equal(coord, -pt->arr[0])
+        : equal(coord, -pt[0])
             ? 1
-            : equal(coord, pt->arr[1])
+            : equal(coord, pt[1])
                 ? 2
-                : equal(coord, -pt->arr[1])
+                : equal(coord, -pt[1])
                     ? 3
-                    : equal(coord, pt->arr[2])
+                    : equal(coord, pt[2])
                         ? 4
                         : 5;
 
@@ -709,28 +698,28 @@ cube_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 
     switch (face) {
     case 0: // right
-        retval->u = fmod((1.0 - pt->arr[2]), 2.0) / 2.0;
-        retval->v = fmod((pt->arr[1] + 1.0), 2.0) / 2.0;
+        retval->u = fmod((1.0 - pt[2]), 2.0) / 2.0;
+        retval->v = fmod((pt[1] + 1.0), 2.0) / 2.0;
         break;
     case 1: // left
-        retval->u = fmod((pt->arr[2] + 1.0), 2.0) / 2.0;
-        retval->v = fmod((pt->arr[1] + 1.0), 2.0) / 2.0;
+        retval->u = fmod((pt[2] + 1.0), 2.0) / 2.0;
+        retval->v = fmod((pt[1] + 1.0), 2.0) / 2.0;
         break;
     case 2: // up
-        retval->u = fmod((pt->arr[0] + 1.0), 2.0) / 2.0;
-        retval->v = fmod((1.0 - pt->arr[2]), 2.0) / 2.0;
+        retval->u = fmod((pt[0] + 1.0), 2.0) / 2.0;
+        retval->v = fmod((1.0 - pt[2]), 2.0) / 2.0;
         break;
     case 3: // down
-        retval->u = fmod((pt->arr[0] + 1.0), 2.0) / 2.0;
-        retval->v = fmod((pt->arr[2] + 1.0), 2.0) / 2.0;
+        retval->u = fmod((pt[0] + 1.0), 2.0) / 2.0;
+        retval->v = fmod((pt[2] + 1.0), 2.0) / 2.0;
         break;
     case 4: // front
-        retval->u = fmod((pt->arr[0] + 1.0), 2.0) / 2.0;
-        retval->v = fmod((pt->arr[1] + 1.0), 2.0) / 2.0;
+        retval->u = fmod((pt[0] + 1.0), 2.0) / 2.0;
+        retval->v = fmod((pt[1] + 1.0), 2.0) / 2.0;
         break;
     case 5: // back
-        retval->u = fmod((1.0 - pt->arr[0]), 2.0) / 2.0;
-        retval->v = fmod((pt->arr[1] + 1.0), 2.0) / 2.0;
+        retval->u = fmod((1.0 - pt[0]), 2.0) / 2.0;
+        retval->v = fmod((pt[1] + 1.0), 2.0) / 2.0;
         break;
     }
 }
@@ -742,9 +731,9 @@ cylinder_uv_map(Shape s, Point pt, UVMapReturnType *retval)
     double raw_u;
 
     size_t face = 
-        (s->fields.cylinder.maximum - EPSILON) <= pt->arr[1]
+        (s->fields.cylinder.maximum - EPSILON) <= pt[1]
         ? 1
-        : (s->fields.cylinder.minimum + EPSILON) >= pt->arr[1]
+        : (s->fields.cylinder.minimum + EPSILON) >= pt[1]
             ? 2
             : 0;
 
@@ -752,18 +741,18 @@ cylinder_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 
     switch (face) {
     case 0: // cylinder body
-        theta = atan2(pt->arr[0], pt->arr[2]);
+        theta = atan2(pt[0], pt[2]);
         raw_u = theta / (2.0 * M_PI);
         retval->u = 1.0 - (raw_u + 0.5);
-        retval->v = fmod(pt->arr[1], 1.0);
+        retval->v = fmod(pt[1], 1.0);
         break;
     case 1: // top cap
-        retval->u = fmod((pt->arr[0] + 1.0), 2.0) / 2.0;
-        retval->v = fmod((1.0 - pt->arr[2]), 2.0) / 2.0;
+        retval->u = fmod((pt[0] + 1.0), 2.0) / 2.0;
+        retval->v = fmod((1.0 - pt[2]), 2.0) / 2.0;
         break;
     case 2: // bottom cap
-        retval->u = fmod((pt->arr[0] + 1.0), 2.0) / 2.0;
-        retval->v = fmod((pt->arr[2] + 1.0), 2.0) / 2.0;
+        retval->u = fmod((pt[0] + 1.0), 2.0) / 2.0;
+        retval->v = fmod((pt[2] + 1.0), 2.0) / 2.0;
         break;
     }
 }
@@ -771,8 +760,8 @@ cylinder_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 void
 plane_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 {
-    double u = fmod(pt->arr[0], 1.0);
-    double v = fmod(pt->arr[2], 1.0);
+    double u = fmod(pt[0], 1.0);
+    double v = fmod(pt[2], 1.0);
     if (u < 0) {
         u += 1.0;
     }
@@ -788,12 +777,12 @@ plane_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 void
 sphere_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 {
-    double theta = atan2(pt->arr[0], pt->arr[2]);
-    struct v vec;
-    memcpy(vec.arr, pt->arr, 3 * sizeof(double));
-    vec.arr[3] = 0.0;
-    double radius = vector_magnitude(&vec);
-    double phi = acos(pt->arr[1] / radius);
+    double theta = atan2(pt[0], pt[2]);
+    Vector vec;
+    memcpy(vec, pt, 3 * sizeof(double));
+    vec[3] = 0.0;
+    double radius = vector_magnitude(vec);
+    double phi = acos(pt[1] / radius);
     double raw_u = theta / (2 * M_PI);
     double u = 1 - (raw_u + 0.5);
     double v = 1 - phi / M_PI;
@@ -806,10 +795,10 @@ sphere_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 void
 toroid_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 {
-    double u = (1.0 - (atan2(pt->arr[2], pt->arr[0]) + M_PI) / (2 * M_PI));
-    double len = sqrt(pt->arr[0] * pt->arr[0] + pt->arr[2] * pt->arr[2]);
+    double u = (1.0 - (atan2(pt[2], pt[0]) + M_PI) / (2 * M_PI));
+    double len = sqrt(pt[0] * pt[0] + pt[2] * pt[2]);
     double x = len - s->fields.toroid.r1;
-    double v = (atan2(pt->arr[1], x) + M_PI) / (2 * M_PI);
+    double v = (atan2(pt[1], x) + M_PI) / (2 * M_PI);
 
     retval->face = 0;
     retval->u = u;
@@ -818,28 +807,20 @@ toroid_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 
 
 void
-pattern_set_transform(Pattern obj, Matrix m)
+pattern_set_transform(Pattern obj, const Matrix m)
 {
     if (obj != NULL) {
-        if (obj->transform_inverse != NULL) {
-            matrix_free(obj->transform_inverse);
-        }
-        if (obj->transform != NULL) {
-            matrix_free(obj->transform);
-        }
-        obj->transform = m;
-        obj->transform_inverse = matrix_inverse_alloc(m);
+        matrix_copy(m, obj->transform);
+        matrix_inverse(m, obj->transform_inverse);
     }
 }
 
 void
 default_pattern_constructor(Pattern res)
 {
-    res->transform = NULL;
-    res->transform_inverse = NULL;
     res->ref_count = 0;
 
-    pattern_set_transform(res, matrix_identity_alloc());
+    pattern_set_transform(res, MATRIX_IDENTITY);
 
     res->pattern_at_shape = base_pattern_at_shape;
     res->pattern_at = base_pattern_at;
@@ -1000,8 +981,6 @@ pattern_free(Pattern p)
     if (p != NULL) {
         p->ref_count--;
         if (p->ref_count == 0) {
-            matrix_free(p->transform);
-            matrix_free(p->transform_inverse);
             free(p);
         }
     }

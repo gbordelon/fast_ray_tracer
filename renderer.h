@@ -16,14 +16,14 @@ enum light_enum {
 };
 
 struct point_light_fields {
-    double position[4];
+    Point position;
 };
 
 struct area_light_fields {
-    double corner[4];
-    double uvec[4];
+    Point corner;
+    Vector uvec;
     size_t usteps;
-    double vvec[4];
+    Vector vvec;
     size_t vsteps;
     bool jitter;
 };
@@ -49,12 +49,12 @@ typedef struct computations {
     double n2;
     bool inside;
     Shape obj;
-    struct pt p;
-    struct pt over_point;
-    struct pt under_point;
-    struct v eyev;
-    struct v normalv;
-    struct v reflectv;
+    Point p;
+    Point over_point;
+    Point under_point;
+    Vector eyev;
+    Vector normalv;
+    Vector reflectv;
 } *Computations;
 
 typedef struct world {
@@ -129,17 +129,17 @@ typedef struct camera {
 Light array_of_lights(size_t num);
 void point_light(Point p, Color intensity, Light l);
 void
-area_light(double corner[4]/*point*/,
-           double full_uvec[4]/*vector*/,
+area_light(Point corner,
+           Vector full_uvec/*vector*/,
            size_t usteps,
-           double full_vvec[4]/*vector*/,
+           Vector full_vvec/*vector*/,
            size_t vsteps,
            bool jitter,
-           double intensity[4],
+           double intensity[3],
            Light l);
 
 Camera camera(size_t hsize, size_t vsize, double field_of_view, double canvas_distance, struct aperture aperture, size_t sample_num, Matrix transform);
-Matrix view_transform(Point fr, Point to, Vector up);
+void view_transform(Point fr, Point to, Vector up, Matrix res);
 void camera_set_transform(Camera c, Matrix m);
 
 World world();
@@ -148,7 +148,7 @@ World default_world();
 
 void color_at(World w, Ray r, size_t remaining, Color res);
 void shade_hit(World w, Computations comps, size_t remaining, Color res);
-bool is_shadowed(World w, double light_position[4], Point pt);
+bool is_shadowed(World w, Point light_position, Point pt);
 Intersections intersect_world(World w, Ray r);
 
 void intersections_sort(Intersections xs);

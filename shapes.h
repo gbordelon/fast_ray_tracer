@@ -62,8 +62,8 @@ typedef struct material {
 } *Material;
 
 struct bounding_box_fields {
-    double min[4]; // Point
-    double max[4]; // Point
+    Point min; // Point
+    Point max; // Point
 };
 
 struct csg_fields {
@@ -91,20 +91,20 @@ struct toroid_fields {
 };
 
 struct triangle_fields {
-    double p1[4];
-    double p2[4];
-    double p3[4];
-    double t1[4];
-    double t2[4];
-    double t3[4];
-    double e1[4];
-    double e2[4];
+    Point p1;
+    Point p2;
+    Point p3;
+    Vector t1;
+    Vector t2;
+    Vector t3;
+    Vector e1;
+    Vector e2;
     union {
-        double normal[4]; // triangle
+        Vector normal; // triangle
         struct {
-            double n1[4];
-            double n2[4];
-            double n3[4];
+            Vector n1;
+            Vector n2;
+            Vector n3;
         } s_normals; // smooth triangle
     } u_normals;
 };
@@ -147,8 +147,8 @@ typedef struct shape {
 } *Shape;
 
 typedef struct ray {
-    double origin[4];
-    double direction[4];
+    Point origin;
+    Vector direction;
 } *Ray;
 
 typedef struct intersection {
@@ -330,7 +330,7 @@ Intersections intersections_empty(size_t num);
 void intersections_free(Intersections xs);
 
 
-void ray_array(double origin[4], double direction[4], Ray ray);
+void ray_array(Point origin, Vector direction, Ray ray);
 Ray ray_alloc(Point origin, Vector direction);
 void ray_free(Ray r);
 int ray_to_string(char *s, size_t n, Ray r);
@@ -345,8 +345,8 @@ bool shape_includes(Shape a, Shape b);
 int shape_to_string(char *buf, size_t n, Shape sh);
 int intersection_to_string(char *buf, size_t n, Intersection x);
 
-void shape_set_transform(Shape obj, Matrix transform);
-void pattern_set_transform(Pattern pat, Matrix transform);
+void shape_set_transform(Shape obj, const Matrix transform);
+void pattern_set_transform(Pattern pat, const Matrix transform);
 
 void shape_set_material(Shape obj, Material m);
 void shape_set_material_recursive(Shape obj, Material m);

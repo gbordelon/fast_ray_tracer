@@ -7,39 +7,36 @@
 #define EPSILON 0.00001
 #define equal(a,b) (fabs((a) - (b)) < EPSILON)
 
-#define point_equal(a,b) equal((a)->arr[0], (b)->arr[0]) && equal((a)->arr[1], (b)->arr[1]) && equal((a)->arr[2], (b)->arr[2])
+#define point_equal(a,b) equal((a)[0], (b)[0]) && equal((a)[1], (b)[1]) && equal((a)[2], (b)[2])
 
-#define vector_equal(a,b) equal((a)->arr[0], (b)->arr[0]) && equal((a)->arr[1], (b)->arr[1]) && equal((a)->arr[2], (b)->arr[2])
+#define vector_equal(a,b) equal((a)[0], (b)[0]) && equal((a)[1], (b)[1]) && equal((a)[2], (b)[2])
 
-#define matrix_equal(a,b) equal((a)->arr[0], (b)->arr[0])\
-    && equal((a)->arr[1], (b)->arr[1])\
-    && equal((a)->arr[2], (b)->arr[2])\
-    && equal((a)->arr[3], (b)->arr[3])\
-    && equal((a)->arr[4], (b)->arr[4])\
-    && equal((a)->arr[5], (b)->arr[5])\
-    && equal((a)->arr[6], (b)->arr[6])\
-    && equal((a)->arr[7], (b)->arr[7])\
-    && equal((a)->arr[8], (b)->arr[8])\
-    && equal((a)->arr[9], (b)->arr[9])\
-    && equal((a)->arr[10], (b)->arr[10])\
-    && equal((a)->arr[11], (b)->arr[11])\
-    && equal((a)->arr[12], (b)->arr[12])\
-    && equal((a)->arr[13], (b)->arr[13])\
-    && equal((a)->arr[14], (b)->arr[14])\
-    && equal((a)->arr[15], (b)->arr[15])
+#define matrix_equal(a,b) equal((a)[0], (b)[0])\
+    && equal((a)[1], (b)[1])\
+    && equal((a)[2], (b)[2])\
+    && equal((a)[3], (b)[3])\
+    && equal((a)[4], (b)[4])\
+    && equal((a)[5], (b)[5])\
+    && equal((a)[6], (b)[6])\
+    && equal((a)[7], (b)[7])\
+    && equal((a)[8], (b)[8])\
+    && equal((a)[9], (b)[9])\
+    && equal((a)[10], (b)[10])\
+    && equal((a)[11], (b)[11])\
+    && equal((a)[12], (b)[12])\
+    && equal((a)[13], (b)[13])\
+    && equal((a)[14], (b)[14])\
+    && equal((a)[15], (b)[15])
 
-typedef struct pt {
-    double arr[4];
-} *Point;
+typedef double Point[4];
+typedef double Vector[4];
+typedef double Matrix[16];
+
 
 typedef struct pts {
-    Point points;
+    Point *points;
     size_t points_num;
 } *Points;
-
-typedef struct v {
-    double arr[4];
-} *Vector;
 
 /*
  * 0  1  2  3
@@ -69,23 +66,15 @@ typedef struct v {
  * 3,2 -> E = 3 * 4 + 2
  * 3,3 -> F = 3 * 4 + 3
  */
-typedef struct m {
-    double arr[16];
-} *Matrix;
 
 
-// utilities
-#define linalg_null_check_void(x)\
-    if ((x) == NULL || (x)->arr == NULL) {\
-        printf("Found a NULL pointer.\n");\
-        return;\
-    }
+static const double POINT_IDENTITY[4] = {
+    0.0,0.0,0.0,1.0
+};
 
-#define linalg_null_check(x,rv)\
-    if ((x) == NULL || (x)->arr == NULL) {\
-        printf("Found a NULL pointer.\n");\
-        return (rv);\
-    }
+static const double VECTOR_IDENTITY[4] = {
+    0.0,0.0,0.0,0.0
+};
 
 static const double MATRIX_IDENTITY[16] = {
     1.0,0.0,0.0,0.0,
@@ -94,22 +83,23 @@ static const double MATRIX_IDENTITY[16] = {
     0.0,0.0,0.0,1.0
 };
 
-int array_to_string(char *s, size_t n, double arr[4]);
-int point_to_string(char *s, size_t n, Point pt);
+//#define matrix_identity() {1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0}
+#define matrix_identity(m) memcpy((m), MATRIX_IDENTITY, sizeof(Matrix))
+#define point_default(p) memcpy((p), POINT_IDENTITY, sizeof(Point))
+#define vector_default(v) memcpy((v), VECTOR_IDENTITY, sizeof(Vector))
 
-int vector_to_string(char *s, size_t n, Vector v);
+#define point(x,y,z,res) (res)[0]=(x);(res)[1]=(y);(res)[2]=(z);(res)[3]=1.0
+#define vector(x,y,z,res) (res)[0]=(x);(res)[1]=(y);(res)[2]=(z);(res)[3]=0.0
 
-int matrix_to_string(char *s, size_t n, Matrix m);
+void point_print(Point p);
+void vector_print(Vector v);
+void matrix_print(Matrix m);
 
 
 // construction
-Point point(double x, double y, double z);
-Point point_copy(Point pt);
-Point point_default();
+void point_copy(Point pt, Point res);
 
-Vector vector(double x, double y, double z);
-Vector vector_copy(Vector v);
-Vector vector_default();
+void vector_copy(Vector v, Vector res);
 
 void matrix(double aa, double ab, double ac, double ad,
               double ba, double bb, double bc, double bd,
@@ -117,87 +107,47 @@ void matrix(double aa, double ab, double ac, double ad,
               double da, double db, double dc, double dd,
               Matrix res);
 
-Matrix matrix_alloc(double aa, double ab, double ac, double ad,
-              double ba, double bb, double bc, double bd,
-              double ca, double cb, double cc, double cd,
-              double da, double db, double dc, double dd);
-
-void matrix_copy(Matrix m, Matrix res);
-Matrix matrix_copy_alloc(Matrix m);
-Matrix matrix_default();
-
-// destruction
-void point_free(Point pt);
-
-void vector_free(Vector v);
-
-void matrix_free(Matrix m);
+void matrix_copy(const Matrix m, Matrix res);
 
 
 // subtract pt2 from pt1
 void vector_from_points(Point pt1, Point pt2, Vector res);
-Vector vector_from_points_alloc(Point pt1, Point pt2);
-void vector_from_arrays(double pt1[4], double pt2[4], Vector res);
-Vector vector_from_arrays_alloc(double pt1[4], double pt2[4]);
-void array_from_arrays(double pt1[4], double pt2[4], double res[4]);
-void vector_cross_arrays(double a[4], double b[4], Vector res);
-Vector vector_cross_arrays_alloc(double a[4], double b[4]);
+
+void vector_cross(Vector a, Vector b, Vector res);
 
 double vector_magnitude(Vector v);
 
 void vector_normalize(Vector v, Vector res);
-Vector vector_normalize_alloc(Vector v);
 
 double vector_dot(Vector a, Vector b);
-double array_dot(double a[4], double b[4]);
 
 void vector_cross(Vector a, Vector b, Vector res);
-Vector vector_cross_alloc(Vector a, Vector b);
 
-void vector_array_reflect(double input[4], double normal[4], Vector res);
 void vector_reflect(Vector a, Vector b, Vector res);
-Vector vector_reflect_alloc(Vector a, Vector b);
 
 void vector_scale(Vector input, double scalar);
 
-void array_scale(double input[4], double scalar);
-
-void matrix_identity(Matrix res);
-Matrix matrix_identity_alloc();
-
 void matrix_translate(double x, double y, double z, Matrix res);
-Matrix matrix_translate_alloc(double x, double y, double z);
 
 void matrix_scale(double x, double y, double z, Matrix res);
-Matrix matrix_scale_alloc(double x, double y, double z);
 
 void matrix_rotate_x(double rad, Matrix res);
-Matrix matrix_rotate_x_alloc(double rad);
 
 void matrix_rotate_y(double rad, Matrix res);
-Matrix matrix_rotate_y_alloc(double rad);
 
 void matrix_rotate_z(double rad, Matrix res);
-Matrix matrix_rotate_z_alloc(double rad);
 
 void matrix_shear(double xy, double xz, double yx, double yz, double zx, double zy, Matrix res);
-Matrix matrix_shear_alloc(double xy, double xz, double yx, double yz, double zx, double zy);
 
-void matrix_multiply(Matrix a, Matrix b, Matrix res);
-Matrix matrix_multiply_alloc(Matrix a, Matrix b);
-Matrix transform_chain(Matrix a, Matrix b);
+void matrix_multiply(const Matrix a, const Matrix b, Matrix res);
+void transform_chain(const Matrix a, Matrix b);
 
-void matrix_vector_multiply(Matrix a, Vector b, Vector res);
-Vector matrix_vector_multiply_alloc(Matrix a, Vector b);
+void matrix_vector_multiply(const Matrix a, const Vector b, Vector res);
 
-void matrix_point_multiply(Matrix a, Point b, Point res);
-Point matrix_point_multiply_alloc(Matrix a, Point b);
+void matrix_point_multiply(const Matrix a, const Point b, Point res);
 
-void matrix_array_multiply(Matrix a, double b[4], double res[4]);
+void matrix_transpose(const Matrix m, Matrix res);
 
-void matrix_transpose(Matrix m, Matrix res);
-Matrix matrix_transpose_alloc(Matrix m);
+void matrix_inverse(const Matrix m, Matrix res);
 
-void matrix_inverse(Matrix m, Matrix res);
-Matrix matrix_inverse_alloc(Matrix m);
 #endif

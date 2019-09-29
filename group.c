@@ -385,10 +385,7 @@ group_bounds(Shape group)
 void
 group(Shape s, Shape children, size_t num_children)
 {
-    s->transform = NULL;
-    s->transform_inverse = NULL;
-
-    shape_set_transform(s, matrix_identity_alloc());
+    shape_set_transform(s, MATRIX_IDENTITY);
 
     s->material = material_alloc();
     s->parent = NULL;

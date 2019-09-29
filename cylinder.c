@@ -1,6 +1,7 @@
 #include <math.h>
 #include <float.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "linalg.h"
 #include "cylinder.h"
@@ -87,21 +88,18 @@ cylinder_local_intersect(Shape cylinder, Ray r)
 void
 cylinder_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
 {
-    double dist = local_point->arr[0] * local_point->arr[0] +
-                  local_point->arr[2] * local_point->arr[2];
+    double dist = local_point[0] * local_point[0] +
+                  local_point[2] * local_point[2];
 
-    res->arr[0] = 0;
-    res->arr[1] = 0;
-    res->arr[2] = 0;
-    res->arr[3] = 0.0;
+    vector_default(res);
 
-    if (dist < 1 && ((sh->fields.cylinder.maximum - EPSILON) <= local_point->arr[1])) {
-        res->arr[1] = 1;
-    } else if (dist < 1 && ((sh->fields.cylinder.minimum + EPSILON) >= local_point->arr[1])) {
-        res->arr[1] = -1;
+    if (dist < 1 && ((sh->fields.cylinder.maximum - EPSILON) <= local_point[1])) {
+        res[1] = 1;
+    } else if (dist < 1 && ((sh->fields.cylinder.minimum + EPSILON) >= local_point[1])) {
+        res[1] = -1;
     } else {
-        res->arr[0] = local_point->arr[0];
-        res->arr[2] = local_point->arr[2];
+        res[0] = local_point[0];
+        res[2] = local_point[2];
     }
 }
 
@@ -129,10 +127,7 @@ cylinder_bounds(Shape cylinder)
 void
 cylinder(Shape s)
 {
-    s->transform = NULL;
-    s->transform_inverse = NULL;
-
-    shape_set_transform(s, matrix_identity_alloc());
+    shape_set_transform(s, MATRIX_IDENTITY);
 
     s->material = material_alloc();
     s->parent = NULL;

@@ -8,12 +8,12 @@
 Intersections
 sphere_local_intersect(Shape sphere, Ray r)
 {
-    double sphere_origin[4] = { 0.0, 0.0, 0.0, 0.0 };
-    struct v sphere_to_ray;
-    vector_from_arrays(r->origin, sphere_origin, &sphere_to_ray);
-    double a = array_dot(r->direction, r->direction);
-    double b = 2 * array_dot(r->direction, sphere_to_ray.arr);
-    double c = vector_dot(&sphere_to_ray, &sphere_to_ray) - 1.0;
+    Point sphere_origin = { 0.0, 0.0, 0.0, 0.0 };
+    Vector sphere_to_ray;
+    vector_from_points(r->origin, sphere_origin, sphere_to_ray);
+    double a = vector_dot(r->direction, r->direction);
+    double b = 2 * vector_dot(r->direction, sphere_to_ray);
+    double c = vector_dot(sphere_to_ray, sphere_to_ray) - 1.0;
     double discriminant = b * b - 4 * a * c;
 
     if (discriminant < 0) {
@@ -36,17 +36,14 @@ sphere_local_intersect(Shape sphere, Ray r)
 void
 sphere_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
 {
-    memcpy(res->arr, local_point->arr, 3 * sizeof(double));
-    res->arr[3] = 0.0;
+    memcpy(res, local_point, sizeof(Vector));
+    res[3] = 0.0;
 }
 
 void
 sphere(Shape s)
 {
-    s->transform = NULL;
-    s->transform_inverse = NULL;
-
-    shape_set_transform(s, matrix_identity_alloc());
+    shape_set_transform(s, MATRIX_IDENTITY);
 
     s->material = material_alloc();
     s->parent = NULL;

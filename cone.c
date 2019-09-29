@@ -1,6 +1,7 @@
 #include <math.h>
 #include <float.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "linalg.h"
 #include "cone.h"
@@ -96,25 +97,22 @@ cone_local_intersect(Shape cone, Ray r)
 void
 cone_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
 {
-    double dist = local_point->arr[0] * local_point->arr[0] + local_point->arr[2] * local_point->arr[2];
-    res->arr[0] = 0;
-    res->arr[1] = 0;
-    res->arr[2] = 0;
-    res->arr[3] = 0.0;
+    double dist = local_point[0] * local_point[0] + local_point[2] * local_point[2];
+    vector_default(res);
 
-    if (dist < 1 && ((sh->fields.cone.maximum - EPSILON) <= local_point->arr[1])) {
-        res->arr[1] = 1;
-    } else if (dist < 1 && ((sh->fields.cone.minimum + EPSILON) >= local_point->arr[1])) {
-        res->arr[1] = -1;
+    if (dist < 1 && ((sh->fields.cone.maximum - EPSILON) <= local_point[1])) {
+        res[1] = 1;
+    } else if (dist < 1 && ((sh->fields.cone.minimum + EPSILON) >= local_point[1])) {
+        res[1] = -1;
     } else {
         double y = sqrt(dist);
-        if (local_point->arr[1] > 0) {
+        if (local_point[1] > 0) {
             y = -y;
         }
 
-        res->arr[0] = local_point->arr[0];
-        res->arr[1] = y;
-        res->arr[2] = local_point->arr[2];
+        res[0] = local_point[0];
+        res[1] = y;
+        res[2] = local_point[2];
     }
 }
 
@@ -145,10 +143,7 @@ cone_bounds(Shape cone)
 void
 cone(Shape s)
 {
-    s->transform = NULL;
-    s->transform_inverse = NULL;
-
-    shape_set_transform(s, matrix_identity_alloc());
+    shape_set_transform(s, MATRIX_IDENTITY);
 
     s->material = material_alloc();
     s->parent = NULL;

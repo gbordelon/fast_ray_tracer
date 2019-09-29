@@ -50,13 +50,13 @@ void
 toroid_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
 {
     double p_sq = sh->fields.toroid.r1 * sh->fields.toroid.r1 + sh->fields.toroid.r2 * sh->fields.toroid.r2;
-    double mag = local_point->arr[0] * local_point->arr[0] + local_point->arr[1] * local_point->arr[1] + local_point->arr[2] * local_point->arr[2];
-    struct v rv;
-    rv.arr[0] = 4.0 * local_point->arr[0] * (mag - p_sq);
-    rv.arr[1] = 4.0 * local_point->arr[1] * (mag - p_sq + 2.0 * sh->fields.toroid.r1 * sh->fields.toroid.r1);
-    rv.arr[2] = 4.0 * local_point->arr[2] * (mag - p_sq);
-    res->arr[3] = 0.0;
-    vector_normalize(&rv, res);
+    double mag = local_point[0] * local_point[0] + local_point[1] * local_point[1] + local_point[2] * local_point[2];
+    Vector rv;
+    rv[0] = 4.0 * local_point[0] * (mag - p_sq);
+    rv[1] = 4.0 * local_point[1] * (mag - p_sq + 2.0 * sh->fields.toroid.r1 * sh->fields.toroid.r1);
+    rv[2] = 4.0 * local_point[2] * (mag - p_sq);
+    rv[3] = 0.0;
+    vector_normalize(rv, res);
 }
 
 Bounding_box
@@ -83,10 +83,7 @@ toroid_bounds(Shape toroid)
 void
 toroid(Shape s)
 {
-    s->transform = NULL;
-    s->transform_inverse = NULL;
-
-    shape_set_transform(s, matrix_identity_alloc());
+    shape_set_transform(s, MATRIX_IDENTITY);
 
     s->material = material_alloc();
     s->parent = NULL;

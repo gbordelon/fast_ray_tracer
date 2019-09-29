@@ -25,17 +25,17 @@ plane_local_intersect(Shape plane, Ray r)
 void
 plane_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
 {
-    res->arr[0] = 0;
-    res->arr[1] = 1;
-    res->arr[2] = 0;
-    res->arr[3] = 0.0;
+    res[0] = 0;
+    res[1] = 1;
+    res[2] = 0;
+    res[3] = 0.0;
 }
 
 Bounding_box
 plane_bounds(Shape plane)
 {
     if (plane->bbox == NULL) {
-        double arr[4] = {-INFINITY, 0.0, -INFINITY, 1.0};
+        Point arr = {-INFINITY, 0.0, -INFINITY, 1.0};
 
         Bounding_box box = bounding_box_alloc();
 
@@ -54,10 +54,7 @@ plane_bounds(Shape plane)
 void
 plane(Shape s)
 {
-    s->transform = NULL;
-    s->transform_inverse = NULL;
-
-    shape_set_transform(s, matrix_identity_alloc());
+    shape_set_transform(s, MATRIX_IDENTITY);
 
     s->material = material_alloc();
     s->parent = NULL;
@@ -77,12 +74,4 @@ plane(Shape s)
 
     s->bounds = plane_bounds;
     s->parent_space_bounds = shape_parent_space_bounds;
-}
-
-Shape
-plane_alloc()
-{
-    Shape s = (Shape) malloc(sizeof(struct shape));
-    plane(s);
-    return s;
 }

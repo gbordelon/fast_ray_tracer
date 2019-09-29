@@ -167,10 +167,7 @@ csg_bounds(Shape csg)
 void
 csg(Shape s, enum csg_ops_enum op, Shape left_child, Shape right_child)
 {
-    s->transform = NULL;
-    s->transform_inverse = NULL;
-
-    shape_set_transform(s, matrix_identity_alloc());
+    shape_set_transform(s, MATRIX_IDENTITY);
 
     s->material = material_alloc();
     s->parent = NULL;
