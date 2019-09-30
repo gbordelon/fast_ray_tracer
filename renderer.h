@@ -135,7 +135,7 @@ area_light(Point corner,
            Vector full_vvec/*vector*/,
            size_t vsteps,
            bool jitter,
-           double intensity[3],
+           Color intensity,
            Light l);
 
 Camera camera(size_t hsize, size_t vsize, double field_of_view, double canvas_distance, struct aperture aperture, size_t sample_num, Matrix transform);

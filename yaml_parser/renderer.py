@@ -109,7 +109,6 @@ class PointLight(Light):
     Color point_light_{0}_intensity = color({4:.10f}, {5:.10f}, {6:.10f});
     point_light(point_light_{0}_point, point_light_{0}_intensity, point_light_{0});
 
-    color_free(point_light_{0}_intensity);
     /* end point light {0} */
 """.format(name,
            self.yaml_obj['at'][0], self.yaml_obj['at'][1], self.yaml_obj['at'][2],
@@ -136,7 +135,6 @@ class AreaLight(Light):
     Vector area_light_{0}_vvec = vector({10:.10f}, {11:.10f}, {12:.10f});
     area_light(area_light_{0}_corner->arr, area_light_{0}_uvec->arr, {13}/*usteps*/, area_light_{0}_vvec->arr, {14}/*vsteps*/, {15}/*jitter*/, area_light_{0}_intensity->arr, area_light_{0});
 
-    color_free(area_light_{0}_intensity);
     /* end area light 0 */
 """.format(name,
            self.yaml_obj['corner'][0], self.yaml_obj['corner'][1], self.yaml_obj['corner'][2],

@@ -7,15 +7,15 @@
 
 
 void
-point_copy(Point pt, Point res)
+point_copy(Point to, Point from)
 {
-    memcpy(res, pt, sizeof(Point));
+    memcpy(to, from, sizeof(Point));
 }
 
 void
-vector_copy(Vector v, Vector res)
+vector_copy(Vector to, Vector from)
 {
-    memcpy(res, v, sizeof(Vector));
+    memcpy(to, from, sizeof(Vector));
 }
 
 void
@@ -142,7 +142,7 @@ void
 vector_normalize(Vector v, Vector res)
 {
     double inv = 1.0 / vector_magnitude(v);
-    vector_copy(v, res);
+    vector_copy(res, v);
     vector_scale(res, inv);
     res[3] = 0.0;
 }
@@ -371,7 +371,6 @@ matrix_inverse(const Matrix m, Matrix res)
 
     if (equal(det,0.0)) {
         printf("determinant is zero\n");
-        // error
     }
 
     res[0] = sub0 / det;

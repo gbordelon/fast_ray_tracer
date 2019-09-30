@@ -97,9 +97,9 @@ void matrix_print(Matrix m);
 
 
 // construction
-void point_copy(Point pt, Point res);
+void point_copy(Point to, Point from);
 
-void vector_copy(Vector v, Vector res);
+void vector_copy(Vector to, Vector from);
 
 void matrix(double aa, double ab, double ac, double ad,
               double ba, double bb, double bc, double bd,

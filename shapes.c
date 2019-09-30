@@ -93,8 +93,8 @@ intersections_free(Intersections xs)
 void
 ray_array(Point origin, Vector direction, Ray ray)
 {
-    memcpy(ray->origin, origin, sizeof(Point));
-    memcpy(ray->direction, direction, sizeof(Vector));
+    point_copy(ray->origin, origin);
+    vector_copy(ray->direction, direction);
 }
 
 Ray
@@ -249,9 +249,9 @@ shape_normal_to_world(Shape sh, Vector local_normal, Vector res)
     if (sh->parent != NULL) {
         sh->parent->normal_to_world(sh->parent, normal, tmp);
     } else {
-        memcpy(tmp, normal, sizeof(Vector));
+        vector_copy(tmp, normal);
     }
-    memcpy(res, tmp, sizeof(Vector));
+    vector_copy(res, tmp);
 }
 
 void
@@ -261,7 +261,7 @@ shape_world_to_object(Shape sh, Point pt, Point res)
     if (sh->parent != NULL) {
         sh->parent->world_to_object(sh->parent, pt, tmp);
     } else {
-        memcpy(tmp, pt, sizeof(Point));
+        point_copy(tmp, pt);
     }
 
     matrix_point_multiply(sh->transform_inverse, tmp, res);
@@ -416,33 +416,33 @@ base_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
     Point  pattern_point;
     matrix_point_multiply(p->transform_inverse, object_point, pattern_point);
 
-    struct color c;
-    p->pattern_at(p, s, pattern_point, &c);
+    Color c;
+    p->pattern_at(p, s, pattern_point, c);
 
-    memcpy(res->arr, c.arr, 3 * sizeof(double));
+    color_copy(res, c);
 }
 
 void
 blended_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
 {
-    struct color c1;
-    struct color c2;
-    p->fields.blended.pattern1->pattern_at_shape(p->fields.blended.pattern1, s, pt, &c1);
-    p->fields.blended.pattern2->pattern_at_shape(p->fields.blended.pattern2, s, pt, &c2);
+    Color c1;
+    Color c2;
+    p->fields.blended.pattern1->pattern_at_shape(p->fields.blended.pattern1, s, pt, c1);
+    p->fields.blended.pattern2->pattern_at_shape(p->fields.blended.pattern2, s, pt, c2);
 
-    res->arr[0] = (c1.arr[0] + c2.arr[0]) / 2.0;
-    res->arr[1] = (c1.arr[1] + c2.arr[1]) / 2.0;
-    res->arr[2] = (c1.arr[2] + c2.arr[2]) / 2.0;
+    res[0] = (c1[0] + c2[0]) / 2.0;
+    res[1] = (c1[1] + c2[1]) / 2.0;
+    res[2] = (c1[2] + c2[2]) / 2.0;
 }
 
 void
 nested_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
 {
-    struct color c1;
-    struct color c2;
-    struct color c3;
-    p->fields.nested.pattern2->pattern_at_shape(p->fields.nested.pattern2, s, pt, &c1);
-    p->fields.nested.pattern3->pattern_at_shape(p->fields.nested.pattern3, s, pt, &c2);
+    Color c1;
+    Color c2;
+    Color c3;
+    p->fields.nested.pattern2->pattern_at_shape(p->fields.nested.pattern2, s, pt, c1);
+    p->fields.nested.pattern3->pattern_at_shape(p->fields.nested.pattern3, s, pt, c2);
 
     switch(p->fields.nested.pattern1->type) {
     case CHECKER_PATTERN:
@@ -450,8 +450,8 @@ nested_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
     case RADIAL_GRADIENT_PATTERN:
     case RING_PATTERN:
     case STRIPE_PATTERN:
-        memcpy(p->fields.nested.pattern1->fields.concrete.a, c1.arr, 3 * sizeof(double));
-        memcpy(p->fields.nested.pattern1->fields.concrete.b, c2.arr, 3 * sizeof(double));
+        color_copy(p->fields.nested.pattern1->fields.concrete.a, c1);
+        color_copy(p->fields.nested.pattern1->fields.concrete.b, c2);
         break;
     // TODO I can't think of anything to do for these other patterns...
     case UV_ALIGN_CHECKER_PATTERN:
@@ -467,8 +467,8 @@ nested_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
         break;
     }
 
-    p->fields.nested.pattern1->pattern_at_shape(p->fields.nested.pattern1, s, pt, &c3);
-    memcpy(res->arr, c3.arr, 3 * sizeof(double));
+    p->fields.nested.pattern1->pattern_at_shape(p->fields.nested.pattern1, s, pt, c3);
+    color_copy(res, c3);
 }
 
 void
@@ -506,16 +506,16 @@ perturbed_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
     perturbed[1] = new_y;
     perturbed[2] = new_z;
 
-    struct color c;
-    p->fields.perturbed.pattern1->pattern_at_shape(p->fields.perturbed.pattern1, s, perturbed, &c);
-    memcpy(res->arr, c.arr, 3 * sizeof(double));
+    Color c;
+    p->fields.perturbed.pattern1->pattern_at_shape(p->fields.perturbed.pattern1, s, perturbed, c);
+    color_copy(res, c);
 }
 
 void
 base_pattern_at(Pattern p, Shape s, Point pt, Color res)
 {
     printf("calling base_pattern_at which should only happen for tests.\n");
-    memcpy(res->arr, pt, 3 * sizeof(double));
+    color_copy(res, pt);
 }
 
 void
@@ -530,7 +530,7 @@ checker_pattern_at(Pattern p, Shape s, Point pt, Color res)
         arr = p->fields.concrete.b;
     }
 
-    memcpy(res->arr, arr, 3 * sizeof(double));
+    color_copy(res, arr);
 }
 
 void
@@ -541,9 +541,9 @@ gradient_pattern_at(Pattern p, Shape s, Point pt, Color res)
                            p->fields.concrete.b[2] - p->fields.concrete.a[2]};
     double fraction = pt[0] - floor(pt[0]);
 
-    res->arr[0] = p->fields.concrete.a[0] + distance[0] * fraction;
-    res->arr[1] = p->fields.concrete.a[1] + distance[1] * fraction;
-    res->arr[2] = p->fields.concrete.a[2] + distance[2] * fraction;
+    res[0] = p->fields.concrete.a[0] + distance[0] * fraction;
+    res[1] = p->fields.concrete.a[1] + distance[1] * fraction;
+    res[2] = p->fields.concrete.a[2] + distance[2] * fraction;
 }
 
 void
@@ -557,9 +557,9 @@ radial_gradient_pattern_at(Pattern p, Shape s, Point pt, Color res)
 
     double fraction = magnitude - floor(magnitude);
 
-    res->arr[0] = p->fields.concrete.a[0] + distance[0] * fraction;
-    res->arr[1] = p->fields.concrete.a[1] + distance[1] * fraction;
-    res->arr[2] = p->fields.concrete.a[2] + distance[2] * fraction;
+    res[0] = p->fields.concrete.a[0] + distance[0] * fraction;
+    res[1] = p->fields.concrete.a[1] + distance[1] * fraction;
+    res[2] = p->fields.concrete.a[2] + distance[2] * fraction;
 }
 
 void
@@ -573,7 +573,7 @@ ring_pattern_at(Pattern p, Shape s, Point pt, Color res)
     } else {
         arr = p->fields.concrete.b;
     }
-    memcpy(res->arr, arr, 3 * sizeof(double));
+    color_copy(res, arr);
 }
 
 void
@@ -587,7 +587,7 @@ stripe_pattern_at(Pattern p, Shape s, Point pt, Color res)
     } else {
         arr = p->fields.concrete.b;
     }
-    memcpy(res->arr, arr, 3 * sizeof(double));
+    color_copy(res, arr);
 }
 
 
@@ -598,18 +598,18 @@ texture_map_pattern_at(Pattern p, Shape s, Point pt, Color res)
     p->uv_map(s, pt, &face_u_v);
     Pattern face = p->fields.uv_map.uv_faces + face_u_v.face;
 
-    struct color c;
-    face->uv_pattern_at(face, face_u_v.u, face_u_v.v, &c);
-    memcpy(res->arr, c.arr, 3 * sizeof(double));
+    Color c;
+    face->uv_pattern_at(face, face_u_v.u, face_u_v.v, c);
+    color_copy(res, c);
 }
 
 void
 base_uv_pattern_at(Pattern p, double u, double v, Color res)
 {
     printf("calling base_uv_pattern_at which should never happen.\n");
-    res->arr[0] = u;
-    res->arr[1] = v;
-    res->arr[2] = 0;
+    res[0] = u;
+    res[1] = v;
+    res[2] = 0;
 }
 
 void
@@ -632,7 +632,7 @@ uv_align_check_uv_pattern_at(Pattern p, double u, double v, Color res)
         }
     }
 
-    memcpy(res->arr, arr, 3 * sizeof(double));
+    color_copy(res, arr);
 }
 
 void
@@ -648,7 +648,7 @@ uv_check_uv_pattern_at(Pattern p, double u, double v, Color res)
         arr = p->fields.uv_check.b;
     }
 
-    memcpy(res->arr, arr, 3 * sizeof(double));
+    color_copy(res, arr);
 }
 
 void
@@ -659,10 +659,10 @@ uv_texture_uv_pattern_at(Pattern p, double u, double v, Color res)
     int y = (int)round(u * (double)(p->fields.uv_texture.canvas->width - 1));
     int x = (int)round(v * (double)(p->fields.uv_texture.canvas->height - 1));
 
-    struct color c;
-    canvas_pixel_at(p->fields.uv_texture.canvas, y, x, &c);
+    Color c;
+    canvas_pixel_at(p->fields.uv_texture.canvas, y, x, c);
 
-    memcpy(res->arr, c.arr, 3 * sizeof(double));
+    color_copy(res, c);
 }
 
 void
@@ -779,7 +779,7 @@ sphere_uv_map(Shape s, Point pt, UVMapReturnType *retval)
 {
     double theta = atan2(pt[0], pt[2]);
     Vector vec;
-    memcpy(vec, pt, 3 * sizeof(double));
+    vector_copy(vec, pt);
     vec[3] = 0.0;
     double radius = vector_magnitude(vec);
     double phi = acos(pt[1] / radius);
@@ -834,8 +834,8 @@ checker_pattern(Color a, Color b, Pattern res)
     default_pattern_constructor(res);
 
     res->type = CHECKER_PATTERN;
-    memcpy(res->fields.concrete.a, a->arr, 3 * sizeof(double));
-    memcpy(res->fields.concrete.b, b->arr, 3 * sizeof(double));
+    color_copy(res->fields.concrete.a, a);
+    color_copy(res->fields.concrete.b, b);
 
     res->pattern_at = checker_pattern_at;
 }
@@ -846,8 +846,8 @@ gradient_pattern(Color a, Color b, Pattern res)
     default_pattern_constructor(res);
 
     res->type = GRADIENT_PATTERN;
-    memcpy(res->fields.concrete.a, a->arr, 3 * sizeof(double));
-    memcpy(res->fields.concrete.b, b->arr, 3 * sizeof(double));
+    color_copy(res->fields.concrete.a, a);
+    color_copy(res->fields.concrete.b, b);
 
     res->pattern_at = gradient_pattern_at;
 }
@@ -858,8 +858,8 @@ radial_gradient_pattern(Color a, Color b, Pattern res)
     default_pattern_constructor(res);
 
     res->type = RADIAL_GRADIENT_PATTERN;
-    memcpy(res->fields.concrete.a, a->arr, 3 * sizeof(double));
-    memcpy(res->fields.concrete.b, b->arr, 3 * sizeof(double));
+    color_copy(res->fields.concrete.a, a);
+    color_copy(res->fields.concrete.b, b);
 
     res->pattern_at = radial_gradient_pattern_at;
 }
@@ -870,8 +870,8 @@ ring_pattern(Color a, Color b, Pattern res)
     default_pattern_constructor(res);
 
     res->type = RING_PATTERN;
-    memcpy(res->fields.concrete.a, a->arr, 3 * sizeof(double));
-    memcpy(res->fields.concrete.b, b->arr, 3 * sizeof(double));
+    color_copy(res->fields.concrete.a, a);
+    color_copy(res->fields.concrete.b, b);
 
     res->pattern_at = ring_pattern_at;
 }
@@ -882,8 +882,8 @@ stripe_pattern(Color a, Color b, Pattern res)
     default_pattern_constructor(res);
 
     res->type = STRIPE_PATTERN;
-    memcpy(res->fields.concrete.a, a->arr, 3 * sizeof(double));
-    memcpy(res->fields.concrete.b, b->arr, 3 * sizeof(double));
+    color_copy(res->fields.concrete.a, a);
+    color_copy(res->fields.concrete.b, b);
 
     res->pattern_at = stripe_pattern_at;
 }
@@ -894,11 +894,11 @@ uv_align_check_pattern(Color main, Color ul, Color ur, Color bl, Color br, Patte
     default_pattern_constructor(res);
     res->type = UV_ALIGN_CHECKER_PATTERN;
 
-    memcpy(res->fields.uv_align_check.main, main->arr, 3 * sizeof(double));
-    memcpy(res->fields.uv_align_check.ul, ul->arr, 3 * sizeof(double));
-    memcpy(res->fields.uv_align_check.ur, ur->arr, 3 * sizeof(double));
-    memcpy(res->fields.uv_align_check.bl, bl->arr, 3 * sizeof(double));
-    memcpy(res->fields.uv_align_check.br, br->arr, 3 * sizeof(double));
+    color_copy(res->fields.uv_align_check.main, main);
+    color_copy(res->fields.uv_align_check.ul, ul);
+    color_copy(res->fields.uv_align_check.ur, ur);
+    color_copy(res->fields.uv_align_check.bl, bl);
+    color_copy(res->fields.uv_align_check.br, br);
 
     res->uv_pattern_at = uv_align_check_uv_pattern_at;
 }
@@ -909,8 +909,8 @@ uv_check_pattern(Color a, Color b, size_t width, size_t height, Pattern res)
     default_pattern_constructor(res);
     res->type = UV_CHECKER_PATTERN;
 
-    memcpy(res->fields.uv_check.a, a->arr, 3 * sizeof(double));
-    memcpy(res->fields.uv_check.b, b->arr, 3 * sizeof(double));
+    color_copy(res->fields.uv_check.a, a);
+    color_copy(res->fields.uv_check.b, b);
     res->fields.uv_check.width = width;
     res->fields.uv_check.height = height;
 

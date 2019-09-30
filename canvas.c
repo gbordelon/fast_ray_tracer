@@ -11,7 +11,7 @@
 #define header_len 32
 
 void
-rgb_to_hsl(double rgb[3], double hsl[3])
+rgb_to_hsl(Color rgb, Color hsl)
 {
     double r = rgb[0];
     double g = rgb[1];
@@ -41,7 +41,7 @@ rgb_to_hsl(double rgb[3], double hsl[3])
 }
 
 void
-hsl_to_rgb(double hsl[3], double rgb[3])
+hsl_to_rgb(Color hsl, Color rgb)
 {
 }
 
@@ -62,7 +62,7 @@ The inverse transformation matrix is as follows:
    [ Z ]   [  0.019334  0.119193  0.950227 ]   [ B ].
 */
 void
-rgb_to_xyz(double rgb[3], double xyz[3])
+rgb_to_xyz(Color rgb, Color xyz)
 {
     int i;
     static double xform[] = {
@@ -79,7 +79,7 @@ rgb_to_xyz(double rgb[3], double xyz[3])
 }
 
 void
-xyz_to_rgb(double xyz[3], double rgb[3])
+xyz_to_rgb(Color xyz, Color rgb)
 {
     int i;
     static double xform[] = {
@@ -114,7 +114,7 @@ static const double tristimulus_10deg[] = {
 static const double *tristimulus = tristimulus_10deg;
 
 void
-xyz_to_lab(double xyz[3], double lab[3])
+xyz_to_lab(Color xyz, Color lab)
 {
     double _x = xyz[0] / tristimulus[0];
     double _y = xyz[1] / tristimulus[1];
@@ -141,7 +141,7 @@ xyz_to_lab(double xyz[3], double lab[3])
 }
 
 void
-lab_to_xyz(double lab[3], double xyz[3])
+lab_to_xyz(Color lab, Color xyz)
 {
     double p = (lab[0] + 16.0) / 116.0;
     xyz[0] = tristimulus[0] * pow(p + lab[1] / 500.0, 3.0);
@@ -150,23 +150,23 @@ lab_to_xyz(double lab[3], double xyz[3])
 }
 
 void
-rgb_to_lab(double rgb[3], double lab[3])
+rgb_to_lab(Color rgb, Color lab)
 {
-    double xyz[3];
+    Color xyz;
     rgb_to_xyz(rgb, xyz);
     xyz_to_lab(xyz, lab);
 }
 
 void
-lab_to_rgb(double lab[3], double rgb[3])
+lab_to_rgb(Color lab, Color rgb)
 {
-    double xyz[3];
+    Color xyz;
     lab_to_xyz(lab, xyz);
     xyz_to_rgb(xyz, rgb);
 }
 
 int
-lab_compare_l(double l[3], double r[3])
+lab_compare_l(Color l, Color r)
 {
     if (l[0] - r[0] < 0) {
         return -1;
@@ -177,7 +177,7 @@ lab_compare_l(double l[3], double r[3])
 }
 
 int
-lab_compare_a(double l[3], double r[3])
+lab_compare_a(Color l, Color r)
 {
     if (l[1] - r[1] < 0) {
         return -1;
@@ -188,7 +188,7 @@ lab_compare_a(double l[3], double r[3])
 }
 
 int
-lab_compare_b(double l[3], double r[3])
+lab_compare_b(Color l, Color r)
 {
     if (l[2] - r[2] < 0) {
         return -1;
@@ -198,53 +198,49 @@ lab_compare_b(double l[3], double r[3])
     return 0;
 }
 
-
-Color
-color_default()
-{
-    Color c = (Color) malloc(sizeof(struct color));
-    // null check c
-    return c;
-}
-
-Color
-color(double r, double g, double b)
-{
-    Color c = color_default();
-    c->arr[0] = r;
-    c->arr[1] = g;
-    c->arr[2] = b;
-    return c;
-}
-
 void
 color_accumulate(Color acc, Color other)
 {
-    acc->arr[0] += other->arr[0];
-    acc->arr[1] += other->arr[1];
-    acc->arr[2] += other->arr[2];
+    acc[0] += other[0];
+    acc[1] += other[1];
+    acc[2] += other[2];
 }
 
 void
 color_scale(Color acc, double scalar)
 {
-    acc->arr[0] *= scalar;
-    acc->arr[1] *= scalar;
-    acc->arr[2] *= scalar;
+    acc[0] *= scalar;
+    acc[1] *= scalar;
+    acc[2] *= scalar;
 }
 
 int
 color_to_string(char *buf, size_t n, Color c)
 {
-    return snprintf(buf, n, "Color: [%f %f %f]", c->arr[0], c->arr[1], c->arr[2]);
+    return snprintf(buf, n, "Color: [%f %f %f]", c[0], c[1], c[2]);
 }
+
+void
+print_color(Color c)
+{
+    static char buf[256];
+    color_to_string(buf, 256, c);
+    printf("%s\n",buf);
+}
+
+void
+color_copy(Color to, Color from)
+{
+    memcpy(to, from, sizeof(Color));
+}
+
 
 Canvas
 canvas_alloc(size_t width, size_t height)
 {
     Canvas c = (Canvas) malloc(sizeof(struct canvas));
     // null check c
-    c->arr = (double *) malloc(width * height * 3 * sizeof(double));
+    c->arr = (Color *) malloc(width * height * sizeof(Color));
     // null check c->arr
 
     c->width = width;
@@ -295,14 +291,6 @@ ppm_free(Ppm p)
     }
 }
 
-void
-color_free(Color c)
-{
-    if (c != NULL) {
-        free(c);
-    }
-}
-
 /*
  * row and col do not take into account 3 doubles for each entry
  * e.g. 4x4 canvas
@@ -330,9 +318,8 @@ void
 canvas_write_pixel(Canvas c, int col, int row, Color color)
 {
     // null check c
-    // null check color
     pthread_mutex_lock(&c->write_lock);
-    memcpy(c->arr + c->depth * (row * c->width + col), color->arr, sizeof(color->arr));
+    color_copy(*(c->arr + row * c->width + col), color);
     pthread_mutex_unlock(&c->write_lock);
 }
 
@@ -340,17 +327,7 @@ void
 canvas_pixel_at(Canvas c, int col, int row, Color res)
 {
     // null check c
-    // null check res
-    memcpy(res->arr, c->arr + c->depth * (row * c->width + col), sizeof(res->arr));
-}
-
-Color
-canvas_pixel_at_alloc(Canvas c, int col, int row)
-{
-    Color color = (Color) malloc(sizeof(struct color));
-    // null check color
-    canvas_pixel_at(c, row, col, color);
-    return color;
+    color_copy(res, *(c->arr + row * c->width + col));
 }
 
 Ppm
@@ -359,8 +336,9 @@ construct_ppm(Canvas c, bool use_scaling)
     int n, i, out_len;
     unsigned char *out, *buf;
     uint16_t r_scaled, g_scaled, b_scaled;
-    double *cur_val, r_inverse, g_inverse, b_inverse;
-    double lab_max[3], lab_tmp[3], rgb_max[3], rgb_tmp[3];
+    double r_inverse, g_inverse, b_inverse;
+    Color lab_max, lab_tmp, rgb_max, rgb_tmp;
+    Color *cur_val;
     Ppm ppm;
 
     buf = (unsigned char *) malloc(header_len * sizeof(unsigned char));
@@ -393,15 +371,15 @@ construct_ppm(Canvas c, bool use_scaling)
     // iterate over all colors in c->arr and find the max
     if (use_scaling) {
         // iterate to find max rgb for scaling to provide to max_lab
-        for (i = 0; i < c->width * c->height * c->depth; i += c->depth) {
-            if (*(c->arr + i) > rgb_max[0]) {
-                rgb_max[0] = *(c->arr + i);
+        for (i = 0; i < c->width * c->height; i++) {
+            if (*(c->arr + i)[0] > rgb_max[0]) {
+                rgb_max[0] = *(c->arr + i)[0];
             }
-            if (*(c->arr + i + 1) > rgb_max[1]) {
-                rgb_max[1] = *(c->arr + i + 1);
+            if (*(c->arr + i)[1] > rgb_max[1]) {
+                rgb_max[1] = *(c->arr + i)[1];
             }
-            if (*(c->arr + i + 2) > rgb_max[2]) {
-                rgb_max[2] = *(c->arr + i + 2);
+            if (*(c->arr + i)[2] > rgb_max[2]) {
+                rgb_max[2] = *(c->arr + i)[2];
             }
         }
         lab_max[0] = 0;
@@ -409,8 +387,8 @@ construct_ppm(Canvas c, bool use_scaling)
         lab_max[2] = 0;
 
         // iterate to find max L*
-        for (i = 0; i < c->width * c->height * c->depth; i += c->depth) {
-            memcpy(rgb_tmp, c->arr + i, 3 * sizeof(double));
+        for (i = 0; i < c->width * c->height; i++) {
+            color_copy(rgb_tmp, *(c->arr + i));
             rgb_tmp[0] /= rgb_max[0];
             rgb_tmp[1] /= rgb_max[1];
             rgb_tmp[2] /= rgb_max[2];
@@ -434,36 +412,36 @@ construct_ppm(Canvas c, bool use_scaling)
     g_inverse = 65535.0 / rgb_max[1];
     b_inverse = 65535.0 / rgb_max[2];
 
-    for (cur_val = c->arr; n < out_len - 1; n += 6, out += 6, cur_val += 3) {
-        if (*cur_val >= rgb_max[0]) {
+    for (cur_val = c->arr; n < out_len - 1; n += 6, cur_val++) {
+        if ((*cur_val)[0] >= rgb_max[0]) {
             r_scaled = 65535;
-        } else if (*cur_val <= 0) {
+        } else if ((*cur_val)[0] <= 0) {
             r_scaled = 0;
         } else {
-            r_scaled = (uint16_t)floor(*cur_val * r_inverse);
+            r_scaled = (uint16_t)floor((*cur_val)[0] * r_inverse);
         }
-        *out = (r_scaled & 0xFF00) >> 8;
-        *(out+1) = (r_scaled & 0x00FF);
+        *out++ = (r_scaled & 0xFF00) >> 8;
+        *out++ = (r_scaled & 0x00FF);
 
-        if (*(cur_val+1) >= rgb_max[1]) {
+        if ((*cur_val)[1] >= rgb_max[1]) {
             g_scaled = 65535;
-        } else if (*(cur_val+1) <= 0) {
+        } else if ((*cur_val)[1] <= 0) {
             g_scaled = 0;
         } else {
-            g_scaled = (uint16_t)floor(*(cur_val+1) * g_inverse);
+            g_scaled = (uint16_t)floor((*cur_val)[1] * g_inverse);
         }
-        *(out+2) = (g_scaled & 0xFF00) >> 8;
-        *(out+3) = (g_scaled & 0x00FF);
+        *out++ = (g_scaled & 0xFF00) >> 8;
+        *out++ = (g_scaled & 0x00FF);
 
-        if (*(cur_val+2) >= rgb_max[2]) {
+        if ((*cur_val)[2] >= rgb_max[2]) {
             b_scaled = 65535;
-        } else if (*(cur_val+2) <= 0) {
+        } else if ((*cur_val)[2] <= 0) {
             b_scaled = 0;
         } else {
-            b_scaled = (uint16_t)floor(*(cur_val+2) * b_inverse);
+            b_scaled = (uint16_t)floor((*cur_val)[2] * b_inverse);
         }
-        *(out+4) = (b_scaled & 0xFF00) >> 8;
-        *(out+5) = (b_scaled & 0x00FF);
+        *out++ = (b_scaled & 0xFF00) >> 8;
+        *out++ = (b_scaled & 0x00FF);
     }
     *out = '\n';
 
@@ -477,7 +455,7 @@ construct_canvas_from_ppm_file(const char * file_path)
     size_t width, height, max_val;
     int i, total_rgb_count;
     unsigned int tmp;
-    double *out;
+    Color *out;
 
     FILE *file = fopen(file_path, "r");
     if (file == NULL) {
@@ -498,7 +476,11 @@ construct_canvas_from_ppm_file(const char * file_path)
     total_rgb_count = width * height * 3;
     for (i = 0, out = c->arr; i < total_rgb_count; i++, out++) {
         fscanf(file, "%u", &tmp);
-        *out = ((double) tmp) / (double)max_val;
+        *out[0] = ((double) tmp) / (double)max_val;
+        fscanf(file, "%u", &tmp);
+        *out[1] = ((double) tmp) / (double)max_val;
+        fscanf(file, "%u", &tmp);
+        *out[2] = ((double) tmp) / (double)max_val;
     }
 
     fclose(file);

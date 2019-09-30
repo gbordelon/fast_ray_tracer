@@ -30,8 +30,6 @@ class Pattern(object):
     Color pattern_{0}_color_1 = color({5:.10f}, {6:.10f}, {7:.10f});
     Pattern pattern_{0} = {1}_pattern_alloc(pattern_{0}_color_0, pattern_{0}_color_1);
 
-    color_free(pattern_{0}_color_1);
-    color_free(pattern_{0}_color_0);
 """.format(name, typ,
            self.yaml_obj['colors'][0][0], self.yaml_obj['colors'][0][1], self.yaml_obj['colors'][0][2],
            self.yaml_obj['colors'][1][0], self.yaml_obj['colors'][1][1], self.yaml_obj['colors'][1][2])
@@ -190,8 +188,6 @@ class UVPattern(object):
     Color {0}_color_1 = color({5:.10f}, {6:.10f}, {7:.10f});
     uv_check_pattern({0}_color_0, {0}_color_1, {8}, {9}, {0});
 
-    color_free({0}_color_1);
-    color_free({0}_color_0);
 """.format(name,
            "",
            self.yaml_obj['colors'][0][0],
@@ -215,11 +211,6 @@ class UVPattern(object):
     Color {0}_color_4 = color({14:.10f}, {15:.10f}, {16:.10f});
     uv_align_check_pattern({0}_color_0, {0}_color_1, {0}_color_2, {0}_color_3, {0}_color_4, {0});
 
-    color_free({0}_color_4);
-    color_free({0}_color_3);
-    color_free({0}_color_2);
-    color_free({0}_color_1);
-    color_free({0}_color_0);
 """.format(name,
            "",
            self.yaml_obj['colors']['main'][0],
