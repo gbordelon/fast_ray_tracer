@@ -126,6 +126,12 @@ typedef struct camera {
     Matrix transform_inverse;
 } *Camera;
 
+
+struct container {
+    Shape *shapes;
+    size_t size;
+};
+
 Light array_of_lights(size_t num);
 void point_light(Point p, Color intensity, Light l);
 void
@@ -146,15 +152,15 @@ World world();
 World default_world();
 
 
-void color_at(World w, Ray r, size_t remaining, Color res);
-void shade_hit(World w, Computations comps, size_t remaining, Color res);
+void color_at(World w, Ray r, size_t remaining, Color res, struct container *container);
+void shade_hit(World w, Computations comps, size_t remaining, Color res, struct container *container);
 bool is_shadowed(World w, Point light_position, Point pt);
 Intersections intersect_world(World w, Ray r);
 
 void intersections_sort(Intersections xs);
 void intersections_reverse(Intersections xs);
 
-void prepare_computations(Intersection i, Ray r, Intersections xs, Computations res);
+void prepare_computations(Intersection i, Ray r, Intersections xs, Computations res, struct container *container);
 Canvas render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter);
 Canvas render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter);
 

@@ -314,12 +314,19 @@ ppm_free(Ppm p)
  * 33 -> 45
  */
 void
+canvas_write_pixels(Canvas c, int col, int row, Color *colors, size_t num)
+{
+    while (pthread_mutex_trylock(&(c->write_lock)) != 0);
+    memcpy((c->arr + row * c->width + col), colors, num * sizeof(Color));
+    pthread_mutex_unlock(&(c->write_lock));
+}
+
+void
 canvas_write_pixel(Canvas c, int col, int row, Color color)
 {
-    // null check c
-    pthread_mutex_lock(&c->write_lock);
+    while (pthread_mutex_trylock(&(c->write_lock)) != 0);
     color_copy(*(c->arr + row * c->width + col), color);
-    pthread_mutex_unlock(&c->write_lock);
+    pthread_mutex_unlock(&(c->write_lock));
 }
 
 void

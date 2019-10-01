@@ -11,7 +11,6 @@ typedef struct canvas {
     Color *arr;
     size_t width;
     size_t height;
-    size_t depth; // probably going to assume three
     pthread_mutex_t  write_lock;
 } *Canvas;
 
@@ -50,6 +49,7 @@ Ppm ppm_alloc(size_t len);
 void canvas_free(Canvas c);
 void ppm_free(Ppm p);
 
+void canvas_write_pixels(Canvas c, int col, int row, Color *colors, size_t num);
 void canvas_write_pixel(Canvas c, int col, int row, Color color);
 void canvas_pixel_at(Canvas c, int col, int row, Color res);
 

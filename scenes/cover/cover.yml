@@ -10,9 +10,9 @@
   to: [ 6, 0, 6 ]
   up: [ -0.45, 1, 0 ]
   focal-length: 1
-  samples-per-pixel: 1
+  samples-per-pixel: 2
   aperture:
-    jitter: false
+    jitter: true
     size: 0
     type: [ POINT_APERTURE ]
 

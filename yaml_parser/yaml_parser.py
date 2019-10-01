@@ -175,7 +175,7 @@ int main()
     w->lights_num = {3};
     w->shapes = world_group;
     w->shapes_num = 1;
-    Canvas c = render(cam, w, cam->sample_num/*usteps*/, cam->sample_num/*vsteps*/, cam->aperture.jitter);
+    Canvas c = render_multi(cam, w, cam->sample_num/*usteps*/, cam->sample_num/*vsteps*/, cam->aperture.jitter);
     Ppm ppm = construct_ppm(c, true);
 
     FILE * pFile;

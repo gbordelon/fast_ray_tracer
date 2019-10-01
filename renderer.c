@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <pthread.h>
 
 #include "renderer.h"
-#include "thpool.h"
 
 #include "linalg.h"
 #include "shapes.h"
@@ -54,27 +54,73 @@ double_swap(double *a, double *b)
     *b = tmp;
 }
 
-#define AREA_LIGHT_CACHE_SIZE 1
+#define AREA_LIGHT_CACHE_SIZE 65536
 Points
 area_light_surface_points(Light light)
 {
     if (light->surface_points_cache == NULL) {
         int u, v, i;
+        size_t n = light->u.area.vsteps;
+        size_t m = light->u.area.usteps;
+        size_t k;
         Point point = {0.0, 0.0, 0.0, 1.0};
         Points pts = (Points) malloc(AREA_LIGHT_CACHE_SIZE * sizeof(struct pts));
         Points itr = pts;
+        static double *canonicalx = NULL;
+        static double *canonicaly = NULL;
+
+        if (canonicalx == NULL) {
+            canonicalx = (double *) malloc(n * m * sizeof(double));
+        }
+
+        if (canonicaly == NULL) {
+            canonicaly = (double *) malloc(n * m * sizeof(double));
+        }
+
         for (i = 0, itr = pts; i < AREA_LIGHT_CACHE_SIZE; i++, itr++) {
             itr->points_num = light->num_samples;
             itr->points = (Point*) malloc(light->num_samples * sizeof(Point));
+            // produce canonical representation
+            for (v = 0; v < n; v++) {
+                for (u = 0; u < m; u++) {
+                    //canonicalx[(v * m + u)] = ((double)u + ((double)v + jitter_by(light->u.area.jitter)) / (double)n) / (double)m;
+                    //canonicaly[(v * m + u)] = ((double)v + ((double)u + jitter_by(light->u.area.jitter)) / (double)m) / (double)n;
+
+                    canonicalx[(v * m + u)] = jitter_by(light->u.area.jitter);
+                    canonicaly[(v * m + u)] = jitter_by(light->u.area.jitter);
+
+                    //canonical[2 * (v * m + u)] = u/(double)m + (v + jitter_by(light->u.area.jitter)) / (n*m);
+                    //canonical[2 * (v * m + u) + 1] = v/(double)n + (u + jitter_by(light->u.area.jitter)) / (n*m);
+                }
+            }
+
+            // shuffle canonical for x
+            for (v = 0; v < n; v++) {
+                k = v + jitter_by(light->u.area.jitter) * (n - v);
+                for (u = 0; u < m; u++) {
+                    double_swap(canonicalx + (v * m + u), canonicalx + (k * m + u));
+                }
+            }
+
+            // shuffle canonical for y
+            for (u = 0; u < m; u++) {
+                k = u + jitter_by(light->u.area.jitter) * (m - u);
+                for (v = 0; v < n; v++) {
+                    double_swap(canonicaly + (v * m + u), canonicaly + (v * m + k));
+                }
+            }
+
             for (v = 0; v < light->u.area.vsteps; v++) {
                 for (u = 0; u < light->u.area.usteps; u++) {
-                    area_light_point_on_light(light, u, v, jitter_by(light->u.area.jitter), jitter_by(light->u.area.jitter), point);
+                    area_light_point_on_light(light, u, v, canonicalx[(v * m + u)], canonicaly[(v * m + u)], point);
                     point_copy(*(itr->points + v * light->u.area.usteps + u), point);
                 }
             }
         }
         light->surface_points_cache = pts;
         light->surface_points_cache_len = AREA_LIGHT_CACHE_SIZE;
+        free(canonicalx);
+        free(canonicaly);
     }
 
     int choice = rand() % light->surface_points_cache_len;
@@ -286,6 +332,100 @@ world()
     w->shapes_num = 0;
     w->xs = intersections_empty(64);
     return w;
+}
+
+/*
+ * copy everything but parent pointer and intersections
+ * for group and csg, allocate a shape array and recurse
+ */
+void
+shape_copy(Shape s, Shape parent, Shape res)
+{
+    int i;
+    Shape to, from;
+
+    switch (s->type) {
+    case SHAPE_CONE:
+        *res = *s;
+        res->parent = parent;
+        res->xs = intersections_empty(4);
+        break;
+    case SHAPE_CUBE:
+        *res = *s;
+        res->parent = parent;
+        res->xs = intersections_empty(2);
+        break;
+    case SHAPE_CYLINDER:
+        *res = *s;
+        res->parent = parent;
+        res->xs = intersections_empty(4);
+        break;
+    case SHAPE_PLANE:
+        *res = *s;
+        res->parent = parent;
+        res->xs = intersections_empty(1);
+        break;
+    case SHAPE_SMOOTH_TRIANGLE:
+        *res = *s;
+        res->parent = parent;
+        res->xs = intersections_empty(1);
+        break;
+    case SHAPE_SPHERE:
+        *res = *s;
+        res->parent = parent;
+        res->xs = intersections_empty(2);
+        break;
+    case SHAPE_TOROID:
+        *res = *s;
+        res->parent = parent;
+        res->xs = intersections_empty(4);
+        break;
+    case SHAPE_TRIANGLE:
+        *res = *s;
+        res->parent = parent;
+        res->xs = intersections_empty(1);
+        break;
+    case SHAPE_CSG:
+        *res = *s;
+        res->parent = parent;
+        res->xs = intersections_empty(64);
+        Shape lr = array_of_shapes(2);
+        shape_copy(s->fields.csg.left, res, lr);
+        shape_copy(s->fields.csg.right, res, lr+1);
+        break;
+    case SHAPE_GROUP:
+        *res = *s;
+        res->parent = parent;
+        res->xs = intersections_empty(64);
+        res->fields.group.children = array_of_shapes(s->fields.group.num_children);
+        for (i = 0, to = res->fields.group.children, from = s->fields.group.children;
+                i < s->fields.group.num_children;
+                i++, to++, from++) {
+            shape_copy(from, res, to);
+        }
+    default:
+        break;
+    }
+}
+
+World
+world_copy(World w)
+{
+    World new_world = world();
+    new_world->lights = w->lights;
+    new_world->lights_num = w->lights_num;
+    new_world->shapes_num = w->shapes_num;
+    new_world->shapes = array_of_shapes(w->shapes_num);
+
+    int i;
+    Shape from, to;
+    for (i = 0, from = w->shapes, to = new_world->shapes;
+            i < w->shapes_num;
+            i++, from++, to++) {
+        shape_copy(from, NULL, to);
+    }
+
+    return new_world;
 }
 
 World
@@ -518,7 +658,7 @@ ray_for_pixel(Camera cam, double px, double py, double x_jitter, double y_jitter
  * average the colors
  */
 void
-pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_t vsteps, bool jitter, Color res)
+pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_t vsteps, bool jitter, Color res, struct container *container)
 {
     double x_offset, y_offset;
     size_t u, v;
@@ -578,7 +718,7 @@ pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_
             r.direction[2] = 0;
             r.direction[0] = 0;
             ray_for_pixel(cam, x, y, x_offset, y_offset, &r);
-            color_at(w, &r, 5, c);
+            color_at(w, &r, 5, c, container);
             color_accumulate(acc, c);
         }
     }
@@ -594,17 +734,23 @@ render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
     Color c;
 
     Canvas image = canvas_alloc(cam->hsize, cam->vsize);
+    struct container container;
+    container.shapes = NULL;
+    container.size = 0;
+
 
     k = 0;
     for (j = 0; j < cam->vsize; ++j) {
         for (i = 0; i < cam->hsize; ++i) {
             color_default(c);
-            pixel_multi_sample(cam, w, (double)i, (double)j, usteps, vsteps, jitter, c);
+            pixel_multi_sample(cam, w, (double)i, (double)j, usteps, vsteps, jitter, c, &container);
             canvas_write_pixel(image, i, j, c);
         }
         k += 1;
         printf("Wrote %d rows out of %lu\n", k, cam->vsize);
     }
+
+    free(container.shapes);
 
     return image;
 }
@@ -613,28 +759,47 @@ struct render_args {
     Camera cam;
     World w;
     Canvas image;
-    size_t x;
-    size_t y;
+    size_t y_start;
+    size_t y_end;
     size_t usteps;
     size_t vsteps;
     bool jitter;
 };
 
-void
+void *
 render_multi_helper(void *args)
 {
     Camera cam = ((struct render_args *)args)->cam;
     World w = ((struct render_args *)args)->w;
     Canvas image = ((struct render_args *)args)->image;
-    size_t x = ((struct render_args *)args)->x;
-    size_t y = ((struct render_args *)args)->y;
+    size_t y_start = ((struct render_args *)args)->y_start;
+    size_t y_end = ((struct render_args *)args)->y_end;
     size_t usteps = ((struct render_args *)args)->usteps;
     size_t vsteps = ((struct render_args *)args)->vsteps;
     bool jitter = ((struct render_args *)args)->jitter;
     Color c = color(0.0,0.0,0.0);
 
-    pixel_multi_sample(cam, w, (double)x, (double)y, usteps, vsteps, jitter, c);
-    canvas_write_pixel(image, x, y, c);
+    struct container container;
+    container.shapes = NULL;
+    container.size = 0;
+
+    Color *buf = (Color *)malloc(cam->hsize * sizeof(Color));
+
+    int i, j, k;
+    for (j = y_start, k=0; j < y_end; ++j, ++k) {
+        for (i = 0; i < cam->hsize; ++i) {
+            color_default(c);
+            pixel_multi_sample(cam, w, (double)i, (double)j, usteps, vsteps, jitter, c, &container);
+            color_copy(*(buf+i), c);
+        }
+        //printf("Wrote %d rows out of %lu\n", k, y_end - y_start);
+        canvas_write_pixels(image, 0, j, buf, cam->hsize);
+    }
+
+    free(container.shapes);
+    free(buf);
+
+    return NULL;
 }
 
 /*
@@ -642,45 +807,46 @@ render_multi_helper(void *args)
  *
  * Use realloc instead of malloc to keep references in tact when a thread needs to
  * resize an Intersections array
- *
  * 
  */
 Canvas
 render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
 {
-    int i,j,k;
-    threadpool thpool = thpool_init(1);
+    int i;
+    pthread_t thread1, thread2, thread3, thread4;
+
     Canvas image = canvas_alloc(cam->hsize, cam->vsize);
 
-    struct render_args *args_array = (struct render_args *)malloc(cam->vsize * cam->hsize * sizeof(struct render_args));
-    
-    k = 0;
-    for (j = 0; j < cam->vsize; ++j) {
-        for (i = 0; i < cam->hsize; ++i) {
-            (args_array + k)->cam = cam;
-            (args_array + k)->w = w;
-            (args_array + k)->image = image;
-            (args_array + k)->x = i;
-            (args_array + k)->y = j;
-            (args_array + k)->usteps = usteps;
-            (args_array + k)->vsteps = vsteps;
-            (args_array + k)->jitter = jitter;
-            thpool_add_work(thpool, render_multi_helper, (void*)(args_array + k));
-            k++;
-        }
-        printf("adding work to thpool %d\n", k);
+    struct render_args *args_array = (struct render_args *)malloc(4 * sizeof(struct render_args));
+
+    for (i = 0; i < 4; i++) {
+        (args_array + i)->cam = cam;
+        (args_array + i)->w = world_copy(w);
+        (args_array + i)->image = image;
+        (args_array + i)->y_start = i * cam->vsize / 4;
+        (args_array + i)->y_end = (i + 1) * cam->vsize / 4;
+        (args_array + i)->usteps = usteps;
+        (args_array + i)->vsteps = vsteps;
+        (args_array + i)->jitter = jitter;
     }
 
-    thpool_wait(thpool);
+    pthread_create(&thread1, NULL, *render_multi_helper, (void *)(args_array));
+    pthread_create(&thread2, NULL, *render_multi_helper, (void *)(args_array+1));
+    pthread_create(&thread3, NULL, *render_multi_helper, (void *)(args_array+2));
+    pthread_create(&thread4, NULL, *render_multi_helper, (void *)(args_array+3));
 
-    thpool_destroy(thpool);
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
+    pthread_join(thread3, NULL);
+    pthread_join(thread4, NULL);
+
     free(args_array);
 
     return image;
 }
 
 void
-color_at(World w, Ray r, size_t remaining, Color res)
+color_at(World w, Ray r, size_t remaining, Color res, struct container *container)
 {
     Intersections xs = intersect_world(w, r);
     Intersection i = hit(xs, false);
@@ -688,8 +854,8 @@ color_at(World w, Ray r, size_t remaining, Color res)
     Color c = color(0.0, 0.0, 0.0);
 
     if (i != NULL) {
-        prepare_computations(i, r, xs, &comps);
-        shade_hit(w, &comps, remaining, c);
+        prepare_computations(i, r, xs, &comps, container);
+        shade_hit(w, &comps, remaining, c, container);
     }
     color_copy(res, c);
 }
@@ -777,11 +943,8 @@ position(Ray ray, double t, Point position)
 }
 
 void
-prepare_computations(Intersection i, Ray r, Intersections xs, Computations res)
+prepare_computations(Intersection i, Ray r, Intersections xs, Computations res, struct container *container)
 {
-    static Shape *container = NULL;
-    static size_t container_size = 0;
-
     res->t = i->t;
 
     res->obj = i->object;
@@ -822,9 +985,9 @@ prepare_computations(Intersection i, Ray r, Intersections xs, Computations res)
     size_t container_len = 0;
 
     // check size of container array
-    if (xs->num >= container_size) {
-        container = realloc(container, xs->num * sizeof(Shape));
-        container_size = xs->num;
+    if (xs->num >= container->size) {
+        container->shapes = realloc(container->shapes, xs->num * sizeof(Shape));
+        container->size = xs->num;
     }
 
     for (j = 0, x = xs->xs; j < xs->num; x++, j++) {
@@ -832,12 +995,12 @@ prepare_computations(Intersection i, Ray r, Intersections xs, Computations res)
             if (container_len == 0) {
                 c->n1 = 1.0;
             } else {
-                c->n1 = container[container_len-1]->material->refractive_index;
+                c->n1 = container->shapes[container_len-1]->material->refractive_index;
             }
         }
 
         for (k = 0; k < container_len; k++) {
-            if (container[k] == i->object) {
+            if (container->shapes[k] == i->object) {
                 break;
             }
         }
@@ -845,11 +1008,11 @@ prepare_computations(Intersection i, Ray r, Intersections xs, Computations res)
         if (k < container_len) {
             // shift everything left one slot, overwriting container[index_of_object] first
             for (; k < container_len - 1; k++) {
-                container[k] = container[k+1];
+                container->shapes[k] = container->shapes[k+1];
             }
             container_len--;
         } else {
-            container[container_len] = i->object;
+            container->shapes[container_len] = i->object;
             container_len++;
         }
 
@@ -857,17 +1020,15 @@ prepare_computations(Intersection i, Ray r, Intersections xs, Computations res)
             if (container_len == 0) {
                 c->n2 = 1.0;
             } else {
-                c->n2 = container[container_len-1]->material->refractive_index;
+                c->n2 = container->shapes[container_len-1]->material->refractive_index;
             }
             break;
         }
     }
-
-    //free(container);
 }
 
 void
-reflected_color(World w, Computations comps, size_t remaining, Color res)
+reflected_color(World w, Computations comps, size_t remaining, Color res, struct container *container)
 {
     if (remaining == 0 || equal(comps->obj->material->reflective, 0)) {
         color_default(res);
@@ -875,14 +1036,14 @@ reflected_color(World w, Computations comps, size_t remaining, Color res)
         struct ray reflect_ray;
         Color c = color(0.0, 0.0, 0.0);
         ray_array(comps->over_point, comps->reflectv, &reflect_ray);
-        color_at(w, &reflect_ray, remaining - 1, c);
+        color_at(w, &reflect_ray, remaining - 1, c, container);
         color_scale(c, comps->obj->material->reflective);
         color_accumulate(res, c);
     }
 }
 
 void
-refracted_color(World w, Computations comps, size_t remaining, Color res)
+refracted_color(World w, Computations comps, size_t remaining, Color res, struct container *container)
 {
     if (remaining == 0 || equal(comps->obj->material->transparency,0)) {
         color_default(res);
@@ -914,7 +1075,7 @@ refracted_color(World w, Computations comps, size_t remaining, Color res)
     vector(t1[0] - t2[0], t1[1] - t2[1], t1[2] - t2[2], direction);
 
     ray_array(comps->under_point, direction, &refracted_ray);
-    color_at(w, &refracted_ray, remaining - 1, c);
+    color_at(w, &refracted_ray, remaining - 1, c, container);
     color_scale(c, comps->obj->material->transparency);
     color_accumulate(res, c);
 }
@@ -939,7 +1100,7 @@ schlick(Computations comps)
 }
 
 void
-shade_hit(World w, Computations comps, size_t remaining, Color res)
+shade_hit(World w, Computations comps, size_t remaining, Color res, struct container *container)
 {
     Light itr;
     size_t i;
@@ -963,10 +1124,10 @@ shade_hit(World w, Computations comps, size_t remaining, Color res)
     }
 
     Color reflected = color(0.0, 0.0, 0.0);
-    reflected_color(w, comps, remaining, reflected);
+    reflected_color(w, comps, remaining, reflected, container);
 
     Color refracted = color(0.0, 0.0, 0.0);
-    refracted_color(w, comps, remaining, refracted);
+    refracted_color(w, comps, remaining, refracted, container);
 
     if (comps->obj->material->reflective > 0 && comps->obj->material->transparency > 0) {
         double reflectance = schlick(comps);
