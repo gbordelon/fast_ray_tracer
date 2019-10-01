@@ -55,13 +55,9 @@ csg_filter_intersections(Shape s, Intersections xs)
         if (intersection_allowed(s->fields.csg.op, lhit, inleft, inright)) {
             if (to != from) {
                 *to = *from;
-                //printf("\n");
             }
             num_remaining++;
             to++;
-            //printf("keeping  x: %d %d %d\n", lhit, inleft, inright);
-        } else {
-            //printf("skipping x: %d %d %d\n", lhit, inleft, inright);
         }
 
         if (lhit) {
@@ -83,21 +79,22 @@ csg_local_intersect(Shape s, Ray r)
 
     Intersections left_xs = s->fields.csg.left->intersect(s->fields.csg.left, r);
     Intersections right_xs = s->fields.csg.right->intersect(s->fields.csg.right, r);
+
     size_t total_num_intersections = 0;
+
     if (left_xs != NULL) {
         total_num_intersections += left_xs->num;
     }
+
     if (right_xs != NULL) {
         total_num_intersections += right_xs->num;
     }
 
     if (total_num_intersections > 0) {
         if (left_xs == NULL || left_xs->num == 0) {
-            // filter
             csg_filter_intersections(s, right_xs);
             return right_xs;
         } else if (right_xs == NULL || right_xs->num == 0) {
-            // filter
             csg_filter_intersections(s, left_xs);
             return left_xs;
         }

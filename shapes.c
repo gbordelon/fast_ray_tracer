@@ -416,6 +416,7 @@ blended_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
     res[2] = (c1[2] + c2[2]) / 2.0;
 }
 
+// TODO not threadsafe
 void
 nested_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
 {

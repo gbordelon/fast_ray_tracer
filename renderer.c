@@ -2,6 +2,14 @@
 #include <string.h>
 #include <math.h>
 #include <pthread.h>
+#include <errno.h>
+#include <unistd.h>
+
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <mach/mach_init.h>
+#include <mach/thread_policy.h>
+#include <sched.h>
 
 #include "renderer.h"
 
@@ -344,66 +352,50 @@ shape_copy(Shape s, Shape parent, Shape res)
     int i;
     Shape to, from;
 
+    //memcpy(res, s, sizeof(struct shape));
+    *res = *s;
+    res->parent = parent;
+    res->material = NULL;
+    res->xs = NULL;
+    res->bbox = NULL;
+    res->bbox_inverse = NULL;
+    shape_set_material(res, s->material);
+
     switch (s->type) {
-    case SHAPE_CONE:
-        *res = *s;
-        res->parent = parent;
-        res->xs = intersections_empty(4);
+    case SHAPE_PLANE:
+    case SHAPE_SMOOTH_TRIANGLE:
+    case SHAPE_TRIANGLE:
+        res->xs = intersections_empty(1);
         break;
     case SHAPE_CUBE:
-        *res = *s;
-        res->parent = parent;
-        res->xs = intersections_empty(2);
-        break;
-    case SHAPE_CYLINDER:
-        *res = *s;
-        res->parent = parent;
-        res->xs = intersections_empty(4);
-        break;
-    case SHAPE_PLANE:
-        *res = *s;
-        res->parent = parent;
-        res->xs = intersections_empty(1);
-        break;
-    case SHAPE_SMOOTH_TRIANGLE:
-        *res = *s;
-        res->parent = parent;
-        res->xs = intersections_empty(1);
-        break;
     case SHAPE_SPHERE:
-        *res = *s;
-        res->parent = parent;
         res->xs = intersections_empty(2);
         break;
+    case SHAPE_CONE:
+    case SHAPE_CYLINDER:
     case SHAPE_TOROID:
-        *res = *s;
-        res->parent = parent;
         res->xs = intersections_empty(4);
-        break;
-    case SHAPE_TRIANGLE:
-        *res = *s;
-        res->parent = parent;
-        res->xs = intersections_empty(1);
         break;
     case SHAPE_CSG:
-        *res = *s;
-        res->parent = parent;
         res->xs = intersections_empty(64);
         Shape lr = array_of_shapes(2);
+        res->fields.csg.left = lr;
+        res->fields.csg.right = lr+1;
         shape_copy(s->fields.csg.left, res, lr);
         shape_copy(s->fields.csg.right, res, lr+1);
         break;
     case SHAPE_GROUP:
-        *res = *s;
-        res->parent = parent;
         res->xs = intersections_empty(64);
+        res->fields.group.children_need_free = true;
         res->fields.group.children = array_of_shapes(s->fields.group.num_children);
         for (i = 0, to = res->fields.group.children, from = s->fields.group.children;
                 i < s->fields.group.num_children;
                 i++, to++, from++) {
             shape_copy(from, res, to);
         }
+        break;
     default:
+        printf("Unknown shape type %d\n", s->type);
         break;
     }
 }
@@ -755,15 +747,86 @@ render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
     return image;
 }
 
+/*
+ * https://yyshen.github.io/2015/01/18/binding_threads_to_cores_osx.html
+ */
+#define SYSCTL_CORE_COUNT   "machdep.cpu.core_count"
+
+typedef struct cpu_set {
+  uint32_t    count;
+} cpu_set_t;
+
+static inline void
+CPU_ZERO(cpu_set_t *cs) { cs->count = 0; }
+
+static inline void
+CPU_SET(int num, cpu_set_t *cs) { cs->count |= (1 << num); }
+
+static inline int
+CPU_ISSET(int num, cpu_set_t *cs) { return (cs->count & (1 << num)); }
+
+int
+sched_getaffinity(pid_t pid, size_t cpu_size, cpu_set_t *cpu_set)
+{
+  int32_t core_count = 0;
+  size_t  len = sizeof(core_count);
+  int ret = sysctlbyname(SYSCTL_CORE_COUNT, &core_count, &len, 0, 0);
+  if (ret) {
+    printf("error while get core count %d\n", ret);
+    return -1;
+  }
+  cpu_set->count = 0;
+  for (int i = 0; i < core_count; i++) {
+    cpu_set->count |= (1 << i);
+  }
+
+  return 0;
+}
+
+int
+pthread_setaffinity_np(pthread_t thread, size_t cpu_size, cpu_set_t *cpu_set)
+{
+  thread_port_t mach_thread;
+  int core = 0;
+
+  for (core = 0; core < 8 * cpu_size; core++) {
+    if (CPU_ISSET(core, cpu_set)) break;
+  }
+  printf("binding to core %d\n", core);
+  thread_affinity_policy_data_t policy = { core };
+  mach_thread = pthread_mach_thread_np(thread);
+  thread_policy_set(mach_thread, THREAD_AFFINITY_POLICY,
+                    (thread_policy_t)&policy, 1);
+  return 0;
+}
+
+/*
+ * https://stackoverflow.com/questions/1407786/how-to-set-cpu-affinity-of-a-particular-pthread
+ */
+int
+stick_this_thread_to_core(int core_id) {
+   int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
+   if (core_id < 0 || core_id >= num_cores)
+      return EINVAL;
+
+   cpu_set_t cpuset;
+   CPU_ZERO(&cpuset);
+   CPU_SET(core_id, &cpuset);
+
+   pthread_t current_thread = pthread_self();    
+   return pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
+}
+
 struct render_args {
-    Camera cam;
     World w;
+    Camera cam;
     Canvas image;
     size_t y_start;
     size_t y_end;
     size_t usteps;
     size_t vsteps;
     bool jitter;
+    int core_id;
 };
 
 void *
@@ -777,6 +840,9 @@ render_multi_helper(void *args)
     size_t usteps = ((struct render_args *)args)->usteps;
     size_t vsteps = ((struct render_args *)args)->vsteps;
     bool jitter = ((struct render_args *)args)->jitter;
+
+    stick_this_thread_to_core(((struct render_args *)args)->core_id);
+
     Color c = color(0.0,0.0,0.0);
 
     struct container container;
@@ -790,6 +856,7 @@ render_multi_helper(void *args)
         for (i = 0; i < cam->hsize; ++i) {
             color_default(c);
             pixel_multi_sample(cam, w, (double)i, (double)j, usteps, vsteps, jitter, c, &container);
+            //canvas_write_pixel(image, i, j, c);
             color_copy(*(buf+i), c);
         }
         //printf("Wrote %d rows out of %lu\n", k, y_end - y_start);
@@ -798,6 +865,7 @@ render_multi_helper(void *args)
 
     free(container.shapes);
     free(buf);
+    // recursive world free
 
     return NULL;
 }
@@ -810,35 +878,34 @@ render_multi_helper(void *args)
  * 
  */
 Canvas
-render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
+render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter, size_t num_threads)
 {
     int i;
-    pthread_t thread1, thread2, thread3, thread4;
-
     Canvas image = canvas_alloc(cam->hsize, cam->vsize);
 
-    struct render_args *args_array = (struct render_args *)malloc(4 * sizeof(struct render_args));
+    pthread_t *threads = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
 
-    for (i = 0; i < 4; i++) {
-        (args_array + i)->cam = cam;
+    struct render_args *args_array = (struct render_args *)malloc(num_threads * sizeof(struct render_args));
+
+    for (i = 0; i < num_threads; i++) {
         (args_array + i)->w = world_copy(w);
+        (args_array + i)->cam = cam;
         (args_array + i)->image = image;
-        (args_array + i)->y_start = i * cam->vsize / 4;
-        (args_array + i)->y_end = (i + 1) * cam->vsize / 4;
+        (args_array + i)->y_start = i * cam->vsize / num_threads;
+        (args_array + i)->y_end = (i + 1) * cam->vsize / num_threads;
         (args_array + i)->usteps = usteps;
         (args_array + i)->vsteps = vsteps;
         (args_array + i)->jitter = jitter;
+        (args_array + i)->core_id = i % 4;
     }
 
-    pthread_create(&thread1, NULL, *render_multi_helper, (void *)(args_array));
-    pthread_create(&thread2, NULL, *render_multi_helper, (void *)(args_array+1));
-    pthread_create(&thread3, NULL, *render_multi_helper, (void *)(args_array+2));
-    pthread_create(&thread4, NULL, *render_multi_helper, (void *)(args_array+3));
+    for (i = 0; i < num_threads; i++) {
+        pthread_create(threads + i, NULL, *render_multi_helper, (void *)(args_array + i));
+    }
 
-    pthread_join(thread1, NULL);
-    pthread_join(thread2, NULL);
-    pthread_join(thread3, NULL);
-    pthread_join(thread4, NULL);
+    for (i = 0; i < num_threads; i++) {
+        pthread_join(*(threads + i), NULL);
+    }
 
     free(args_array);
 

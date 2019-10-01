@@ -60,9 +60,9 @@ typedef struct computations {
 typedef struct world {
     Light lights;
     Shape shapes;
+    Intersections xs;
     size_t lights_num;
     size_t shapes_num;
-    Intersections xs;
 } *World;
 
 enum aperture_type {
@@ -162,6 +162,6 @@ void intersections_reverse(Intersections xs);
 
 void prepare_computations(Intersection i, Ray r, Intersections xs, Computations res, struct container *container);
 Canvas render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter);
-Canvas render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter);
+Canvas render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter, size_t num_threads);
 
 #endif

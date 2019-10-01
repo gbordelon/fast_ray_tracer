@@ -1,3 +1,9 @@
+- add: config
+  thread-count: 6
+  timeout: 600 # in seconds
+  divide-threshold: 1
+  clamping: False
+
 # ======================================================
 # the camera
 # ======================================================

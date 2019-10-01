@@ -1,5 +1,5 @@
 - add: config
-  thread-count: 4
+  thread-count: 6
   timeout: 600 # in seconds
   divide-threshold: 1
   clamping: False
@@ -35,6 +35,17 @@
   from: [2, 4, -10]
   to: [-1, -1, 0]
   up: [0, 1, 0]
+  focal-length: 11
+  samples-per-pixel: 2
+  aperture:
+    jitter: true
+    size: 0.4
+#    type: [ CIRCULAR_APERTURE, 1.0 ]
+#    type: [ CROSS_APERTURE, -0.1, 0.1, -0.1, 0.1 ]
+#    type: [ DIAMOND_APERTURE, -1, 1, -1, 1 ]
+#    type: [ DOUBLE_CIRCLE_APERTURE, 1.0, 0.5 ]
+    type: [ POINT_APERTURE ]
+#    type: [ SQUARE_APERTURE ]
 
 # The scene as shown in the bonus chapter is rendered using an area light,
 # precisely as described in the "Rendering soft shadows" bonus chapter,

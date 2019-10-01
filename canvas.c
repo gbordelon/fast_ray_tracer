@@ -479,14 +479,15 @@ construct_canvas_from_ppm_file(const char * file_path)
         return NULL;
     }
 
-    total_rgb_count = width * height * 3;
+    total_rgb_count = width * height;
     for (i = 0, out = c->arr; i < total_rgb_count; i++, out++) {
         fscanf(file, "%u", &tmp);
-        *out[0] = ((double) tmp) / (double)max_val;
+        (*out)[0] = ((double) tmp) / (double)max_val;
         fscanf(file, "%u", &tmp);
-        *out[1] = ((double) tmp) / (double)max_val;
+        (*out)[1] = ((double) tmp) / (double)max_val;
         fscanf(file, "%u", &tmp);
-        *out[2] = ((double) tmp) / (double)max_val;
+        (*out)[2] = ((double) tmp) / (double)max_val;
+        (*out)[3] = 0.0;
     }
 
     fclose(file);
