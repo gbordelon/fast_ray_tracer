@@ -39,16 +39,10 @@ enum pattern_enum {
     PATTERN_PERTURBED
 };
 
-enum uv_pattern_enum {
-    UV_CHECKER,
-    UV_ALIGN_CHECK,
-    UV_TEXTURE
-};
-
 typedef struct pattern *Pattern;
 
 typedef struct material {
-    double color[3];
+    Color color;
     double ambient;
     double diffuse;
     double specular;
@@ -58,6 +52,7 @@ typedef struct material {
     double refractive_index;
     bool casts_shadow;
     Pattern pattern;
+    Pattern normal_pattern;
     size_t ref_count;
 } *Material;
 
@@ -175,6 +170,8 @@ enum pattern_type {
     /* concrete UV instead have uv_pattern_at fn */
     UV_ALIGN_CHECKER_PATTERN,
     UV_CHECKER_PATTERN,
+    UV_GRADIENT_PATTERN,
+    UV_RADIAL_GRADIENT_PATTERN,
     UV_TEXTURE_PATTERN,
     /* abstract also have pattern_at_shape fn */
     BLENDED_PATTERN,
@@ -188,22 +185,22 @@ enum pattern_type {
 
 /* concrete patterns */
 struct concrete_pattern_fields {
-    double a[3];
-    double b[3];
+    Color a;
+    Color b;
 };
 
 /* concrete uv patterns */
 struct uv_align_check_fields {
-    double main[3];
-    double ul[3];
-    double ur[3];
-    double bl[3];
-    double br[3];
+    Color main;
+    Color ul;
+    Color ur;
+    Color bl;
+    Color br;
 };
 
 struct uv_checker_fields {
-    double a[3];
-    double b[3];
+    Color a;
+    Color b;
     size_t width;
     size_t height;
 };
@@ -331,8 +328,6 @@ void intersections_free(Intersections xs);
 
 
 void ray_array(Point origin, Vector direction, Ray ray);
-Ray ray_alloc(Point origin, Vector direction);
-void ray_free(Ray r);
 int ray_to_string(char *s, size_t n, Ray r);
 
 Intersections shape_intersect(Shape sh, Ray r);

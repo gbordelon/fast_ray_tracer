@@ -97,32 +97,10 @@ ray_array(Point origin, Vector direction, Ray ray)
     vector_copy(ray->direction, direction);
 }
 
-Ray
-ray_array_alloc(double origin[4], double direction[4])
-{
-    Ray ray = (Ray) malloc(sizeof(struct ray));
-    ray_array(origin, direction, ray);
-    return ray;
-}
-Ray
-ray_alloc(Point origin, Vector direction)
-{
-    return ray_array_alloc(origin, direction);
-}
-
-void
-ray_free(Ray r) {
-    if (r != NULL) {
-        free(r);
-    }
-}
-
 void
 material(Material m)
 {
-    m->color[0] = 1.0;
-    m->color[1] = 1.0;
-    m->color[2] = 1.0;
+    color_copy(m->color, WHITE);
     m->ambient = 0.1;
     m->diffuse = 0.9;
     m->specular = 0.9;
@@ -132,6 +110,7 @@ material(Material m)
     m->refractive_index = 1.0;
     m->casts_shadow = true;
     m->pattern = NULL;
+    m->normal_pattern = NULL;
     m->ref_count = 0;
 }
 
@@ -193,14 +172,6 @@ ray_transform(Ray original, Matrix m, Ray res)
     matrix_vector_multiply(m, original->direction, res->direction);
 }
 
-Ray
-ray_transform_alloc(Ray original, Matrix m)
-{
-    Ray res = ray_array_alloc(original->origin, original->direction);
-    ray_transform(original, m, res);
-    return res;
-}
-
 int
 ray_to_string(char *buf, size_t n, Ray r)
 {
@@ -225,11 +196,20 @@ shape_normal_at(Shape sh, Point world_point, Intersection hit, Vector res)
 {
     Point local_point;
     Vector local_normal;
+    Vector perturbed;
     Vector world_normal;
 
     sh->world_to_object(sh, world_point, local_point);
+
     sh->local_normal_at(sh, local_point, hit, local_normal);
+
+    if (sh->material->normal_pattern != NULL) {
+        sh->material->normal_pattern->pattern_at_shape(sh->material->normal_pattern, sh, local_normal, perturbed);
+        color_accumulate(local_normal, perturbed);
+    }
+
     sh->normal_to_world(sh, local_normal, world_normal);
+
     vector_normalize(world_normal, res);
 }
 
@@ -410,13 +390,14 @@ intersection_to_string(char *buf, size_t n, Intersection x)
 void
 base_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
 {
-    Point  object_point;
+    Point object_point;
+    Point pattern_point;
+    Color c;
+
     s->world_to_object(s, pt, object_point);
 
-    Point  pattern_point;
     matrix_point_multiply(p->transform_inverse, object_point, pattern_point);
 
-    Color c;
     p->pattern_at(p, s, pattern_point, c);
 
     color_copy(res, c);
@@ -474,9 +455,9 @@ nested_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
 void
 perturbed_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
 {
-    double x = pt[0] / 10.0;
-    double y = pt[1] / 10.0;
-    double z = pt[2] / 10.0;
+    double x = pt[0];
+    double y = pt[1];
+    double z = pt[2];
 
     double new_x = pt[0] + p->fields.perturbed.scale_factor *
                    pnoise3d(x, y, z,
@@ -485,7 +466,7 @@ perturbed_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
                             p->fields.perturbed.octaves,
                             p->fields.perturbed.seed);
 
-    z += 1.0;
+    if (z < 0) { z -= 1.0; } else { z += 1.0; }
     double new_y = pt[1] + p->fields.perturbed.scale_factor *
                    pnoise3d(x, y, z,
                             p->fields.perturbed.persistence,
@@ -493,7 +474,7 @@ perturbed_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
                             p->fields.perturbed.octaves,
                             p->fields.perturbed.seed);
 
-    z += 1.0;
+    if (z < 0) { z -= 1.0; } else { z += 1.0; }
     double new_z = pt[2] + p->fields.perturbed.scale_factor *
                    pnoise3d(x, y, z,
                             p->fields.perturbed.persistence,
@@ -650,6 +631,25 @@ uv_check_uv_pattern_at(Pattern p, double u, double v, Color res)
 
     color_copy(res, arr);
 }
+
+void gradient_pattern_at(Pattern p, Shape s, Point pt, Color res);
+
+void
+uv_gradient_uv_pattern_at(Pattern p, double u, double v, Color res)
+{
+    Point point = {u, v, 0.0, 1.0};
+    gradient_pattern_at(p, NULL, point, res);
+}
+
+void radial_gradient_pattern_at(Pattern p, Shape s, Point pt, Color res);
+
+void
+uv_radial_gradient_uv_pattern_at(Pattern p, double u, double v, Color res)
+{
+    Point point = {u, v, 0.0, 1.0};
+    radial_gradient_pattern_at(p, NULL, point, res);
+}
+
 
 void
 uv_texture_uv_pattern_at(Pattern p, double u, double v, Color res)
@@ -915,6 +915,30 @@ uv_check_pattern(Color a, Color b, size_t width, size_t height, Pattern res)
     res->fields.uv_check.height = height;
 
     res->uv_pattern_at = uv_check_uv_pattern_at;
+}
+
+void
+uv_gradient_pattern(Color a, Color b, Pattern res)
+{
+    default_pattern_constructor(res);
+    res->type = UV_GRADIENT_PATTERN;
+
+    color_copy(res->fields.concrete.a, a);
+    color_copy(res->fields.concrete.b, b);
+
+    res->uv_pattern_at = uv_gradient_uv_pattern_at;
+}
+
+void
+uv_radial_gradient_pattern(Color a, Color b, Pattern res)
+{
+    default_pattern_constructor(res);
+    res->type = UV_RADIAL_GRADIENT_PATTERN;
+
+    color_copy(res->fields.concrete.a, a);
+    color_copy(res->fields.concrete.b, b);
+
+    res->uv_pattern_at = uv_radial_gradient_uv_pattern_at;
 }
 
 void
