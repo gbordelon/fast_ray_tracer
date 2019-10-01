@@ -68,15 +68,15 @@ typedef struct pts {
  */
 
 
-static const double POINT_IDENTITY[4] = {
+static const Point POINT_IDENTITY = {
     0.0,0.0,0.0,1.0
 };
 
-static const double VECTOR_IDENTITY[4] = {
+static const Vector VECTOR_IDENTITY = {
     0.0,0.0,0.0,0.0
 };
 
-static const double MATRIX_IDENTITY[16] = {
+static const Matrix MATRIX_IDENTITY = {
     1.0,0.0,0.0,0.0,
     0.0,1.0,0.0,0.0,
     0.0,0.0,1.0,0.0,
@@ -90,6 +90,7 @@ static const double MATRIX_IDENTITY[16] = {
 
 #define point(x,y,z,res) (res)[0]=(x);(res)[1]=(y);(res)[2]=(z);(res)[3]=1.0
 #define vector(x,y,z,res) (res)[0]=(x);(res)[1]=(y);(res)[2]=(z);(res)[3]=0.0
+#define vector_init(x,y,z) { (x), (y), (z), 0.0 }
 
 void point_print(Point p);
 void vector_print(Vector v);

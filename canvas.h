@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 
-typedef double Color[3];
+typedef double Color[4];
 
 typedef struct canvas {
     Color *arr;
@@ -20,24 +20,26 @@ typedef struct ppm_struct {
     size_t len;
 } *Ppm;
 
-static const double BLACK[3] = {
+static const Color BLACK = {
+    0.0,
     0.0,
     0.0,
     0.0
 };
 
-static const double WHITE[3] = {
+static const Color WHITE = {
     1.0,
     1.0,
-    1.0
+    1.0,
+    0.0
 };
 
 #define color_default(c) memcpy((c), BLACK, sizeof(Color));
-#define color(r,g,b) { (r), (g), (b) }
+#define color(r,g,b) { (r), (g), (b), 0.0 }
 
 void color_accumulate(Color acc, Color other);
 void color_scale(Color acc, double scalar);
-void color_copy(Color to, Color from);
+void color_copy(Color to, const Color from);
 
 int color_to_string(char *buf, size_t n, Color c);
 

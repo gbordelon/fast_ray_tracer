@@ -49,17 +49,17 @@ hsl_to_rgb(Color hsl, Color rgb)
 
     https://www.cs.rit.edu/~ncs/color/t_convert.html
 
-  [ R ]   [  3.240479 -1.537150 -0.498535 ]   [ X ]
+   [ R ]   [  3.240479 -1.537150 -0.498535 ]   [ X ]
    [ G ] = [ -0.969256  1.875992  0.041556 ] * [ Y ]
-   [ B ]   [  0.055648 -0.204043  1.057311 ]   [ Z ].
+   [ B ]   [  0.055648 -0.204043  1.057311 ]   [ Z ]
 
 The range for valid R, G, B values is [0,1]. Note, this matrix has negative coefficients. Some XYZ color may be transformed to RGB values that are negative or greater than one. This means that not all visible colors can be produced using the RGB system.
 
 The inverse transformation matrix is as follows:
 
-   [ X ]   [  0.412453  0.357580  0.180423 ]   [ R ] **
+   [ X ]   [  0.412453  0.357580  0.180423 ]   [ R ]
    [ Y ] = [  0.212671  0.715160  0.072169 ] * [ G ]
-   [ Z ]   [  0.019334  0.119193  0.950227 ]   [ B ].
+   [ Z ]   [  0.019334  0.119193  0.950227 ]   [ B ]
 */
 void
 rgb_to_xyz(Color rgb, Color xyz)
@@ -229,7 +229,7 @@ print_color(Color c)
 }
 
 void
-color_copy(Color to, Color from)
+color_copy(Color to, const Color from)
 {
     memcpy(to, from, sizeof(Color));
 }
@@ -245,7 +245,6 @@ canvas_alloc(size_t width, size_t height)
 
     c->width = width;
     c->height = height;
-    c->depth = 3;
 
     pthread_mutex_init(&(c->write_lock), NULL);
 
@@ -350,7 +349,7 @@ construct_ppm(Canvas c, bool use_scaling)
     n = snprintf((char *)buf, header_len, "P6\n%zu %zu\n65535\n", c->width, c->height);
     // error check n
 
-    out_len = c->width * c->height * c->depth * 2 + n + 1;
+    out_len = c->width * c->height * 3 * 2 + n + 1;
     ppm = ppm_alloc(out_len);
 
     if (ppm == NULL) {
@@ -372,14 +371,14 @@ construct_ppm(Canvas c, bool use_scaling)
     if (use_scaling) {
         // iterate to find max rgb for scaling to provide to max_lab
         for (i = 0; i < c->width * c->height; i++) {
-            if (*(c->arr + i)[0] > rgb_max[0]) {
-                rgb_max[0] = *(c->arr + i)[0];
+            if ((*(c->arr + i))[0] > rgb_max[0]) {
+                rgb_max[0] = (*(c->arr + i))[0];
             }
-            if (*(c->arr + i)[1] > rgb_max[1]) {
-                rgb_max[1] = *(c->arr + i)[1];
+            if ((*(c->arr + i))[1] > rgb_max[1]) {
+                rgb_max[1] = (*(c->arr + i))[1];
             }
-            if (*(c->arr + i)[2] > rgb_max[2]) {
-                rgb_max[2] = *(c->arr + i)[2];
+            if ((*(c->arr + i))[2] > rgb_max[2]) {
+                rgb_max[2] = (*(c->arr + i))[2];
             }
         }
         lab_max[0] = 0;

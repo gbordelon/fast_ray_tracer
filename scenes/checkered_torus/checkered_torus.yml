@@ -5,14 +5,19 @@
   from: [0, 5, -10]
   to: [0, 0, 0]
   up: [0, 1, 0]
+  focal-length: 1
+  samples-per-pixel: 1
+  aperture:
+    type: [ POINT_APERTURE ]
+    jitter: false
 
 - add: light
   at: [-10, 10, -10]
   intensity: [1, 1, 1]
 
 - add: toroid
-  r1: 1
-  r2: 1
+  r1: 1.61
+  r2: 0.61
   transform:
   - [translate, 0, -0.5, 0]
   - [scale, 1, 1, 1]
@@ -22,7 +27,7 @@
       mapping: toroidal
       uv_pattern:
         type: checkers
-        width: 8
+        width: 16
         height: 8
         colors:
         - [0, 0.5, 0]

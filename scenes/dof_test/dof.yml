@@ -1,6 +1,6 @@
 - add: camera
-  width: 2400
-  height: 1200
+  width: 1200
+  height: 600
   field-of-view: 2
   from: [0, .1, -10]
   to: [0, 3, 0]
@@ -11,10 +11,10 @@
     jitter: true
     size: 0.4
 #    type: [ CIRCULAR_APERTURE, 1.0 ]
-    type: [ CROSS_APERTURE, -0.1, 0.1, -0.1, 0.1 ]
+#    type: [ CROSS_APERTURE, -0.1, 0.1, -0.1, 0.1 ]
 #    type: [ DIAMOND_APERTURE, -1, 1, -1, 1 ]
 #    type: [ DOUBLE_CIRCLE_APERTURE, 1.0, 0.5 ]
-#    type: [ POINT_APERTURE ]
+    type: [ POINT_APERTURE ]
 #    type: [ SQUARE_APERTURE ]
 
 - add: light

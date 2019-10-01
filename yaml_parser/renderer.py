@@ -131,9 +131,9 @@ class AreaLight(Light):
     Light area_light_{0} = all_lights + {0};
     Point area_light_{0}_corner = {{ {1:.10f}, {2:.10f}, {3:.10f}, 1.0}};
     Color area_light_{0}_intensity = color({4:.10f}, {5:.10f}, {6:.10f});
-    Vector area_light_{0}_uvec = vector({7:.10f}, {8:.10f}, {9:.10f});
-    Vector area_light_{0}_vvec = vector({10:.10f}, {11:.10f}, {12:.10f});
-    area_light(area_light_{0}_corner->arr, area_light_{0}_uvec->arr, {13}/*usteps*/, area_light_{0}_vvec->arr, {14}/*vsteps*/, {15}/*jitter*/, area_light_{0}_intensity->arr, area_light_{0});
+    Vector area_light_{0}_uvec = vector_init({7:.10f}, {8:.10f}, {9:.10f});
+    Vector area_light_{0}_vvec = vector_init({10:.10f}, {11:.10f}, {12:.10f});
+    area_light(area_light_{0}_corner, area_light_{0}_uvec, {13}/*usteps*/, area_light_{0}_vvec, {14}/*vsteps*/, {15}/*jitter*/, area_light_{0}_intensity, area_light_{0});
 
     /* end area light 0 */
 """.format(name,

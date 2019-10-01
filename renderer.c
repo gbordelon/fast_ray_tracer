@@ -24,37 +24,37 @@ double
 jitter_by(bool jitter)
 {
     if (jitter) {
-        return (double)rand() / (double)RAND_MAX;
+        return drand48();
     }
     return 0.5;
 }
 
 void
-area_light_point_on_light(Light l, size_t u, size_t v, Point retval)
+area_light_point_on_light(Light l, size_t u, size_t v, double u_jitter, double v_jitter, Point retval)
 {
-    double uvec[4] = {
-        l->u.area.uvec[0],
-        l->u.area.uvec[1],
-        l->u.area.uvec[2],
-        l->u.area.uvec[3]
-    };
+    Vector uvec;
+    vector_copy(uvec, l->u.area.uvec);
 
-    double vvec[4] = {
-        l->u.area.vvec[0],
-        l->u.area.vvec[1],
-        l->u.area.vvec[2],
-        l->u.area.vvec[3]
-    };
+    Vector vvec;
+    vector_copy(vvec, l->u.area.vvec);
 
-    vector_scale(uvec, u + jitter_by(l->u.area.jitter));
-    vector_scale(vvec, v + jitter_by(l->u.area.jitter));
+    vector_scale(uvec, u + u_jitter);
+    vector_scale(vvec, v + v_jitter);
 
     retval[0] = l->u.area.corner[0] + uvec[0] + vvec[0];
     retval[1] = l->u.area.corner[1] + uvec[1] + vvec[1];
     retval[2] = l->u.area.corner[2] + uvec[2] + vvec[2];
 }
 
-#define AREA_LIGHT_CACHE_SIZE 1024
+void
+double_swap(double *a, double *b)
+{
+    double tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
+#define AREA_LIGHT_CACHE_SIZE 1
 Points
 area_light_surface_points(Light light)
 {
@@ -68,7 +68,7 @@ area_light_surface_points(Light light)
             itr->points = (Point*) malloc(light->num_samples * sizeof(Point));
             for (v = 0; v < light->u.area.vsteps; v++) {
                 for (u = 0; u < light->u.area.usteps; u++) {
-                    area_light_point_on_light(light, u, v, point);
+                    area_light_point_on_light(light, u, v, jitter_by(light->u.area.jitter), jitter_by(light->u.area.jitter), point);
                     point_copy(*(itr->points + v * light->u.area.usteps + u), point);
                 }
             }
@@ -529,10 +529,43 @@ pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_
     Color c;
     Color acc = color(0.0, 0.0, 0.0);
 
+    size_t n = vsteps;
+    size_t m = usteps;
+    size_t k;
+
+    static double *canonical = NULL;
+    if (canonical == NULL) {
+        canonical = (double *) malloc(2 * vsteps * usteps * sizeof(double));
+    }
+
+    // produce canonical representation
+    for (v = 0; v < n; v++) {
+        for (u = 0; u < m; u++) {
+            canonical[2 * (v * m + u)] = (u + (v + jitter_by(jitter)) / n) / m;
+            canonical[2 * (v * m + u) + 1] = (v + (u + jitter_by(jitter)) / m) / n;
+        }
+    }
+
+    // shuffle canonical for x
+    for (v = 0; v < n; v++) {
+        k = v + jitter_by(jitter) * (n - v);
+        for (u = 0; u < m; u++) {
+            double_swap(&canonical[2 * (v * m + u)], &canonical[2 * (k * m + u)]);
+        }
+    }
+
+    // shuffle canonical for y
+    for (u = 0; u < m; u++) {
+        k = u + jitter_by(jitter) * (m - u);
+        for (v = 0; v < n; v++) {
+            double_swap(&canonical[2 * (v * m + u) + 1], &canonical[2 * (v * m + k) + 1]);
+        }
+    }
+
     for (v = 0; v < vsteps; v++) {
         for (u = 0; u < usteps; u++) {
-            x_offset = ((double)u + jitter_by(jitter)) * usteps_inv;
-            y_offset = ((double)v + jitter_by(jitter)) * vsteps_inv;
+            x_offset = ((double)u + canonical[2 * (v * m + u)]) * usteps_inv;
+            y_offset = ((double)v + canonical[2 * (v * m + u) + 1]) * vsteps_inv;
             c[0] = 0;
             c[1] = 0;
             c[2] = 0;
@@ -691,7 +724,7 @@ void
 intersections_reverse(Intersections xs)
 {
     // sort xs by xs->xs->t descending
-    mergesort((void*)xs->xs, xs->num, sizeof(struct intersection), sort_intersections_desc);
+    qsort((void*)xs->xs, xs->num, sizeof(struct intersection), sort_intersections_desc);
 }
 
 void
