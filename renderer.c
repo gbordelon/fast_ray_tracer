@@ -89,13 +89,15 @@ area_light_surface_points(Light light)
             itr->points_num = light->num_samples;
             itr->points = (Point*) malloc(light->num_samples * sizeof(Point));
             // produce canonical representation
-            for (v = 0; v < n; v++) {
-                for (u = 0; u < m; u++) {
+            for (v = 0; v < n; ++v) {
+                for (u = 0; u < m; ++u) {
+                    canonicalx[(v * m + u)] = ((double)v + jitter_by(light->u.area.jitter)) / (double)n;
+                    canonicaly[(v * m + u)] = ((double)u + jitter_by(light->u.area.jitter)) / (double)m;
                     //canonicalx[(v * m + u)] = ((double)u + ((double)v + jitter_by(light->u.area.jitter)) / (double)n) / (double)m;
                     //canonicaly[(v * m + u)] = ((double)v + ((double)u + jitter_by(light->u.area.jitter)) / (double)m) / (double)n;
 
-                    canonicalx[(v * m + u)] = jitter_by(light->u.area.jitter);
-                    canonicaly[(v * m + u)] = jitter_by(light->u.area.jitter);
+                    //canonicalx[(v * m + u)] = jitter_by(light->u.area.jitter);
+                    //canonicaly[(v * m + u)] = jitter_by(light->u.area.jitter);
 
                     //canonical[2 * (v * m + u)] = u/(double)m + (v + jitter_by(light->u.area.jitter)) / (n*m);
                     //canonical[2 * (v * m + u) + 1] = v/(double)n + (u + jitter_by(light->u.area.jitter)) / (n*m);
@@ -120,10 +122,13 @@ area_light_surface_points(Light light)
 
             for (v = 0; v < light->u.area.vsteps; v++) {
                 for (u = 0; u < light->u.area.usteps; u++) {
+                    //printf("%f %f\n", canonicalx[(v * m + u)], canonicaly[(v * m + u)]);
                     area_light_point_on_light(light, u, v, canonicalx[(v * m + u)], canonicaly[(v * m + u)], point);
-                    point_copy(*(itr->points + v * light->u.area.usteps + u), point);
+                    point_copy(*(itr->points + v * m + u), point);
                 }
+                //printf("\n");
             }
+            //printf("\n");
         }
         light->surface_points_cache = pts;
         light->surface_points_cache_len = AREA_LIGHT_CACHE_SIZE;
