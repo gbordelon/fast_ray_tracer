@@ -827,6 +827,7 @@ struct render_args {
     size_t vsteps;
     bool jitter;
     int core_id;
+    int thread_id;
 };
 
 void *
@@ -840,8 +841,10 @@ render_multi_helper(void *args)
     size_t usteps = ((struct render_args *)args)->usteps;
     size_t vsteps = ((struct render_args *)args)->vsteps;
     bool jitter = ((struct render_args *)args)->jitter;
+    int core_id = ((struct render_args *)args)->core_id;
+    int thread_id = ((struct render_args *)args)->thread_id;
 
-    stick_this_thread_to_core(((struct render_args *)args)->core_id);
+    stick_this_thread_to_core(core_id);
 
     Color c = color(0.0,0.0,0.0);
 
@@ -859,7 +862,7 @@ render_multi_helper(void *args)
             //canvas_write_pixel(image, i, j, c);
             color_copy(*(buf+i), c);
         }
-        //printf("Wrote %d rows out of %lu\n", k, y_end - y_start);
+        printf("%d: Wrote %d rows out of %lu\n", thread_id, k, y_end - y_start);
         canvas_write_pixels(image, 0, j, buf, cam->hsize);
     }
 
@@ -897,6 +900,7 @@ render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter, siz
         (args_array + i)->vsteps = vsteps;
         (args_array + i)->jitter = jitter;
         (args_array + i)->core_id = i % 4;
+        (args_array + i)->thread_id = i;
     }
 
     for (i = 0; i < num_threads; i++) {

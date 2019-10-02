@@ -1,0 +1,161 @@
+- add: config
+  thread-count: 4
+  timeout: 600 # in seconds
+  divide-threshold: 1
+  clamping: False
+
+# ======================================================
+# the camera
+# ======================================================
+
+- add: camera
+  width: 800
+  height: 800
+  field-of-view: 1.2
+  from: [ 0, 0, -2.75 ]
+  to: [ 0, 0, 0 ]
+  up: [ 0, 1, 0 ]
+  focal-length: 1.5
+  samples-per-pixel: 8
+  aperture:
+    jitter: true
+    size: 0
+    type: [ POINT_APERTURE ]
+
+# ======================================================
+# light sources
+# ======================================================
+
+#- add: light
+#  at: [ 0, 1.44, -0.4 ]
+#  intensity: [ .5, .5, .5 ]
+
+- add: light
+  corner: [-0.4, 1.44, -0.5]
+  uvec: [0.8, 0, 0]
+  vvec: [0, 0, 0.4]
+  usteps: 10
+  vsteps: 10
+  jitter: true
+  intensity: [1.0, 1.0, 1.0]
+
+# ======================================================
+# define some constants to avoid duplication
+# ======================================================
+
+- define: white-material
+  value:
+    color: [ 1, 1, 1 ]
+    diffuse: 1.0
+    ambient: 0.1
+    specular: 0.0
+    reflective: 0.0
+
+- define: blue-material
+  extend: white-material
+  value:
+    color: [ 0.537, 0.831, 0.914 ]
+
+- define: red-material
+  extend: white-material
+  value:
+    color: [ 0.941, 0.322, 0.388 ]
+
+- define: green-material
+  extend: white-material
+  value:
+    color: [ 0.373, 0.904, 0.220 ]
+
+- define: wall-transform
+  value:
+  - [ scale, 1.5, 0.1, 1.5 ]
+
+# ======================================================
+# describe the elements of the scene
+# ======================================================
+
+#- add: sphere
+#  material:
+#    color: [ 0.373, 0.404, 0.550 ]
+#    diffuse: 0.2
+#    ambient: 0.0
+#    specular: 1.0
+#    shininess: 200
+#    reflective: 0.7
+#    transparency: 0.7
+#    refractive-index: 1.5
+
+# top
+- add: cube
+  material: white-material
+  transform:
+  - wall-transform
+  - [ translate, 0, 1.55, 0 ]
+
+# back
+- add: cube
+  material: white-material
+  transform:
+  - wall-transform
+  - [ rotate-x, 1.5707963267948966 ]
+  - [ translate, 0, 0, 1.55 ]
+
+# bottom
+- add: cube
+  material: white-material
+  transform:
+  - wall-transform
+  - [ translate, 0, -1.55, 0 ]
+
+# left
+- add: cube
+  material: red-material
+  transform:
+  - wall-transform
+  - [ rotate-z, 1.5707963267948966 ]
+  - [ translate, -1.55, 0, 0 ]
+
+# right
+- add: cube
+  material: green-material
+  transform:
+  - wall-transform
+  - [ rotate-z, 1.5707963267948966 ]
+  - [ translate, 1.55, 0, 0 ]
+
+# light
+- add: cube
+  material:
+    color: [1.5, 1.5, 1.5]
+    ambient: 1
+    diffuse: 0
+    specular: 0
+    shadow: false
+  transform:
+  - [ scale, 0.4, .01, 0.2 ]
+  - [ translate, 0, 1.44, -0.3 ]
+
+- add: sphere
+  material:
+    color: [0.0, 0.0, 0.0]
+    ambient: 1
+    specular: 1
+    reflective: 1
+    shininess: 300
+  transform:
+  - [scale, 0.5, 0.5, 0.5]
+  - [translate, -0.6, -0.75, 0.5]
+
+- add: sphere
+  material:
+    color: [0.0, 0.0, 0.0]
+    ambient: 1
+    specular: 1
+    reflective: 1
+    refractive: 1
+    transparency: 1
+    refractive-index: 1.5
+    shininess: 300
+  transform:
+  - [scale, 0.5, 0.5, 0.5]
+  - [translate, 0.6, -0.75, 0.0]

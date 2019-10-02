@@ -393,12 +393,11 @@ group(Shape s, Shape children, size_t num_children)
     s->xs = intersections_empty(64);
 
     size_t array_len = DEFAULT_MIN_CHILD_LEN > num_children ? DEFAULT_MIN_CHILD_LEN : num_children;
+    s->fields.group.children = (Shape) malloc(array_len * sizeof(struct shape));
     if (num_children > 0) {
-        s->fields.group.children = (Shape) malloc(array_len * sizeof(struct shape));
         memcpy(s->fields.group.children, children, num_children * sizeof(struct shape));
-    } else {
-        s->fields.group.children = (Shape) malloc(array_len * sizeof(struct shape));
     }
+
     s->fields.group.num_children = num_children;
     s->fields.group.children_need_free = true;
     s->fields.group.size_children_array = array_len;
