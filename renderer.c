@@ -46,8 +46,8 @@ area_light_point_on_light(Light l, size_t u, size_t v, double u_jitter, double v
     Vector vvec;
     vector_copy(vvec, l->u.area.vvec);
 
-    vector_scale(uvec, u + u_jitter);
-    vector_scale(vvec, v + v_jitter);
+    vector_scale(uvec, u_jitter);
+    vector_scale(vvec, v_jitter);
 
     retval[0] = l->u.area.corner[0] + uvec[0] + vvec[0];
     retval[1] = l->u.area.corner[1] + uvec[1] + vvec[1];
@@ -88,42 +88,46 @@ area_light_surface_points(Light light)
         for (i = 0, itr = pts; i < AREA_LIGHT_CACHE_SIZE; i++, itr++) {
             itr->points_num = light->num_samples;
             itr->points = (Point*) malloc(light->num_samples * sizeof(Point));
+
             // produce canonical representation
             for (v = 0; v < n; ++v) {
                 for (u = 0; u < m; ++u) {
-                    canonicalx[(v * m + u)] = ((double)v + jitter_by(light->u.area.jitter)) / (double)n;
-                    canonicaly[(v * m + u)] = ((double)u + jitter_by(light->u.area.jitter)) / (double)m;
-                    //canonicalx[(v * m + u)] = ((double)u + ((double)v + jitter_by(light->u.area.jitter)) / (double)n) / (double)m;
-                    //canonicaly[(v * m + u)] = ((double)v + ((double)u + jitter_by(light->u.area.jitter)) / (double)m) / (double)n;
+                    //canonicalx[(v * m + u)] = ((double)v + jitter_by(light->u.area.jitter)) / (double)n;
+                    //canonicaly[(v * m + u)] = ((double)u + jitter_by(light->u.area.jitter)) / (double)m;
+                    canonicalx[(v * m + u)] = ((double)u + ((double)v + jitter_by(light->u.area.jitter)) / (double)n) / (double)m;
+                    canonicaly[(v * m + u)] = ((double)v + ((double)u + jitter_by(light->u.area.jitter)) / (double)m) / (double)n;
 
                     //canonicalx[(v * m + u)] = jitter_by(light->u.area.jitter);
                     //canonicaly[(v * m + u)] = jitter_by(light->u.area.jitter);
 
                     //canonical[2 * (v * m + u)] = u/(double)m + (v + jitter_by(light->u.area.jitter)) / (n*m);
                     //canonical[2 * (v * m + u) + 1] = v/(double)n + (u + jitter_by(light->u.area.jitter)) / (n*m);
+                    //printf("%f %f\n", canonicalx[(v * m + u)], canonicaly[(v * m + u)]);
                 }
+                //printf("\n");
             }
+            //printf("\n");
 
             // shuffle canonical for x
-            for (v = 0; v < n; v++) {
-                k = v + jitter_by(light->u.area.jitter) * (n - v);
-                for (u = 0; u < m; u++) {
+            for (v = 0; v < n; ++v) {
+                k = v + jitter_by(light->u.area.jitter) * (double)(n - v);
+                for (u = 0; u < m; ++u) {
                     double_swap(canonicalx + (v * m + u), canonicalx + (k * m + u));
                 }
             }
 
             // shuffle canonical for y
-            for (u = 0; u < m; u++) {
-                k = u + jitter_by(light->u.area.jitter) * (m - u);
-                for (v = 0; v < n; v++) {
+            for (u = 0; u < m; ++u) {
+                k = u + jitter_by(light->u.area.jitter) * (double)(m - u);
+                for (v = 0; v < n; ++v) {
                     double_swap(canonicaly + (v * m + u), canonicaly + (v * m + k));
                 }
             }
 
-            for (v = 0; v < light->u.area.vsteps; v++) {
-                for (u = 0; u < light->u.area.usteps; u++) {
+            for (v = 0; v < n; ++v) {
+                for (u = 0; u < m; ++u) {
                     //printf("%f %f\n", canonicalx[(v * m + u)], canonicaly[(v * m + u)]);
-                    area_light_point_on_light(light, u, v, canonicalx[(v * m + u)], canonicaly[(v * m + u)], point);
+                    area_light_point_on_light(light, u, v, m * canonicalx[(v * m + u)], n * canonicaly[(v * m + u)], point);
                     point_copy(*(itr->points + v * m + u), point);
                 }
                 //printf("\n");
@@ -860,7 +864,7 @@ render_multi_helper(void *args)
     Color *buf = (Color *)malloc(cam->hsize * sizeof(Color));
 
     int i, j, k;
-    for (j = y_start, k=0; j < y_end; ++j, ++k) {
+    for (j = y_start, k=1; j < y_end; ++j, ++k) {
         for (i = 0; i < cam->hsize; ++i) {
             color_default(c);
             pixel_multi_sample(cam, w, (double)i, (double)j, usteps, vsteps, jitter, c, &container);

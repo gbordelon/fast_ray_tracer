@@ -24,7 +24,7 @@
   focal-length: 1
   samples-per-pixel: 1
   aperture:
-    jitter: true
+    jitter: false
     size: 0.4
 #    type: [ CIRCULAR_APERTURE, 1.0 ]
 #    type: [ CROSS_APERTURE, -0.1, 0.1, -0.1, 0.1 ]
