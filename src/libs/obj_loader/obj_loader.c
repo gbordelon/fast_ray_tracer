@@ -3,9 +3,10 @@
 #include <string.h>
 
 #include "obj_loader.h"
-#include "shapes.h"
-#include "group.h"
-#include "triangle.h"
+
+#include "../../shapes/shapes.h"
+#include "../../shapes/group.h"
+#include "../../shapes/triangle.h"
 
 struct shape_num_tuple {
     Shape shapes;

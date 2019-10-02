@@ -24,7 +24,7 @@ void color_accumulate(Color acc, const Color other);
 void color_scale(Color acc, const double scalar);
 void color_copy(Color to, const Color from);
 
-int print_color(Color c);
+void print_color(const Color c);
 
 void rgb_to_lab(const Color rgb, Color lab);
 void lab_to_rgb(const Color lab, Color rgb);

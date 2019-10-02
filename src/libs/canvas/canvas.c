@@ -5,9 +5,11 @@
 #include <pthread.h>
 #include <stdint.h>
 
+#include "../linalg/linalg.h"
+#include "../../color/color.h"
+
 #include "canvas.h"
-#include "color.h"
-#include "linalg.h"
+
 
 #define header_len 32
 

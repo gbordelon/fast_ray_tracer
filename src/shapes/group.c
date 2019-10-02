@@ -3,10 +3,11 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "linalg.h"
-#include "group.h"
+#include "../libs/linalg/linalg.h"
+#include "../renderer/renderer.h"
+
 #include "shapes.h"
-#include "renderer.h"
+#include "group.h"
 
 
 void

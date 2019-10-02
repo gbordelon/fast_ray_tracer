@@ -13,17 +13,17 @@
 
 #include "renderer.h"
 
-#include "linalg.h"
-#include "shapes.h"
-#include "sphere.h"
-#include "plane.h"
-#include "cube.h"
-#include "cone.h"
-#include "cylinder.h"
-#include "triangle.h"
-#include "csg.h"
-#include "group.h"
-#include "toroid.h"
+#include "../libs/linalg/linalg.h"
+#include "../shapes/shapes.h"
+#include "../shapes/sphere.h"
+#include "../shapes/plane.h"
+#include "../shapes/cube.h"
+#include "../shapes/cone.h"
+#include "../shapes/cylinder.h"
+#include "../shapes/triangle.h"
+#include "../shapes/csg.h"
+#include "../shapes/group.h"
+#include "../shapes/toroid.h"
 
 void
 lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity, Color res);

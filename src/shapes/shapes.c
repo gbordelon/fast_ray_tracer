@@ -3,7 +3,7 @@
 #include <math.h>
 
 #include "shapes.h"
-#include "perlin.h"
+#include "../libs/perlin/perlin.h"
 
 void
 intersection(double t, Shape sh, Intersection x)

@@ -2,9 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../libs/linalg/linalg.h"
+#include "../libs/quartic/Roots3And4.h"
+
 #include "toroid.h"
 #include "shapes.h"
-#include "Roots3And4.h"
+
 
 Intersections
 toroid_local_intersect(Shape toroid, Ray r)

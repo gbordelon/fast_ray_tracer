@@ -1,7 +1,13 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+
+#include "../libs/linalg/linalg.h"
 #include "color.h"
 
 void
-rgb_to_hsl(Color rgb, Color hsl)
+rgb_to_hsl(const Color rgb, Color hsl)
 {
     double r = rgb[0];
     double g = rgb[1];
@@ -31,7 +37,7 @@ rgb_to_hsl(Color rgb, Color hsl)
 }
 
 void
-hsl_to_rgb(Color hsl, Color rgb)
+hsl_to_rgb(const Color hsl, Color rgb)
 {
 }
 
@@ -52,7 +58,7 @@ The inverse transformation matrix is as follows:
    [ Z ]   [  0.019334  0.119193  0.950227 ]   [ B ]
 */
 void
-rgb_to_xyz(Color rgb, Color xyz)
+rgb_to_xyz(const Color rgb, Color xyz)
 {
     int i;
     static double xform[] = {
@@ -69,7 +75,7 @@ rgb_to_xyz(Color rgb, Color xyz)
 }
 
 void
-xyz_to_rgb(Color xyz, Color rgb)
+xyz_to_rgb(const Color xyz, Color rgb)
 {
     int i;
     static double xform[] = {
@@ -104,7 +110,7 @@ static const double tristimulus_10deg[] = {
 static const double *tristimulus = tristimulus_10deg;
 
 void
-xyz_to_lab(Color xyz, Color lab)
+xyz_to_lab(const Color xyz, Color lab)
 {
     double _x = xyz[0] / tristimulus[0];
     double _y = xyz[1] / tristimulus[1];
@@ -131,7 +137,7 @@ xyz_to_lab(Color xyz, Color lab)
 }
 
 void
-lab_to_xyz(Color lab, Color xyz)
+lab_to_xyz(const Color lab, Color xyz)
 {
     double p = (lab[0] + 16.0) / 116.0;
     xyz[0] = tristimulus[0] * pow(p + lab[1] / 500.0, 3.0);
@@ -140,7 +146,7 @@ lab_to_xyz(Color lab, Color xyz)
 }
 
 void
-rgb_to_lab(Color rgb, Color lab)
+rgb_to_lab(const Color rgb, Color lab)
 {
     Color xyz;
     rgb_to_xyz(rgb, xyz);
@@ -148,7 +154,7 @@ rgb_to_lab(Color rgb, Color lab)
 }
 
 void
-lab_to_rgb(Color lab, Color rgb)
+lab_to_rgb(const Color lab, Color rgb)
 {
     Color xyz;
     lab_to_xyz(lab, xyz);
@@ -156,7 +162,7 @@ lab_to_rgb(Color lab, Color rgb)
 }
 
 int
-lab_compare_l(Color l, Color r)
+lab_compare_l(const Color l, const Color r)
 {
     if (l[0] - r[0] < 0) {
         return -1;
@@ -167,7 +173,7 @@ lab_compare_l(Color l, Color r)
 }
 
 int
-lab_compare_a(Color l, Color r)
+lab_compare_a(const Color l, const Color r)
 {
     if (l[1] - r[1] < 0) {
         return -1;
@@ -178,7 +184,7 @@ lab_compare_a(Color l, Color r)
 }
 
 int
-lab_compare_b(Color l, Color r)
+lab_compare_b(const Color l, const Color r)
 {
     if (l[2] - r[2] < 0) {
         return -1;
@@ -189,7 +195,7 @@ lab_compare_b(Color l, Color r)
 }
 
 void
-color_accumulate(Color acc, Color other)
+color_accumulate(Color acc, const Color other)
 {
     acc[0] += other[0];
     acc[1] += other[1];
@@ -197,7 +203,7 @@ color_accumulate(Color acc, Color other)
 }
 
 void
-color_scale(Color acc, double scalar)
+color_scale(Color acc, const double scalar)
 {
     acc[0] *= scalar;
     acc[1] *= scalar;
@@ -205,13 +211,13 @@ color_scale(Color acc, double scalar)
 }
 
 int
-color_to_string(char *buf, size_t n, Color c)
+color_to_string(char *buf, size_t n, const Color c)
 {
     return snprintf(buf, n, "Color: [%f %f %f]", c[0], c[1], c[2]);
 }
 
 void
-print_color(Color c)
+print_color(const Color c)
 {
     static char buf[256];
     color_to_string(buf, 256, c);

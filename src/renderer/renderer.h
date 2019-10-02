@@ -4,9 +4,9 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include "canvas.h"
-#include "linalg.h"
-#include "shapes.h"
+#include "../libs/canvas/canvas.h"
+#include "../libs/linalg/linalg.h"
+#include "../shapes/shapes.h"
 
 typedef struct world *World;
 

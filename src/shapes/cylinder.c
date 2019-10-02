@@ -3,7 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "linalg.h"
+#include "../libs/linalg/linalg.h"
+
 #include "cylinder.h"
 #include "shapes.h"
 

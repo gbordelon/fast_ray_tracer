@@ -1,15 +1,45 @@
-CC = cc
-CFLAGS = -std=c11 -pedantic -Wall -g
-DEPS = linalg.h canvas.h perlin.h shapes.h renderer.h sphere.h plane.h cube.h cone.h cylinder.h triangle.h csg.h group.h bounding_box.h toroid.h Roots3and4.h obj_loader.h
-OBJ = linalg.o main.o canvas.o perlin.o shapes.o renderer.o sphere.o plane.o cube.o cone.o cylinder.o triangle.o csg.o group.o bounding_box.o toroid.o Roots3and4.c obj_loader.o
+TOPDIR	:= .
+SRCDIR	:= $(TOPDIR)/src
+OBJDIR	:= $(TOPDIR)/obj
+#VPATH	:= $(SRCDIR)/color:$(SRCDIR)/renderer:$(SRCDIR)/shapes:$(SRCDIR)/libs/canvas:$(SRCDIR)/libs/linalg:$(SRCDIR)/libs/obj_loader:$(SRCDIR)/libs/perlin:$(SRCDIR)/libs/photon_map:$(SRCDIR)/libs/quartic:$(SRCDIR)/libs/thpool
+#VPATH	:= $(SRCDIR)
 
-%.o: %.c $(DEPS)
-	$(CC) $(CFLAGS) -c -o $@ $<
+CFILES	:= c
+OFILES	:= o
+HFILES	:= h
+CC		:= cc
+CFLAGS	:= -std=c11 -pedantic -Wall -g
+#-I$(SRCDIR)/color -I$(SRCDIR)/renderer -I$(SRCDIR)/shapes -I$(SRCDIR)/libs/canvas -I$(SRCDIR)/libs/linalg -I$(SRCDIR)/libs/obj_loader -I$(SRCDIR)/libs/perlin -I$(SRCDIR)/libs/photon_map -I$(SRCDIR)/libs/quartic:$(SRCDIR)/libs/thpool
 
-ray_tracer: $(OBJ)
+C_NAMES	:= $(shell find . -name '*.c')
+H_NAMES	:= $(shell find . -name '*.h')
+
+EXE		:= $(TOPDIR)/ray_tracer
+SOURCES	:= $(C_NAMES)
+DEPS	:= $(H_NAMES)
+OBJECTS	:= $(shell sed -e 's/.\/src/obj/g' <<< " $(C_NAMES:%.c=%.o) " )
+
+MAIN	:= main.c
+
+.PHONY: all alldefault clean exe
+
+exe: $(EXE)
+
+
+$(EXE): $(OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-all: ray_tracer
+$(OBJDIR)/%.$(OFILES): $(SRCDIR)/%.$(CFILES) $(DEPS)
+	mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(SRCDIR)/%.$(CFILES):
+	: $@
+	: $<
 
 clean:
-	rm -f *.o ray_tracer
+	rm -f $(EXE) main.o
+	rm -rf $(OBJDIR)
+
+test:
+	: $(OBJECTS)

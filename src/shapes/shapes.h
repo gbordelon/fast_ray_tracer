@@ -2,8 +2,9 @@
 #define SHAPES
 
 #include <stdbool.h>
-#include "linalg.h"
-#include "canvas.h"
+
+#include "../libs/linalg/linalg.h"
+#include "../libs/canvas/canvas.h"
 #include "bounding_box.h"
 
 enum shape_enum {

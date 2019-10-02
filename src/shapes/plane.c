@@ -1,7 +1,8 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include "linalg.h"
+#include "../libs/linalg/linalg.h"
+
 #include "plane.h"
 #include "shapes.h"
 #include "bounding_box.h"

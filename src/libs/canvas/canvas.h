@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 
-#include "color.h"
+#include "../../color/color.h"
 
 typedef struct canvas {
     Color *arr;
