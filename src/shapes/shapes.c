@@ -4,6 +4,8 @@
 
 #include "../libs/linalg/linalg.h"
 #include "../pattern/pattern.h"
+#include "../renderer/ray.h"
+
 #include "shapes.h"
 
 void

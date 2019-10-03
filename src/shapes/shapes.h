@@ -6,6 +6,7 @@
 #include "../libs/linalg/linalg.h"
 #include "../libs/canvas/canvas.h"
 #include "../renderer/renderer.h"
+#include "../renderer/ray.h"
 #include "../intersection/intersection.h"
 
 #include "bounding_box.h"
@@ -94,7 +95,6 @@ struct triangle_fields {
     } u_normals;
 };
 
-typedef struct ray *Ray;
 typedef struct bbox *Bounding_box; 
 
 typedef struct shape {

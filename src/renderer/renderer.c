@@ -29,31 +29,11 @@
 #include "renderer.h"
 #include "world.h"
 #include "camera.h"
+#include "ray.h"
 
 void color_at(const World w, const Ray r, const size_t remaining, Color res, struct container *container);
 void lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity, Color res);
 
-void
-ray_array(Point origin, Vector direction, Ray ray)
-{
-    point_copy(ray->origin, origin);
-    vector_copy(ray->direction, direction);
-}
-
-void
-ray_transform(Ray original, Matrix m, Ray res)
-{
-    matrix_point_multiply(m, original->origin, res->origin);
-    matrix_vector_multiply(m, original->direction, res->direction);
-}
-
-int
-ray_to_string(char *buf, size_t n, Ray r)
-{
-    return snprintf(buf, n, "Point: [%f %f %f] Vector: [%f %f %f]",
-                    r->origin[0], r->origin[1], r->origin[2],
-                    r->direction[0], r->direction[1], r->direction[2]);
-}
 
 bool
 is_shadowed(World w, Point light_position, Point pt)
@@ -411,22 +391,13 @@ color_at(const World w, const Ray r, const size_t remaining, Color res, struct c
 
 
 void
-position(Ray ray, double t, Point position)
-{
-    point_copy(position, ray->origin);
-    position[0] += ray->direction[0] * t;
-    position[1] += ray->direction[1] * t;
-    position[2] += ray->direction[2] * t;
-}
-
-void
 prepare_computations(Intersection i, Ray r, Intersections xs, Computations res, struct container *container)
 {
     res->t = i->t;
 
     res->obj = i->object;
 
-    position(r, i->t, res->p);
+    ray_position(r, i->t, res->p);
 
     i->object->normal_at(i->object, res->p, i, res->normalv);
 
