@@ -244,7 +244,8 @@ class UVPattern(object):
     fflush(stdout);
     uv_texture_pattern(construct_canvas_from_ppm_file("{1}"), {0});
     printf("Done!\\n");
-    fflush(stdout);""".format(name, ppm_file_path)
+    fflush(stdout);
+""".format(name, ppm_file_path)
         else:
             raise ValueError('Unable to parse uv pattern type: {}'.format(typ))
 

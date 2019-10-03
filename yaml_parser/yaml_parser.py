@@ -151,6 +151,7 @@ def world_objects_to_c_file(obj):
 #include "src/renderer/renderer.h"
 #include "src/renderer/camera.h"
 #include "src/renderer/world.h"
+#include "src/pattern/pattern.h"
 #include "src/shapes/shapes.h"
 #include "src/shapes/cone.h"
 #include "src/shapes/csg.h"
@@ -170,7 +171,11 @@ int main()
 {4}
     Shape world_group = array_of_shapes(1);
     group(world_group, all_shapes, {5});
+    printf("Balancing scene...");
+    fflush(stdout);
     world_group->divide(world_group, divide_threshold);
+    printf("Done!\\n");
+    fflush(stdout);
 
     World w = world();
     w->lights = all_lights;

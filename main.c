@@ -2,180 +2,866 @@
 #include <string.h>
 #include <stdbool.h>
 #include <math.h>
+#include <unistd.h>
 
-#include "linalg.h"
-#include "canvas.h"
-#include "renderer.h"
-#include "shapes.h"
+#include "src/libs/canvas/canvas.h"
+#include "src/libs/linalg/linalg.h"
+#include "src/libs/obj_loader/obj_loader.h"
+#include "src/renderer/renderer.h"
+#include "src/renderer/camera.h"
+#include "src/renderer/world.h"
+#include "src/pattern/pattern.h"
+#include "src/shapes/shapes.h"
+#include "src/shapes/cone.h"
+#include "src/shapes/csg.h"
+#include "src/shapes/cube.h"
+#include "src/shapes/cylinder.h"
+#include "src/shapes/group.h"
+#include "src/shapes/plane.h"
+#include "src/shapes/sphere.h"
+#include "src/shapes/triangle.h"
+#include "src/shapes/toroid.h"
 
-void
-matrix_print_helper(Matrix m, const char * name) {
-    static char str_buf[256];
-    matrix_to_string(str_buf, sizeof(str_buf), m);
-    printf("%s: %s\n", name, str_buf);
-}
-
-void
-point_print_helper(Point p, const char * name) {
-    static char str_buf[256];
-    point_to_string(str_buf, sizeof(str_buf), p);
-    printf("%s: %s\n", name, str_buf);
-}
-
-void
-vector_print_helper(Vector v, const char * name) {
-    static char str_buf[256];
-    vector_to_string(str_buf, sizeof(str_buf), v);
-    printf("%s: %s\n", name, str_buf);
-}
-
-
-Canvas
-generate_test_image()
+int main()
 {
-    Canvas c = canvas_alloc(500, 100);
-    Color color = color_default();
+    /* config */
+    size_t thread_count = 4;
+//    size_t timeout = 30;
+    size_t divide_threshold = 1;
+//    bool clamping = false;
+    /* end config */
 
-    int i, j;
-    for (i = 0; i < c->width; i += 1) {
-        for (j = 0; j < c->height; j += 1) {
-            color->arr[0] = (double)i * (double)j/ 50000.0;
-            color->arr[2] = 1.0 - color->arr[0];
-            printf("%f %f %f\n", color->arr[0], color->arr[1], color->arr[2]);
-            canvas_write_pixel(c, i, j, color);
-        }
-    }
+    /* camera */
+    struct aperture ap;
+    aperture(POINT_APERTURE, 0.0, false, &ap);
 
-    color_free(color);
-    return c;
-}
+    Point from = { 0.0000000000, 2.5000000000, -10.0000000000, 1.0 };
+    Point to = { 0.0000000000, 1.0000000000, 0.0000000000, 1.0 };
+    Vector up = { 0.0000000000, 1.0000000000, 0.0000000000, 0.0 };
+    Matrix camera_xform;
+    view_transform(from, to, up, camera_xform);
 
-int
-main()
-{
-/*
-    Vector v1 = vector(1.0,2.0,3.0);
-    Point p1 = point(1.0, 2.2, 0.3);
-    Point p2 = point(0.0,0.5,0.5);
-    Vector v2 = vector_from_points_alloc(p1, p2);
+    Camera cam = camera(1200, 480, 1.2000000000/*field_of_view*/, 1.0000000000/*distance*/, &ap, 1/*sample_num*/, camera_xform);
 
-    vector_print_helper(v1, "v1");
-    vector_print_helper(v2, "v2");
-    point_print_helper(p1, "p1");
+    /* end camera */
 
-    printf("v1 magnitude: %f\n", vector_magnitude(v1));
+    /* lights */
+    Light all_lights = array_of_lights(4);
 
-    Vector v3 = vector_normalize_alloc(v1);
-    vector_print_helper(v3, "v1 normalize alloc");
+    /* point light 0 */
+    Light point_light_0 = all_lights + 0;
+    Point point_light_0_point = { -10.0000000000, 100.0000000000, -100.0000000000, 1.0 };
+    Color point_light_0_intensity = color(0.8000000000, 0.8000000000, 0.8000000000);
+    point_light(point_light_0_point, point_light_0_intensity, point_light_0);
 
-    printf("v1 dot v2: %f\n", vector_dot(v1, v2));
+    /* end point light 0 */
+    /* point light 1 */
+    Light point_light_1 = all_lights + 1;
+    Point point_light_1_point = { 0.0000000000, 100.0000000000, 0.0000000000, 1.0 };
+    Color point_light_1_intensity = color(0.1000000000, 0.1000000000, 0.1000000000);
+    point_light(point_light_1_point, point_light_1_intensity, point_light_1);
 
-    Vector v4 = vector_cross_alloc(v1, v2);
-    vector_print_helper(v4, "v1 cross v2");
+    /* end point light 1 */
+    /* point light 2 */
+    Light point_light_2 = all_lights + 2;
+    Point point_light_2_point = { 100.0000000000, 10.0000000000, -25.0000000000, 1.0 };
+    Color point_light_2_intensity = color(0.2000000000, 0.2000000000, 0.2000000000);
+    point_light(point_light_2_point, point_light_2_intensity, point_light_2);
 
-    v2 = vector_default();
-    vector_normalize(v1, v2);
-    vector_print_helper(v2, "v1 normalize");
+    /* end point light 2 */
+    /* point light 3 */
+    Light point_light_3 = all_lights + 3;
+    Point point_light_3_point = { -100.0000000000, 10.0000000000, -25.0000000000, 1.0 };
+    Color point_light_3_intensity = color(0.2000000000, 0.2000000000, 0.2000000000);
+    point_light(point_light_3_point, point_light_3_intensity, point_light_3);
 
-    Matrix m0 = matrix_default();
+    /* end point light 3 */
 
-    matrix_identity(m0);
-    matrix_print_helper(m0, "m1");
+    /* end lights */
 
-    matrix_translate(1,2,3, m0);
-    matrix_print_helper(m0, "m2");
+    /* shapes */
+    Shape all_shapes = array_of_shapes(6);
 
-    Matrix m3 = matrix_scale_alloc(1,2,3);
-    matrix_print_helper(m3, "m3");
+    /* shape 0 */
 
-    m0 = matrix_default();
-    matrix_rotate_x(M_PI_4, m0);
-    matrix_print_helper(m0, "m4");
+    /* children for 0 */
+    Shape shape_0_children = array_of_shapes(2);
 
-    matrix_identity(m0);
-    matrix_rotate_y(M_PI_4, m0);
-    matrix_print_helper(m0, "m5");
-
-    matrix_identity(m0);
-    matrix_rotate_z(M_PI_4, m0);
-    matrix_print_helper(m0, "m6");
-
-    matrix_identity(m0);
-    matrix_shear(2,4,6,8,10,12, m0);
-    matrix_print_helper(m0, "m7");
-
-    matrix_identity(m0);
-    matrix_rotate_z(M_PI_4, m0);
-    matrix_print_helper(m0, "m8");
-
-    Matrix m9 = matrix_transpose_alloc(m0);
-    matrix_print_helper(m9, "m9");
-
-    matrix(-5,2,6,-8, 1,-5,1,8, 7,7,-6,-7, 1,-3,7,4, m0);
-    matrix_inverse(m0, m9);
-    matrix_print_helper(m9, "identity inverse");
-
-    matrix(3,-9,7,3, 3,-8,2,-9, -4,4,4,1, -6,5,-1,1, m0);
-    matrix(8,2,2,2, 3,-1,7,0, 7,0,5,4, 6,-2,0,5, m9);
-    Matrix m9_inv = matrix_inverse_alloc(m9);
-    Matrix prod = matrix_multiply_alloc(m0,m9);
-    Matrix prod2 = matrix_multiply_alloc(prod, m9_inv);
-    matrix_print_helper(m0, "a");
-    matrix_print_helper(m9, "b");
-    matrix_print_helper(m9_inv, "b_inv");
-    matrix_print_helper(prod, "c");
-    matrix_print_helper(prod2, "d");
-    printf("compare a,d: %d\n", matrix_equal(m0,prod2));
     
-*/
-//    Canvas c = construct_canvas_from_ppm_file("/tmp/myfile2.ppm");
-//    Canvas c = generate_test_image();
+    Pattern pattern_0_child_0 = NULL;
 
-/*    Point from = point(0.8,0.5,-.8);
-    Point to = point(0,0.3,0);
-    Vector up = vector(0, 1, 0);
-    Camera cam = camera(6, 5, M_PI/40.0, view_transform(from, to, up));
-*/
-    Point from = point(-2,2.2,-3);
-    Point to = point(0,0,0);
-    Vector up = vector(0, 1, 0);
-    Camera cam = camera(400, 400, 1/*field_of_view*/, 0/*aperture*/, 1/*distance*/, POINT_APERTURE, 1/*sample_num*/, view_transform(from, to, up));
+    Material material_0_child_0 = material_alloc();
+    material_0_child_0->color[0] = 0.2000000000;
+    material_0_child_0->color[1] = 0.2000000000;
+    material_0_child_0->color[2] = 0.2000000000;
+    material_0_child_0->ambient = 0.0000000000;
+    material_0_child_0->diffuse = 0.8000000000;
+    material_0_child_0->specular = 0.0000000000;
+    material_0_child_0->shininess = 200.0000000000;
+    material_0_child_0->reflective = 0.2000000000;
+    material_0_child_0->transparency = 0.0000000000;
+    material_0_child_0->refractive_index = 1.0000000000;
+    material_0_child_0->casts_shadow = true;
+    material_0_child_0->pattern = pattern_0_child_0;
 
-    point_free(from);
-    point_free(to);
-    vector_free(up);
+    Matrix transform_0_child_0;
+    matrix_identity(transform_0_child_0);
+    Shape shape_0_child_0 = shape_0_children + 0;
+    cylinder(shape_0_child_0);
+    shape_set_material(shape_0_child_0, material_0_child_0);
+    shape_set_transform(shape_0_child_0, transform_0_child_0);
+    shape_0_child_0->fields.cylinder.minimum = -0.1500000000;
+    shape_0_child_0->fields.cylinder.maximum = 0.0000000000;
+    shape_0_child_0->fields.cylinder.closed = true;
 
-    World w = default_world();
 
-    Canvas c = render(cam, w, 1/*usteps*/, 1/*vsteps*/, false/*jitter*/);
+    
+    /* children for 0_child_1 */
+    Shape shape_0_child_1_children = array_of_shapes(2);
 
+    Pattern pattern_0_child_1_child_0 = NULL;
+
+    Material material_0_child_1_child_0 = material_alloc();
+    material_0_child_1_child_0->color[0] = 1.0000000000;
+    material_0_child_1_child_0->color[1] = 0.0000000000;
+    material_0_child_1_child_0->color[2] = 0.1000000000;
+    material_0_child_1_child_0->ambient = 0.1000000000;
+    material_0_child_1_child_0->diffuse = 0.6000000000;
+    material_0_child_1_child_0->specular = 0.3000000000;
+    material_0_child_1_child_0->shininess = 15.0000000000;
+    material_0_child_1_child_0->reflective = 0.0000000000;
+    material_0_child_1_child_0->transparency = 0.0000000000;
+    material_0_child_1_child_0->refractive_index = 1.0000000000;
+    material_0_child_1_child_0->casts_shadow = true;
+    material_0_child_1_child_0->pattern = pattern_0_child_1_child_0;
+
+    Matrix transform_0_child_1_child_0, transform_0_child_1_child_0_tmp;
+    matrix_identity(transform_0_child_1_child_0);
+    matrix_translate(0.0000000000, 0.1217000000, 0.0000000000, transform_0_child_1_child_0_tmp);
+    transform_chain(transform_0_child_1_child_0_tmp, transform_0_child_1_child_0);
+    matrix_scale(0.2680000000, 0.2680000000, 0.2680000000, transform_0_child_1_child_0_tmp);
+    transform_chain(transform_0_child_1_child_0_tmp, transform_0_child_1_child_0);
+
+    Shape shape_0_child_1_child_0 = shape_0_child_1_children + 0;
+    
+    if (access("scenes/bounding_boxes/dragon.obj", F_OK ) == -1 ) {
+        printf("file 'scenes/bounding_boxes/dragon.obj' does not exist.");
+        return 1;
+    }
+    printf("Loading resource 'scenes/bounding_boxes/dragon.obj'... ");
+    fflush(stdout);
+    construct_group_from_obj_file("scenes/bounding_boxes/dragon.obj", shape_0_child_1_child_0);
+    printf("Done!\n");
+    fflush(stdout);
+    shape_set_material_recursive(shape_0_child_1_child_0, material_0_child_1_child_0);
+    shape_set_transform(shape_0_child_1_child_0, transform_0_child_1_child_0);
+
+
+    
+    Pattern pattern_0_child_1_child_1 = NULL;
+
+    Material material_0_child_1_child_1 = material_alloc();
+    material_0_child_1_child_1->color[0] = 1.0000000000;
+    material_0_child_1_child_1->color[1] = 1.0000000000;
+    material_0_child_1_child_1->color[2] = 1.0000000000;
+    material_0_child_1_child_1->ambient = 0.0000000000;
+    material_0_child_1_child_1->diffuse = 0.4000000000;
+    material_0_child_1_child_1->specular = 0.0000000000;
+    material_0_child_1_child_1->shininess = 200.0000000000;
+    material_0_child_1_child_1->reflective = 0.0000000000;
+    material_0_child_1_child_1->transparency = 0.6000000000;
+    material_0_child_1_child_1->refractive_index = 1.0000000000;
+    material_0_child_1_child_1->casts_shadow = false;
+    material_0_child_1_child_1->pattern = pattern_0_child_1_child_1;
+
+    Matrix transform_0_child_1_child_1, transform_0_child_1_child_1_tmp;
+    matrix_identity(transform_0_child_1_child_1);
+    matrix_translate(1.0000000000, 1.0000000000, 1.0000000000, transform_0_child_1_child_1_tmp);
+    transform_chain(transform_0_child_1_child_1_tmp, transform_0_child_1_child_1);
+    matrix_scale(3.7333500000, 2.5845000000, 1.6283000000, transform_0_child_1_child_1_tmp);
+    transform_chain(transform_0_child_1_child_1_tmp, transform_0_child_1_child_1);
+    matrix_translate(-3.9863000000, -0.1217000000, -1.1820000000, transform_0_child_1_child_1_tmp);
+    transform_chain(transform_0_child_1_child_1_tmp, transform_0_child_1_child_1);
+    matrix_translate(0.0000000000, 0.1216900000, 0.0000000000, transform_0_child_1_child_1_tmp);
+    transform_chain(transform_0_child_1_child_1_tmp, transform_0_child_1_child_1);
+    matrix_scale(0.2680000000, 0.2680000000, 0.2680000000, transform_0_child_1_child_1_tmp);
+    transform_chain(transform_0_child_1_child_1_tmp, transform_0_child_1_child_1);
+
+    Shape shape_0_child_1_child_1 = shape_0_child_1_children + 1;
+    cube(shape_0_child_1_child_1);
+    shape_set_material(shape_0_child_1_child_1, material_0_child_1_child_1);
+    shape_set_transform(shape_0_child_1_child_1, transform_0_child_1_child_1);
+
+    /* end children for 0_child_1 */
+
+    Matrix transform_0_child_1;
+    matrix_identity(transform_0_child_1);
+    Shape shape_0_child_1 = shape_0_children + 1;
+    group(shape_0_child_1, shape_0_child_1_children, 2);
+    shape_free(shape_0_child_1_children);
+    shape_set_transform(shape_0_child_1, transform_0_child_1);
+
+    /* end children for 0 */
+
+    Matrix transform_0;
+    matrix_translate(0.0000000000, 2.0000000000, 0.0000000000, transform_0);
+    Shape shape_0 = all_shapes + 0;
+    group(shape_0, shape_0_children, 2);
+    shape_free(shape_0_children);
+    shape_set_transform(shape_0, transform_0);
+
+    /* end shape 0 */
+    /* shape 1 */
+
+    /* children for 1 */
+    Shape shape_1_children = array_of_shapes(2);
+
+    
+    Pattern pattern_1_child_0 = NULL;
+
+    Material material_1_child_0 = material_alloc();
+    material_1_child_0->color[0] = 0.2000000000;
+    material_1_child_0->color[1] = 0.2000000000;
+    material_1_child_0->color[2] = 0.2000000000;
+    material_1_child_0->ambient = 0.0000000000;
+    material_1_child_0->diffuse = 0.8000000000;
+    material_1_child_0->specular = 0.0000000000;
+    material_1_child_0->shininess = 200.0000000000;
+    material_1_child_0->reflective = 0.2000000000;
+    material_1_child_0->transparency = 0.0000000000;
+    material_1_child_0->refractive_index = 1.0000000000;
+    material_1_child_0->casts_shadow = true;
+    material_1_child_0->pattern = pattern_1_child_0;
+
+    Matrix transform_1_child_0;
+    matrix_identity(transform_1_child_0);
+    Shape shape_1_child_0 = shape_1_children + 0;
+    cylinder(shape_1_child_0);
+    shape_set_material(shape_1_child_0, material_1_child_0);
+    shape_set_transform(shape_1_child_0, transform_1_child_0);
+    shape_1_child_0->fields.cylinder.minimum = -0.1500000000;
+    shape_1_child_0->fields.cylinder.maximum = 0.0000000000;
+    shape_1_child_0->fields.cylinder.closed = true;
+
+
+    
+    /* children for 1_child_1 */
+    Shape shape_1_child_1_children = array_of_shapes(2);
+
+    Pattern pattern_1_child_1_child_0 = NULL;
+
+    Material material_1_child_1_child_0 = material_alloc();
+    material_1_child_1_child_0->color[0] = 1.0000000000;
+    material_1_child_1_child_0->color[1] = 0.5000000000;
+    material_1_child_1_child_0->color[2] = 0.1000000000;
+    material_1_child_1_child_0->ambient = 0.1000000000;
+    material_1_child_1_child_0->diffuse = 0.6000000000;
+    material_1_child_1_child_0->specular = 0.3000000000;
+    material_1_child_1_child_0->shininess = 15.0000000000;
+    material_1_child_1_child_0->reflective = 0.0000000000;
+    material_1_child_1_child_0->transparency = 0.0000000000;
+    material_1_child_1_child_0->refractive_index = 1.0000000000;
+    material_1_child_1_child_0->casts_shadow = true;
+    material_1_child_1_child_0->pattern = pattern_1_child_1_child_0;
+
+    Matrix transform_1_child_1_child_0, transform_1_child_1_child_0_tmp;
+    matrix_identity(transform_1_child_1_child_0);
+    matrix_translate(0.0000000000, 0.1217000000, 0.0000000000, transform_1_child_1_child_0_tmp);
+    transform_chain(transform_1_child_1_child_0_tmp, transform_1_child_1_child_0);
+    matrix_scale(0.2680000000, 0.2680000000, 0.2680000000, transform_1_child_1_child_0_tmp);
+    transform_chain(transform_1_child_1_child_0_tmp, transform_1_child_1_child_0);
+
+    Shape shape_1_child_1_child_0 = shape_1_child_1_children + 0;
+    
+    if (access("scenes/bounding_boxes/dragon.obj", F_OK ) == -1 ) {
+        printf("file 'scenes/bounding_boxes/dragon.obj' does not exist.");
+        return 1;
+    }
+    printf("Loading resource 'scenes/bounding_boxes/dragon.obj'... ");
+    fflush(stdout);
+    construct_group_from_obj_file("scenes/bounding_boxes/dragon.obj", shape_1_child_1_child_0);
+    printf("Done!\n");
+    fflush(stdout);
+    shape_set_material_recursive(shape_1_child_1_child_0, material_1_child_1_child_0);
+    shape_set_transform(shape_1_child_1_child_0, transform_1_child_1_child_0);
+
+
+    
+    Pattern pattern_1_child_1_child_1 = NULL;
+
+    Material material_1_child_1_child_1 = material_alloc();
+    material_1_child_1_child_1->color[0] = 1.0000000000;
+    material_1_child_1_child_1->color[1] = 1.0000000000;
+    material_1_child_1_child_1->color[2] = 1.0000000000;
+    material_1_child_1_child_1->ambient = 0.0000000000;
+    material_1_child_1_child_1->diffuse = 0.2000000000;
+    material_1_child_1_child_1->specular = 0.0000000000;
+    material_1_child_1_child_1->shininess = 200.0000000000;
+    material_1_child_1_child_1->reflective = 0.0000000000;
+    material_1_child_1_child_1->transparency = 0.8000000000;
+    material_1_child_1_child_1->refractive_index = 1.0000000000;
+    material_1_child_1_child_1->casts_shadow = false;
+    material_1_child_1_child_1->pattern = pattern_1_child_1_child_1;
+
+    Matrix transform_1_child_1_child_1, transform_1_child_1_child_1_tmp;
+    matrix_identity(transform_1_child_1_child_1);
+    matrix_translate(1.0000000000, 1.0000000000, 1.0000000000, transform_1_child_1_child_1_tmp);
+    transform_chain(transform_1_child_1_child_1_tmp, transform_1_child_1_child_1);
+    matrix_scale(3.7333500000, 2.5845000000, 1.6283000000, transform_1_child_1_child_1_tmp);
+    transform_chain(transform_1_child_1_child_1_tmp, transform_1_child_1_child_1);
+    matrix_translate(-3.9863000000, -0.1217000000, -1.1820000000, transform_1_child_1_child_1_tmp);
+    transform_chain(transform_1_child_1_child_1_tmp, transform_1_child_1_child_1);
+    matrix_translate(0.0000000000, 0.1216900000, 0.0000000000, transform_1_child_1_child_1_tmp);
+    transform_chain(transform_1_child_1_child_1_tmp, transform_1_child_1_child_1);
+    matrix_scale(0.2680000000, 0.2680000000, 0.2680000000, transform_1_child_1_child_1_tmp);
+    transform_chain(transform_1_child_1_child_1_tmp, transform_1_child_1_child_1);
+
+    Shape shape_1_child_1_child_1 = shape_1_child_1_children + 1;
+    cube(shape_1_child_1_child_1);
+    shape_set_material(shape_1_child_1_child_1, material_1_child_1_child_1);
+    shape_set_transform(shape_1_child_1_child_1, transform_1_child_1_child_1);
+
+    /* end children for 1_child_1 */
+
+    Matrix transform_1_child_1, transform_1_child_1_tmp;
+    matrix_identity(transform_1_child_1);
+    matrix_rotate_y(4.0000000000, transform_1_child_1_tmp);
+    transform_chain(transform_1_child_1_tmp, transform_1_child_1);
+    matrix_scale(0.7500000000, 0.7500000000, 0.7500000000, transform_1_child_1_tmp);
+    transform_chain(transform_1_child_1_tmp, transform_1_child_1);
+
+    Shape shape_1_child_1 = shape_1_children + 1;
+    group(shape_1_child_1, shape_1_child_1_children, 2);
+    shape_free(shape_1_child_1_children);
+    shape_set_transform(shape_1_child_1, transform_1_child_1);
+
+    /* end children for 1 */
+
+    Matrix transform_1;
+    matrix_translate(2.0000000000, 1.0000000000, -1.0000000000, transform_1);
+    Shape shape_1 = all_shapes + 1;
+    group(shape_1, shape_1_children, 2);
+    shape_free(shape_1_children);
+    shape_set_transform(shape_1, transform_1);
+
+    /* end shape 1 */
+    /* shape 2 */
+
+    /* children for 2 */
+    Shape shape_2_children = array_of_shapes(2);
+
+    
+    Pattern pattern_2_child_0 = NULL;
+
+    Material material_2_child_0 = material_alloc();
+    material_2_child_0->color[0] = 0.2000000000;
+    material_2_child_0->color[1] = 0.2000000000;
+    material_2_child_0->color[2] = 0.2000000000;
+    material_2_child_0->ambient = 0.0000000000;
+    material_2_child_0->diffuse = 0.8000000000;
+    material_2_child_0->specular = 0.0000000000;
+    material_2_child_0->shininess = 200.0000000000;
+    material_2_child_0->reflective = 0.2000000000;
+    material_2_child_0->transparency = 0.0000000000;
+    material_2_child_0->refractive_index = 1.0000000000;
+    material_2_child_0->casts_shadow = true;
+    material_2_child_0->pattern = pattern_2_child_0;
+
+    Matrix transform_2_child_0;
+    matrix_identity(transform_2_child_0);
+    Shape shape_2_child_0 = shape_2_children + 0;
+    cylinder(shape_2_child_0);
+    shape_set_material(shape_2_child_0, material_2_child_0);
+    shape_set_transform(shape_2_child_0, transform_2_child_0);
+    shape_2_child_0->fields.cylinder.minimum = -0.1500000000;
+    shape_2_child_0->fields.cylinder.maximum = 0.0000000000;
+    shape_2_child_0->fields.cylinder.closed = true;
+
+
+    
+    /* children for 2_child_1 */
+    Shape shape_2_child_1_children = array_of_shapes(2);
+
+    Pattern pattern_2_child_1_child_0 = NULL;
+
+    Material material_2_child_1_child_0 = material_alloc();
+    material_2_child_1_child_0->color[0] = 0.9000000000;
+    material_2_child_1_child_0->color[1] = 0.5000000000;
+    material_2_child_1_child_0->color[2] = 0.1000000000;
+    material_2_child_1_child_0->ambient = 0.1000000000;
+    material_2_child_1_child_0->diffuse = 0.6000000000;
+    material_2_child_1_child_0->specular = 0.3000000000;
+    material_2_child_1_child_0->shininess = 15.0000000000;
+    material_2_child_1_child_0->reflective = 0.0000000000;
+    material_2_child_1_child_0->transparency = 0.0000000000;
+    material_2_child_1_child_0->refractive_index = 1.0000000000;
+    material_2_child_1_child_0->casts_shadow = true;
+    material_2_child_1_child_0->pattern = pattern_2_child_1_child_0;
+
+    Matrix transform_2_child_1_child_0, transform_2_child_1_child_0_tmp;
+    matrix_identity(transform_2_child_1_child_0);
+    matrix_translate(0.0000000000, 0.1217000000, 0.0000000000, transform_2_child_1_child_0_tmp);
+    transform_chain(transform_2_child_1_child_0_tmp, transform_2_child_1_child_0);
+    matrix_scale(0.2680000000, 0.2680000000, 0.2680000000, transform_2_child_1_child_0_tmp);
+    transform_chain(transform_2_child_1_child_0_tmp, transform_2_child_1_child_0);
+
+    Shape shape_2_child_1_child_0 = shape_2_child_1_children + 0;
+    
+    if (access("scenes/bounding_boxes/dragon.obj", F_OK ) == -1 ) {
+        printf("file 'scenes/bounding_boxes/dragon.obj' does not exist.");
+        return 1;
+    }
+    printf("Loading resource 'scenes/bounding_boxes/dragon.obj'... ");
+    fflush(stdout);
+    construct_group_from_obj_file("scenes/bounding_boxes/dragon.obj", shape_2_child_1_child_0);
+    printf("Done!\n");
+    fflush(stdout);
+    shape_set_material_recursive(shape_2_child_1_child_0, material_2_child_1_child_0);
+    shape_set_transform(shape_2_child_1_child_0, transform_2_child_1_child_0);
+
+
+    
+    Pattern pattern_2_child_1_child_1 = NULL;
+
+    Material material_2_child_1_child_1 = material_alloc();
+    material_2_child_1_child_1->color[0] = 1.0000000000;
+    material_2_child_1_child_1->color[1] = 1.0000000000;
+    material_2_child_1_child_1->color[2] = 1.0000000000;
+    material_2_child_1_child_1->ambient = 0.0000000000;
+    material_2_child_1_child_1->diffuse = 0.2000000000;
+    material_2_child_1_child_1->specular = 0.0000000000;
+    material_2_child_1_child_1->shininess = 200.0000000000;
+    material_2_child_1_child_1->reflective = 0.0000000000;
+    material_2_child_1_child_1->transparency = 0.8000000000;
+    material_2_child_1_child_1->refractive_index = 1.0000000000;
+    material_2_child_1_child_1->casts_shadow = false;
+    material_2_child_1_child_1->pattern = pattern_2_child_1_child_1;
+
+    Matrix transform_2_child_1_child_1, transform_2_child_1_child_1_tmp;
+    matrix_identity(transform_2_child_1_child_1);
+    matrix_translate(1.0000000000, 1.0000000000, 1.0000000000, transform_2_child_1_child_1_tmp);
+    transform_chain(transform_2_child_1_child_1_tmp, transform_2_child_1_child_1);
+    matrix_scale(3.7333500000, 2.5845000000, 1.6283000000, transform_2_child_1_child_1_tmp);
+    transform_chain(transform_2_child_1_child_1_tmp, transform_2_child_1_child_1);
+    matrix_translate(-3.9863000000, -0.1217000000, -1.1820000000, transform_2_child_1_child_1_tmp);
+    transform_chain(transform_2_child_1_child_1_tmp, transform_2_child_1_child_1);
+    matrix_translate(0.0000000000, 0.1216900000, 0.0000000000, transform_2_child_1_child_1_tmp);
+    transform_chain(transform_2_child_1_child_1_tmp, transform_2_child_1_child_1);
+    matrix_scale(0.2680000000, 0.2680000000, 0.2680000000, transform_2_child_1_child_1_tmp);
+    transform_chain(transform_2_child_1_child_1_tmp, transform_2_child_1_child_1);
+
+    Shape shape_2_child_1_child_1 = shape_2_child_1_children + 1;
+    cube(shape_2_child_1_child_1);
+    shape_set_material(shape_2_child_1_child_1, material_2_child_1_child_1);
+    shape_set_transform(shape_2_child_1_child_1, transform_2_child_1_child_1);
+
+    /* end children for 2_child_1 */
+
+    Matrix transform_2_child_1, transform_2_child_1_tmp;
+    matrix_identity(transform_2_child_1);
+    matrix_rotate_y(-0.4000000000, transform_2_child_1_tmp);
+    transform_chain(transform_2_child_1_tmp, transform_2_child_1);
+    matrix_scale(0.7500000000, 0.7500000000, 0.7500000000, transform_2_child_1_tmp);
+    transform_chain(transform_2_child_1_tmp, transform_2_child_1);
+
+    Shape shape_2_child_1 = shape_2_children + 1;
+    group(shape_2_child_1, shape_2_child_1_children, 2);
+    shape_free(shape_2_child_1_children);
+    shape_set_transform(shape_2_child_1, transform_2_child_1);
+
+    /* end children for 2 */
+
+    Matrix transform_2;
+    matrix_translate(-2.0000000000, 0.7500000000, -1.0000000000, transform_2);
+    Shape shape_2 = all_shapes + 2;
+    group(shape_2, shape_2_children, 2);
+    shape_free(shape_2_children);
+    shape_set_transform(shape_2, transform_2);
+
+    /* end shape 2 */
+    /* shape 3 */
+
+    /* children for 3 */
+    Shape shape_3_children = array_of_shapes(2);
+
+    
+    Pattern pattern_3_child_0 = NULL;
+
+    Material material_3_child_0 = material_alloc();
+    material_3_child_0->color[0] = 0.2000000000;
+    material_3_child_0->color[1] = 0.2000000000;
+    material_3_child_0->color[2] = 0.2000000000;
+    material_3_child_0->ambient = 0.0000000000;
+    material_3_child_0->diffuse = 0.8000000000;
+    material_3_child_0->specular = 0.0000000000;
+    material_3_child_0->shininess = 200.0000000000;
+    material_3_child_0->reflective = 0.2000000000;
+    material_3_child_0->transparency = 0.0000000000;
+    material_3_child_0->refractive_index = 1.0000000000;
+    material_3_child_0->casts_shadow = true;
+    material_3_child_0->pattern = pattern_3_child_0;
+
+    Matrix transform_3_child_0;
+    matrix_identity(transform_3_child_0);
+    Shape shape_3_child_0 = shape_3_children + 0;
+    cylinder(shape_3_child_0);
+    shape_set_material(shape_3_child_0, material_3_child_0);
+    shape_set_transform(shape_3_child_0, transform_3_child_0);
+    shape_3_child_0->fields.cylinder.minimum = -0.1500000000;
+    shape_3_child_0->fields.cylinder.maximum = 0.0000000000;
+    shape_3_child_0->fields.cylinder.closed = true;
+
+
+    
+    /* children for 3_child_1 */
+    Shape shape_3_child_1_children = array_of_shapes(2);
+
+    Pattern pattern_3_child_1_child_0 = NULL;
+
+    Material material_3_child_1_child_0 = material_alloc();
+    material_3_child_1_child_0->color[0] = 1.0000000000;
+    material_3_child_1_child_0->color[1] = 0.9000000000;
+    material_3_child_1_child_0->color[2] = 0.1000000000;
+    material_3_child_1_child_0->ambient = 0.1000000000;
+    material_3_child_1_child_0->diffuse = 0.6000000000;
+    material_3_child_1_child_0->specular = 0.3000000000;
+    material_3_child_1_child_0->shininess = 15.0000000000;
+    material_3_child_1_child_0->reflective = 0.0000000000;
+    material_3_child_1_child_0->transparency = 0.0000000000;
+    material_3_child_1_child_0->refractive_index = 1.0000000000;
+    material_3_child_1_child_0->casts_shadow = true;
+    material_3_child_1_child_0->pattern = pattern_3_child_1_child_0;
+
+    Matrix transform_3_child_1_child_0, transform_3_child_1_child_0_tmp;
+    matrix_identity(transform_3_child_1_child_0);
+    matrix_translate(0.0000000000, 0.1217000000, 0.0000000000, transform_3_child_1_child_0_tmp);
+    transform_chain(transform_3_child_1_child_0_tmp, transform_3_child_1_child_0);
+    matrix_scale(0.2680000000, 0.2680000000, 0.2680000000, transform_3_child_1_child_0_tmp);
+    transform_chain(transform_3_child_1_child_0_tmp, transform_3_child_1_child_0);
+
+    Shape shape_3_child_1_child_0 = shape_3_child_1_children + 0;
+    
+    if (access("scenes/bounding_boxes/dragon.obj", F_OK ) == -1 ) {
+        printf("file 'scenes/bounding_boxes/dragon.obj' does not exist.");
+        return 1;
+    }
+    printf("Loading resource 'scenes/bounding_boxes/dragon.obj'... ");
+    fflush(stdout);
+    construct_group_from_obj_file("scenes/bounding_boxes/dragon.obj", shape_3_child_1_child_0);
+    printf("Done!\n");
+    fflush(stdout);
+    shape_set_material_recursive(shape_3_child_1_child_0, material_3_child_1_child_0);
+    shape_set_transform(shape_3_child_1_child_0, transform_3_child_1_child_0);
+
+
+    
+    Pattern pattern_3_child_1_child_1 = NULL;
+
+    Material material_3_child_1_child_1 = material_alloc();
+    material_3_child_1_child_1->color[0] = 1.0000000000;
+    material_3_child_1_child_1->color[1] = 1.0000000000;
+    material_3_child_1_child_1->color[2] = 1.0000000000;
+    material_3_child_1_child_1->ambient = 0.0000000000;
+    material_3_child_1_child_1->diffuse = 0.1000000000;
+    material_3_child_1_child_1->specular = 0.0000000000;
+    material_3_child_1_child_1->shininess = 200.0000000000;
+    material_3_child_1_child_1->reflective = 0.0000000000;
+    material_3_child_1_child_1->transparency = 0.9000000000;
+    material_3_child_1_child_1->refractive_index = 1.0000000000;
+    material_3_child_1_child_1->casts_shadow = false;
+    material_3_child_1_child_1->pattern = pattern_3_child_1_child_1;
+
+    Matrix transform_3_child_1_child_1, transform_3_child_1_child_1_tmp;
+    matrix_identity(transform_3_child_1_child_1);
+    matrix_translate(1.0000000000, 1.0000000000, 1.0000000000, transform_3_child_1_child_1_tmp);
+    transform_chain(transform_3_child_1_child_1_tmp, transform_3_child_1_child_1);
+    matrix_scale(3.7333500000, 2.5845000000, 1.6283000000, transform_3_child_1_child_1_tmp);
+    transform_chain(transform_3_child_1_child_1_tmp, transform_3_child_1_child_1);
+    matrix_translate(-3.9863000000, -0.1217000000, -1.1820000000, transform_3_child_1_child_1_tmp);
+    transform_chain(transform_3_child_1_child_1_tmp, transform_3_child_1_child_1);
+    matrix_translate(0.0000000000, 0.1216900000, 0.0000000000, transform_3_child_1_child_1_tmp);
+    transform_chain(transform_3_child_1_child_1_tmp, transform_3_child_1_child_1);
+    matrix_scale(0.2680000000, 0.2680000000, 0.2680000000, transform_3_child_1_child_1_tmp);
+    transform_chain(transform_3_child_1_child_1_tmp, transform_3_child_1_child_1);
+
+    Shape shape_3_child_1_child_1 = shape_3_child_1_children + 1;
+    cube(shape_3_child_1_child_1);
+    shape_set_material(shape_3_child_1_child_1, material_3_child_1_child_1);
+    shape_set_transform(shape_3_child_1_child_1, transform_3_child_1_child_1);
+
+    /* end children for 3_child_1 */
+
+    Matrix transform_3_child_1, transform_3_child_1_tmp;
+    matrix_identity(transform_3_child_1);
+    matrix_rotate_y(-0.2000000000, transform_3_child_1_tmp);
+    transform_chain(transform_3_child_1_tmp, transform_3_child_1);
+    matrix_scale(0.5000000000, 0.5000000000, 0.5000000000, transform_3_child_1_tmp);
+    transform_chain(transform_3_child_1_tmp, transform_3_child_1);
+
+    Shape shape_3_child_1 = shape_3_children + 1;
+    group(shape_3_child_1, shape_3_child_1_children, 2);
+    shape_free(shape_3_child_1_children);
+    shape_set_transform(shape_3_child_1, transform_3_child_1);
+
+    /* end children for 3 */
+
+    Matrix transform_3;
+    matrix_translate(-4.0000000000, 0.0000000000, -2.0000000000, transform_3);
+    Shape shape_3 = all_shapes + 3;
+    group(shape_3, shape_3_children, 2);
+    shape_free(shape_3_children);
+    shape_set_transform(shape_3, transform_3);
+
+    /* end shape 3 */
+    /* shape 4 */
+
+    /* children for 4 */
+    Shape shape_4_children = array_of_shapes(2);
+
+    
+    Pattern pattern_4_child_0 = NULL;
+
+    Material material_4_child_0 = material_alloc();
+    material_4_child_0->color[0] = 0.2000000000;
+    material_4_child_0->color[1] = 0.2000000000;
+    material_4_child_0->color[2] = 0.2000000000;
+    material_4_child_0->ambient = 0.0000000000;
+    material_4_child_0->diffuse = 0.8000000000;
+    material_4_child_0->specular = 0.0000000000;
+    material_4_child_0->shininess = 200.0000000000;
+    material_4_child_0->reflective = 0.2000000000;
+    material_4_child_0->transparency = 0.0000000000;
+    material_4_child_0->refractive_index = 1.0000000000;
+    material_4_child_0->casts_shadow = true;
+    material_4_child_0->pattern = pattern_4_child_0;
+
+    Matrix transform_4_child_0;
+    matrix_identity(transform_4_child_0);
+    Shape shape_4_child_0 = shape_4_children + 0;
+    cylinder(shape_4_child_0);
+    shape_set_material(shape_4_child_0, material_4_child_0);
+    shape_set_transform(shape_4_child_0, transform_4_child_0);
+    shape_4_child_0->fields.cylinder.minimum = -0.1500000000;
+    shape_4_child_0->fields.cylinder.maximum = 0.0000000000;
+    shape_4_child_0->fields.cylinder.closed = true;
+
+
+    
+    /* children for 4_child_1 */
+    Shape shape_4_child_1_children = array_of_shapes(2);
+
+    Pattern pattern_4_child_1_child_0 = NULL;
+
+    Material material_4_child_1_child_0 = material_alloc();
+    material_4_child_1_child_0->color[0] = 0.9000000000;
+    material_4_child_1_child_0->color[1] = 1.0000000000;
+    material_4_child_1_child_0->color[2] = 0.1000000000;
+    material_4_child_1_child_0->ambient = 0.1000000000;
+    material_4_child_1_child_0->diffuse = 0.6000000000;
+    material_4_child_1_child_0->specular = 0.3000000000;
+    material_4_child_1_child_0->shininess = 15.0000000000;
+    material_4_child_1_child_0->reflective = 0.0000000000;
+    material_4_child_1_child_0->transparency = 0.0000000000;
+    material_4_child_1_child_0->refractive_index = 1.0000000000;
+    material_4_child_1_child_0->casts_shadow = true;
+    material_4_child_1_child_0->pattern = pattern_4_child_1_child_0;
+
+    Matrix transform_4_child_1_child_0, transform_4_child_1_child_0_tmp;
+    matrix_identity(transform_4_child_1_child_0);
+    matrix_translate(0.0000000000, 0.1217000000, 0.0000000000, transform_4_child_1_child_0_tmp);
+    transform_chain(transform_4_child_1_child_0_tmp, transform_4_child_1_child_0);
+    matrix_scale(0.2680000000, 0.2680000000, 0.2680000000, transform_4_child_1_child_0_tmp);
+    transform_chain(transform_4_child_1_child_0_tmp, transform_4_child_1_child_0);
+
+    Shape shape_4_child_1_child_0 = shape_4_child_1_children + 0;
+    
+    if (access("scenes/bounding_boxes/dragon.obj", F_OK ) == -1 ) {
+        printf("file 'scenes/bounding_boxes/dragon.obj' does not exist.");
+        return 1;
+    }
+    printf("Loading resource 'scenes/bounding_boxes/dragon.obj'... ");
+    fflush(stdout);
+    construct_group_from_obj_file("scenes/bounding_boxes/dragon.obj", shape_4_child_1_child_0);
+    printf("Done!\n");
+    fflush(stdout);
+    shape_set_material_recursive(shape_4_child_1_child_0, material_4_child_1_child_0);
+    shape_set_transform(shape_4_child_1_child_0, transform_4_child_1_child_0);
+
+
+    
+    Pattern pattern_4_child_1_child_1 = NULL;
+
+    Material material_4_child_1_child_1 = material_alloc();
+    material_4_child_1_child_1->color[0] = 1.0000000000;
+    material_4_child_1_child_1->color[1] = 1.0000000000;
+    material_4_child_1_child_1->color[2] = 1.0000000000;
+    material_4_child_1_child_1->ambient = 0.0000000000;
+    material_4_child_1_child_1->diffuse = 0.1000000000;
+    material_4_child_1_child_1->specular = 0.0000000000;
+    material_4_child_1_child_1->shininess = 200.0000000000;
+    material_4_child_1_child_1->reflective = 0.0000000000;
+    material_4_child_1_child_1->transparency = 0.9000000000;
+    material_4_child_1_child_1->refractive_index = 1.0000000000;
+    material_4_child_1_child_1->casts_shadow = false;
+    material_4_child_1_child_1->pattern = pattern_4_child_1_child_1;
+
+    Matrix transform_4_child_1_child_1, transform_4_child_1_child_1_tmp;
+    matrix_identity(transform_4_child_1_child_1);
+    matrix_translate(1.0000000000, 1.0000000000, 1.0000000000, transform_4_child_1_child_1_tmp);
+    transform_chain(transform_4_child_1_child_1_tmp, transform_4_child_1_child_1);
+    matrix_scale(3.7333500000, 2.5845000000, 1.6283000000, transform_4_child_1_child_1_tmp);
+    transform_chain(transform_4_child_1_child_1_tmp, transform_4_child_1_child_1);
+    matrix_translate(-3.9863000000, -0.1217000000, -1.1820000000, transform_4_child_1_child_1_tmp);
+    transform_chain(transform_4_child_1_child_1_tmp, transform_4_child_1_child_1);
+    matrix_translate(0.0000000000, 0.1216900000, 0.0000000000, transform_4_child_1_child_1_tmp);
+    transform_chain(transform_4_child_1_child_1_tmp, transform_4_child_1_child_1);
+    matrix_scale(0.2680000000, 0.2680000000, 0.2680000000, transform_4_child_1_child_1_tmp);
+    transform_chain(transform_4_child_1_child_1_tmp, transform_4_child_1_child_1);
+
+    Shape shape_4_child_1_child_1 = shape_4_child_1_children + 1;
+    cube(shape_4_child_1_child_1);
+    shape_set_material(shape_4_child_1_child_1, material_4_child_1_child_1);
+    shape_set_transform(shape_4_child_1_child_1, transform_4_child_1_child_1);
+
+    /* end children for 4_child_1 */
+
+    Matrix transform_4_child_1, transform_4_child_1_tmp;
+    matrix_identity(transform_4_child_1);
+    matrix_rotate_y(3.3000000000, transform_4_child_1_tmp);
+    transform_chain(transform_4_child_1_tmp, transform_4_child_1);
+    matrix_scale(0.5000000000, 0.5000000000, 0.5000000000, transform_4_child_1_tmp);
+    transform_chain(transform_4_child_1_tmp, transform_4_child_1);
+
+    Shape shape_4_child_1 = shape_4_children + 1;
+    group(shape_4_child_1, shape_4_child_1_children, 2);
+    shape_free(shape_4_child_1_children);
+    shape_set_transform(shape_4_child_1, transform_4_child_1);
+
+    /* end children for 4 */
+
+    Matrix transform_4;
+    matrix_translate(4.0000000000, 0.0000000000, -2.0000000000, transform_4);
+    Shape shape_4 = all_shapes + 4;
+    group(shape_4, shape_4_children, 2);
+    shape_free(shape_4_children);
+    shape_set_transform(shape_4, transform_4);
+
+    /* end shape 4 */
+    /* shape 5 */
+
+    /* children for 5 */
+    Shape shape_5_children = array_of_shapes(2);
+
+    
+    Pattern pattern_5_child_0 = NULL;
+
+    Material material_5_child_0 = material_alloc();
+    material_5_child_0->color[0] = 0.2000000000;
+    material_5_child_0->color[1] = 0.2000000000;
+    material_5_child_0->color[2] = 0.2000000000;
+    material_5_child_0->ambient = 0.0000000000;
+    material_5_child_0->diffuse = 0.8000000000;
+    material_5_child_0->specular = 0.0000000000;
+    material_5_child_0->shininess = 200.0000000000;
+    material_5_child_0->reflective = 0.2000000000;
+    material_5_child_0->transparency = 0.0000000000;
+    material_5_child_0->refractive_index = 1.0000000000;
+    material_5_child_0->casts_shadow = true;
+    material_5_child_0->pattern = pattern_5_child_0;
+
+    Matrix transform_5_child_0;
+    matrix_identity(transform_5_child_0);
+    Shape shape_5_child_0 = shape_5_children + 0;
+    cylinder(shape_5_child_0);
+    shape_set_material(shape_5_child_0, material_5_child_0);
+    shape_set_transform(shape_5_child_0, transform_5_child_0);
+    shape_5_child_0->fields.cylinder.minimum = -0.1500000000;
+    shape_5_child_0->fields.cylinder.maximum = 0.0000000000;
+    shape_5_child_0->fields.cylinder.closed = true;
+
+
+    Pattern pattern_5_child_1 = NULL;
+
+    Material material_5_child_1 = material_alloc();
+    material_5_child_1->color[0] = 1.0000000000;
+    material_5_child_1->color[1] = 1.0000000000;
+    material_5_child_1->color[2] = 1.0000000000;
+    material_5_child_1->ambient = 0.1000000000;
+    material_5_child_1->diffuse = 0.6000000000;
+    material_5_child_1->specular = 0.3000000000;
+    material_5_child_1->shininess = 15.0000000000;
+    material_5_child_1->reflective = 0.0000000000;
+    material_5_child_1->transparency = 0.0000000000;
+    material_5_child_1->refractive_index = 1.0000000000;
+    material_5_child_1->casts_shadow = true;
+    material_5_child_1->pattern = pattern_5_child_1;
+
+    Matrix transform_5_child_1, transform_5_child_1_tmp;
+    matrix_identity(transform_5_child_1);
+    matrix_translate(0.0000000000, 0.1217000000, 0.0000000000, transform_5_child_1_tmp);
+    transform_chain(transform_5_child_1_tmp, transform_5_child_1);
+    matrix_scale(0.2680000000, 0.2680000000, 0.2680000000, transform_5_child_1_tmp);
+    transform_chain(transform_5_child_1_tmp, transform_5_child_1);
+    matrix_rotate_y(3.1415000000, transform_5_child_1_tmp);
+    transform_chain(transform_5_child_1_tmp, transform_5_child_1);
+
+    Shape shape_5_child_1 = shape_5_children + 1;
+    
+    if (access("scenes/bounding_boxes/dragon.obj", F_OK ) == -1 ) {
+        printf("file 'scenes/bounding_boxes/dragon.obj' does not exist.");
+        return 1;
+    }
+    printf("Loading resource 'scenes/bounding_boxes/dragon.obj'... ");
+    fflush(stdout);
+    construct_group_from_obj_file("scenes/bounding_boxes/dragon.obj", shape_5_child_1);
+    printf("Done!\n");
+    fflush(stdout);
+    shape_set_material_recursive(shape_5_child_1, material_5_child_1);
+    shape_set_transform(shape_5_child_1, transform_5_child_1);
+
+    /* end children for 5 */
+
+    Matrix transform_5;
+    matrix_translate(0.0000000000, 0.5000000000, -4.0000000000, transform_5);
+    Shape shape_5 = all_shapes + 5;
+    group(shape_5, shape_5_children, 2);
+    shape_free(shape_5_children);
+    shape_set_transform(shape_5, transform_5);
+
+    /* end shape 5 */
+    /* end shapes */
+
+    Shape world_group = array_of_shapes(1);
+    group(world_group, all_shapes, 6);
+    printf("Balancing scene...");
+    fflush(stdout);
+    world_group->divide(world_group, divide_threshold);
+    printf("Done!\n");
+    fflush(stdout);
+
+    World w = world();
+    w->lights = all_lights;
+    w->lights_num = 4;
+    w->shapes = world_group;
+    w->shapes_num = 1;
+    Canvas c = render_multi(cam, w, cam->sample_num/*usteps*/, cam->sample_num/*vsteps*/, cam->aperture.jitter, thread_count);
     Ppm ppm = construct_ppm(c, true);
 
     FILE * pFile;
-    pFile = fopen ("/tmp/left.ppm", "wb");
+    pFile = fopen ("/tmp/unclamped.ppm", "wb");
     fwrite (ppm->arr, sizeof(unsigned char), ppm->len, pFile);
     fclose (pFile);
 
+    ppm_free(ppm);
+    ppm = construct_ppm(c, false);
 
-
-/*
-    from = point(3.9,3.5,-4.0);
-    to = point(0,0.0,0);
-    up = vector(0, 1, 0);
-    cam = camera(800, 800, .3, view_transform(from, to, up));
-
-    c = render(cam, w);
-
-
-
-
-    Ppm ppm2 = construct_ppm(c, true);
-
-    pFile = fopen ("/tmp/right.ppm", "wb");
-    fwrite (ppm2->arr, sizeof(unsigned char), ppm2->len, pFile);
+    pFile = fopen("/tmp/clamped.ppm", "wb");
+    fwrite (ppm->arr, sizeof(unsigned char), ppm->len, pFile);
     fclose (pFile);
-*/
-    printf("file written\n");
+
+    ppm_free(ppm);
+    canvas_free(c);
 
     return 0;
 }
+

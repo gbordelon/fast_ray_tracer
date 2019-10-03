@@ -382,7 +382,7 @@ group_bounds(Shape group)
     return group->bbox;
 }
 
-#define DEFAULT_MIN_CHILD_LEN 32768
+#define DEFAULT_MIN_CHILD_LEN 16
 void
 group(Shape s, Shape children, size_t num_children)
 {
