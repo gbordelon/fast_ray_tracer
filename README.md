@@ -9,3 +9,19 @@ date && time ./ray_tracer
 convert /tmp/unclamped.ppm -depth 16 -quality 95 /tmp/unclamped.jpg
 open /tmp/unclamped.ppm && open /tmp/unclamped.jpg
 ```
+
+TODO
+* Implement triangle mesh support
+* Implement photon tracing
+* Implement photon mapping for caustics
+* Implement photon mapping for diffuse reflection
+* Improve correlated multi-jitter logic
+* Refactor patterns into multiple source files
+* Refactor shapes such that one only needs to include shapes.h
+* Refactor materials out of shapes.{c,h}
+* Refactor sampling and jittering from camera, renderer, lights into src/libs/sampler/sampler.{c,h}
+* Refactor core-selection code from renderer.c into a library
+* Refactor yaml parser logic to not load a file multiple times but use shape_copy on the parent group for object files.
+* Refactor canvas/texture maps to only keep one image in memory even if multiple patterns try to load the file.
+* Investigate BLAS/LAPACK
+* Add const keyword to function signatures where appropriate.
