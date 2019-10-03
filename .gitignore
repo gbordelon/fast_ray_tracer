@@ -6,3 +6,4 @@ main.c.back
 perlintest.c
 *.dSYM
 ray_tracer
+scenes/orrery/artist_workshop_8k.png
