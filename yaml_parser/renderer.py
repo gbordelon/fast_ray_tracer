@@ -17,32 +17,30 @@ class Aperture(object):
         if self.yaml_obj['jitter']:
             bool_str = "true"
 
-        buf = """    struct aperture aperture;
-    aperture.type = {0};
-    aperture.size = {1};
-    aperture.jitter = {2};
+        buf = """    struct aperture ap;
+    aperture({0}, {1}, {2}, &ap);
 """.format(self.yaml_obj['type'][0],
            self.yaml_obj['size'],
            bool_str)
 
         if self.yaml_obj['type'][0] == 'CIRCULAR_APERTURE':
-            buf += """    aperture.u.circle.r1 = {0:.10f};
+            buf += """    ap.u.circle.r1 = {0:.10f};
 """.format(*self.yaml_obj['type'][1:])
         elif self.yaml_obj['type'][0] == 'CROSS_APERTURE':
-            buf += """    aperture.u.cross.x1 = {0:.10f};
-    aperture.u.cross.x2 = {1:.10f};
-    aperture.u.cross.y1 = {2:.10f};
-    aperture.u.cross.y2 = {3:.10f};
+            buf += """    ap.u.cross.x1 = {0:.10f};
+    ap.u.cross.x2 = {1:.10f};
+    ap.u.cross.y1 = {2:.10f};
+    ap.u.cross.y2 = {3:.10f};
 """.format(*self.yaml_obj['type'][1:])
         elif self.yaml_obj['type'][0] == 'DIAMOND_APERTURE':
-            buf += """    aperture.u.diamond.b1 = {0:.10f};
-    aperture.u.diamond.b2 = {1:.10f};
-    aperture.u.diamond.b3 = {2:.10f};
-    aperture.u.diamond.b4 = {3:.10f};
+            buf += """    ap.u.diamond.b1 = {0:.10f};
+    ap.u.diamond.b2 = {1:.10f};
+    ap.u.diamond.b3 = {2:.10f};
+    ap.u.diamond.b4 = {3:.10f};
 """.format(*self.yaml_obj['type'][1:])
-        elif self.yaml_obj['type'][0] == 'DOUBLE_CIRCLE_APERTURE':
-            buf += """    aperture.u.double_circle.r1 = {0:.10f};
-    aperture.u.double_circle.r2 = {1:.10f};
+        elif self.yaml_obj['type'][0] == 'DOUGHNUT_APERTURE':
+            buf += """    ap.u.doughnut.r1 = {0:.10f};
+    ap.u.doughnut.r2 = {1:.10f};
 """.format(*self.yaml_obj['type'][1:])
         else:
             pass
@@ -73,7 +71,7 @@ class Camera(object):
     Matrix camera_xform;
     view_transform(from, to, up, camera_xform);
 
-    Camera cam = camera({10}, {11}, {12:.10f}/*field_of_view*/, {13:.10f}/*distance*/, aperture, {14}/*sample_num*/, camera_xform);
+    Camera cam = camera({10}, {11}, {12:.10f}/*field_of_view*/, {13:.10f}/*distance*/, &ap, {14}/*sample_num*/, camera_xform);
 
     /* end camera */
 """.format(aperture.c_repr(),

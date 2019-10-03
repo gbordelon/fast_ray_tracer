@@ -43,7 +43,7 @@
 #    type: [ CIRCULAR_APERTURE, 1.0 ]
 #    type: [ CROSS_APERTURE, -0.1, 0.1, -0.1, 0.1 ]
 #    type: [ DIAMOND_APERTURE, -1, 1, -1, 1 ]
-#    type: [ DOUBLE_CIRCLE_APERTURE, 1.0, 0.5 ]
+#    type: [ DOUGHNUT_APERTURE, 1.0, 0.5 ]
     type: [ POINT_APERTURE ]
 #    type: [ SQUARE_APERTURE ]
 

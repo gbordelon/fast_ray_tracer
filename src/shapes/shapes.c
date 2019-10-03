@@ -6,91 +6,6 @@
 #include "../libs/perlin/perlin.h"
 
 void
-intersection(double t, Shape sh, Intersection x)
-{
-    x->t = t;
-    x->object = sh;
-    x->u = -1;
-    x->v = -1;
-}
-
-void
-intersection_with_uv(double t, double u, double v, Shape sh, Intersection x)
-{
-    x->t = t;
-    x->object = sh;
-    x->u = u;
-    x->v = v;
-}
-
-Intersection
-intersection_alloc(double t, Shape sh)
-{
-    Intersection x = (Intersection) malloc(sizeof(struct intersection));
-    intersection(t, sh, x);
-    return x;
-}
-
-Intersection
-intersection_uv_alloc(double t, double u, double v, Shape sh)
-{
-    Intersection x = (Intersection) malloc(sizeof(struct intersection));
-    intersection_with_uv(t, u, v, sh, x);
-    return x;
-}
-
-Intersection
-hit(Intersections xs, bool filter_shadow_casters)
-{
-    int i;
-    Intersection x;
-
-    for (i = 0, x = xs->xs; i < xs->num; i++, x++) {
-        if (x->t > 0 && (!filter_shadow_casters || (filter_shadow_casters && x->object->material->casts_shadow))) {
-            return x;
-        }
-    }
-
-    return NULL;
-}
-
-Intersections
-intersections_empty(size_t num)
-{
-    Intersections xs = (Intersections) malloc(sizeof(struct intersections));
-    if (num > 0) {
-        xs->xs = (Intersection) malloc(num * sizeof(struct intersection));
-    } else {
-        xs->xs = NULL;
-    }
-
-    xs->array_len = num;
-    xs->num = 0;
-
-    return xs;
-}
-
-void
-intersection_free(Intersection x)
-{
-    if (x != NULL) {
-        free(x);
-    }
-}
-
-void
-intersections_free(Intersections xs)
-{
-    if (xs != NULL) {
-        if (xs->xs != NULL) {
-            free(xs->xs);
-            xs->xs = NULL;
-        }
-        free(xs);
-    }
-}
-
-void
 ray_array(Point origin, Vector direction, Ray ray)
 {
     point_copy(ray->origin, origin);
@@ -370,16 +285,6 @@ shape_to_string(char *buf, size_t n, Shape sh)
         (void *)sh->material,
         (void *)sh->parent,
         type_name);
-}
-
-int
-intersection_to_string(char *buf, size_t n, Intersection x)
-{
-    int used = snprintf(buf, n, "Intersection:\n\tt: %f\n\tu: %f\n\tv: %f\n",
-                        x->t,
-                        x->u,
-                        x->v);
-    return used + shape_to_string(buf + used, n - used, x->object);
 }
 
 /*

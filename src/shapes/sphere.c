@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../libs/linalg/linalg.h"
+#include "../intersection/intersection.h"
 #include "sphere.h"
 #include "shapes.h"
 

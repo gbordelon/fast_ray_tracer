@@ -90,7 +90,7 @@ toroid(Shape s)
 
     s->material = material_alloc();
     s->parent = NULL;
-    s->type = SHAPE_SPHERE;
+    s->type = SHAPE_TOROID;
     s->fields.toroid.r1 = 0.75;
     s->fields.toroid.r2 = 0.25;
 

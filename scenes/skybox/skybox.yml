@@ -1,3 +1,9 @@
+- add: config
+  thread-count: 4
+  timeout: 600 # in seconds
+  divide-threshold: 1
+  clamping: False
+
 - add: camera
   width: 800
   height: 400
@@ -5,6 +11,18 @@
   from: [0, 0, 0]
   to: [0, 0, 5]
   up: [0, 1, 0]
+  focal-length: 5
+  samples-per-pixel: 8
+  aperture:
+    jitter: false
+    size: 0.4
+#    type: [ CIRCULAR_APERTURE, 1.0 ]
+#    type: [ CROSS_APERTURE, -0.1, 0.1, -0.1, 0.1 ]
+#    type: [ DIAMOND_APERTURE, -1, 1, -1, 1 ]
+#    type: [ DOUBLE_CIRCLE_APERTURE, 1.0, 0.5 ]
+    type: [ POINT_APERTURE ]
+#    type: [ SQUARE_APERTURE ]
+
 
 - add: light
   at: [0, 100, 0]

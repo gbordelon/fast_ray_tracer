@@ -145,20 +145,22 @@ def world_objects_to_c_file(obj):
 #include <math.h>
 #include <unistd.h>
 
-#include "linalg.h"
-#include "canvas.h"
-#include "renderer.h"
-#include "shapes.h"
-#include "cone.h"
-#include "csg.h"
-#include "cube.h"
-#include "cylinder.h"
-#include "group.h"
-#include "plane.h"
-#include "sphere.h"
-#include "triangle.h"
-#include "toroid.h"
-#include "obj_loader.h"
+#include "src/libs/canvas/canvas.h"
+#include "src/libs/linalg/linalg.h"
+#include "src/libs/obj_loader/obj_loader.h"
+#include "src/renderer/renderer.h"
+#include "src/renderer/camera.h"
+#include "src/renderer/world.h"
+#include "src/shapes/shapes.h"
+#include "src/shapes/cone.h"
+#include "src/shapes/csg.h"
+#include "src/shapes/cube.h"
+#include "src/shapes/cylinder.h"
+#include "src/shapes/group.h"
+#include "src/shapes/plane.h"
+#include "src/shapes/sphere.h"
+#include "src/shapes/triangle.h"
+#include "src/shapes/toroid.h"
 
 int main()
 {{
