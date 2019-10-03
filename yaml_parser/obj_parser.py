@@ -27,7 +27,11 @@ class OBJParser(object):
         printf("file '{1}' does not exist.");
         return 1;
     }}
+    printf("Loading resource '{1}'... ");
+    fflush(stdout);
     construct_group_from_obj_file("{1}", shape_{0});
+    printf("Done!\\n");
+    fflush(stdout);
     shape_set_material_recursive(shape_{0}, material_{0});
     shape_set_transform(shape_{0}, transform_{0});
 """.format(name,

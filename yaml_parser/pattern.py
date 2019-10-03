@@ -240,7 +240,11 @@ class UVPattern(object):
         printf("file '{1}' does not exist.");
         return 1;
     }}
-    uv_texture_pattern(construct_canvas_from_ppm_file("{1}"), {0});""".format(name, ppm_file_path)
+    printf("Loading resource '{1}'... ");
+    fflush(stdout);
+    uv_texture_pattern(construct_canvas_from_ppm_file("{1}"), {0});
+    printf("Done!\\n");
+    fflush(stdout);""".format(name, ppm_file_path)
         else:
             raise ValueError('Unable to parse uv pattern type: {}'.format(typ))
 
