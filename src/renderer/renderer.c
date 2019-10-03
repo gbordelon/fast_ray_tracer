@@ -14,6 +14,7 @@
 
 #include "../libs/linalg/linalg.h"
 #include "../libs/sampler/sampler.h"
+#include "../pattern/pattern.h"
 #include "../shapes/shapes.h"
 #include "../shapes/sphere.h"
 #include "../shapes/plane.h"
@@ -32,6 +33,27 @@
 void color_at(const World w, const Ray r, const size_t remaining, Color res, struct container *container);
 void lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity, Color res);
 
+void
+ray_array(Point origin, Vector direction, Ray ray)
+{
+    point_copy(ray->origin, origin);
+    vector_copy(ray->direction, direction);
+}
+
+void
+ray_transform(Ray original, Matrix m, Ray res)
+{
+    matrix_point_multiply(m, original->origin, res->origin);
+    matrix_vector_multiply(m, original->direction, res->direction);
+}
+
+int
+ray_to_string(char *buf, size_t n, Ray r)
+{
+    return snprintf(buf, n, "Point: [%f %f %f] Vector: [%f %f %f]",
+                    r->origin[0], r->origin[1], r->origin[2],
+                    r->direction[0], r->direction[1], r->direction[2]);
+}
 
 bool
 is_shadowed(World w, Point light_position, Point pt)

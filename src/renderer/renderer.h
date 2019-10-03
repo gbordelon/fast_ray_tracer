@@ -37,6 +37,9 @@ struct container {
     size_t size;
 };
 
+void ray_array(Point origin, Vector direction, Ray ray);
+int ray_to_string(char *s, size_t n, Ray r);
+void ray_transform(Ray original, Matrix m, Ray res);
 
 void shade_hit(World w, Computations comps, size_t remaining, Color res, struct container *container);
 bool is_shadowed(World w, Point light_position, Point pt);
