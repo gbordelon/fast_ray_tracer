@@ -25,3 +25,8 @@ TODO
 * Refactor canvas/texture maps to only keep one image in memory even if multiple patterns try to load the file.
 * Investigate BLAS/LAPACK
 * Add const keyword to function signatures where appropriate.
+* Finish adding HSL color support
+* Add the ability to configure color space in a yaml config file
+* Add heirarchical yaml parsing so I can have a global config which is read first before a scene's yaml file.
+* Add a spot light
+* Genericize patterns so they don't use the Color type

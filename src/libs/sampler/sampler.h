@@ -3,8 +3,24 @@
 
 #include <stdbool.h>
 
-double jitter_by(const bool jitter);
+/*
+ * Generate a correlated multi-jitter sample set for a given unit space (plane, volume, etc)
+ */
+typedef struct sampler {
+    size_t dimensions; // probably gonna be two or three
+    size_t *steps_by_dimension;
+    double *arr;
 
-void double_swap(double *a, double *b);
+    double (*jitter)(void);
+    bool (*constraint_fn)(const double *);
+    void (*reset)(struct sampler *);
+    void (*get_point)(struct sampler *, const size_t *, double *);
+} *Sampler;
+
+//void sampler3D(const bool jitter, const size_t usteps, const size_t vsteps, const size_t wsteps, bool (*constraint_fn)(double *));
+void sampler_free(Sampler sampler);
+void sampler_2d(const bool jitter, const size_t usteps, const size_t vsteps, bool (*constraint_fn)(const double *), Sampler sampler);
+
+bool sampler_default_constraint(const double *);
 
 #endif

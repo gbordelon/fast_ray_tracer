@@ -18,9 +18,11 @@ class Aperture(object):
             bool_str = "true"
 
         buf = """    struct aperture ap;
-    aperture({0}, {1}, {2}, &ap);
+    aperture({0}, {1}, {2}, {3}, {4}, &ap);
 """.format(self.yaml_obj['type'][0],
            self.yaml_obj['size'],
+           self.yaml_obj['usteps'],
+           self.yaml_obj['vsteps'],
            bool_str)
 
         if self.yaml_obj['type'][0] == 'CIRCULAR_APERTURE':
@@ -55,13 +57,19 @@ class Camera(object):
     def from_yaml(cls, obj) -> 'Camera':
         if 'focal-length' not in obj:
             obj['focal-length'] = 1.0
-        if 'samples-per-pixel' not in obj:
-            obj['samples-per-pixel'] = 1
         if 'aperture' not in obj:
             obj['aperture'] = {}
+        if 'usteps' not in obj:
+            obj['usteps'] = 1
+        if 'vsteps' not in obj:
+            obj['vsteps'] = 1
         return cls(yaml_obj=obj)
 
     def c_repr(self):
+        if 'usteps' not in self.yaml_obj['aperture']:
+            self.yaml_obj['aperture']['usteps'] = self.yaml_obj['usteps']
+        if 'vsteps' not in self.yaml_obj['aperture']:
+            self.yaml_obj['aperture']['vsteps'] = self.yaml_obj['vsteps']
         aperture = Aperture.from_yaml(self.yaml_obj['aperture'])
         return """    /* camera */
 {0}
@@ -71,7 +79,7 @@ class Camera(object):
     Matrix camera_xform;
     view_transform(from, to, up, camera_xform);
 
-    Camera cam = camera({10}, {11}, {12:.10f}/*field_of_view*/, {13:.10f}/*distance*/, &ap, {14}/*sample_num*/, camera_xform);
+    Camera cam = camera({10}, {11}, {12:.10f}/*field_of_view*/, {13:.10f}/*distance*/, {14}/*usteps*/, {15}/*vsteps*/, &ap, camera_xform);
 
     /* end camera */
 """.format(aperture.c_repr(),
@@ -79,7 +87,7 @@ class Camera(object):
            self.yaml_obj['to'][0], self.yaml_obj['to'][1], self.yaml_obj['to'][2],
            self.yaml_obj['up'][0], self.yaml_obj['up'][1], self.yaml_obj['up'][2],
            self.yaml_obj['width'], self.yaml_obj['height'], self.yaml_obj['field-of-view'],
-           self.yaml_obj['focal-length'], self.yaml_obj['samples-per-pixel'])
+           self.yaml_obj['focal-length'], self.yaml_obj['usteps'], self.yaml_obj['vsteps'])
 
 class Light(object):
     def __init__(self, yaml_obj):
@@ -87,6 +95,8 @@ class Light(object):
 
     @classmethod
     def from_yaml(cls, obj) -> 'Light':
+        if 'photon-count' not in obj:
+            obj['photon-count'] = 10000
         if 'at' in obj:
             return PointLight.from_yaml(obj)
         elif 'corner' in obj:
@@ -105,12 +115,12 @@ class PointLight(Light):
     Light point_light_{0} = all_lights + {0};
     Point point_light_{0}_point = {{ {1:.10f}, {2:.10f}, {3:.10f}, 1.0 }};
     Color point_light_{0}_intensity = color({4:.10f}, {5:.10f}, {6:.10f});
-    point_light(point_light_{0}_point, point_light_{0}_intensity, point_light_{0});
+    point_light(point_light_{0}_point, point_light_{0}_intensity, {7}/* photon count */, point_light_{0});
 
     /* end point light {0} */
 """.format(name,
            self.yaml_obj['at'][0], self.yaml_obj['at'][1], self.yaml_obj['at'][2],
-           self.yaml_obj['intensity'][0], self.yaml_obj['intensity'][1], self.yaml_obj['intensity'][2])
+           self.yaml_obj['intensity'][0], self.yaml_obj['intensity'][1], self.yaml_obj['intensity'][2], self.yaml_obj['photon-count'])
 
 class AreaLight(Light):
     def __init__(self, yaml_obj):
@@ -131,7 +141,7 @@ class AreaLight(Light):
     Color area_light_{0}_intensity = color({4:.10f}, {5:.10f}, {6:.10f});
     Vector area_light_{0}_uvec = vector_init({7:.10f}, {8:.10f}, {9:.10f});
     Vector area_light_{0}_vvec = vector_init({10:.10f}, {11:.10f}, {12:.10f});
-    area_light(area_light_{0}_corner, area_light_{0}_uvec, {13}/*usteps*/, area_light_{0}_vvec, {14}/*vsteps*/, {15}/*jitter*/, area_light_{0}_intensity, area_light_{0});
+    area_light(area_light_{0}_corner, area_light_{0}_uvec, {13}/*usteps*/, area_light_{0}_vvec, {14}/*vsteps*/, {15}/*jitter*/, area_light_{0}_intensity, {16}/* photon count */, area_light_{0});
 
     /* end area light 0 */
 """.format(name,
@@ -139,7 +149,7 @@ class AreaLight(Light):
            self.yaml_obj['intensity'][0], self.yaml_obj['intensity'][1], self.yaml_obj['intensity'][2],
            self.yaml_obj['uvec'][0], self.yaml_obj['uvec'][1], self.yaml_obj['uvec'][2],
            self.yaml_obj['vvec'][0], self.yaml_obj['vvec'][1], self.yaml_obj['vvec'][2],
-           self.yaml_obj['usteps'], self.yaml_obj['vsteps'], bool_str)
+           self.yaml_obj['usteps'], self.yaml_obj['vsteps'], bool_str, self.yaml_obj['photon-count'])
 
 
 

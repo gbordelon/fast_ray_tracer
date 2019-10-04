@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include "../libs/linalg/linalg.h"
+#include "../libs/sampler/sampler.h"
 
 enum aperture_type {
     CIRCULAR_APERTURE,
@@ -44,6 +45,8 @@ typedef struct aperture {
     enum aperture_type type;
     double size;
     bool jitter;
+    struct sampler sampler;
+
     union {
         struct circle_aperture_args circle;
         struct cross_aperture_args cross;
@@ -57,7 +60,8 @@ typedef struct aperture {
 typedef struct camera {
     size_t hsize;
     size_t vsize;
-    size_t sample_num;
+    size_t usteps;
+    size_t vsteps;
     double field_of_view;
     double canvas_distance;
     struct aperture aperture;
@@ -68,18 +72,18 @@ typedef struct camera {
     Matrix transform_inverse;
 } *Camera;
 
-Camera camera(size_t hsize, size_t vsize, double field_of_view, double canvas_distance, Aperture aperture, size_t sample_num, Matrix transform);
+Camera camera(size_t hsize, size_t vsize, double field_of_view, double canvas_distance, size_t usteps, size_t vsteps, Aperture aperture, Matrix transform);
 void view_transform(Point fr, Point to, Vector up, Matrix res);
 void camera_set_transform(Camera c, Matrix m);
-void aperture(enum aperture_type type, double size, bool jitter, Aperture res);
+void aperture(enum aperture_type type, double size, size_t usteps, size_t vsteps, bool jitter, Aperture res);
 
-void sample_aperture(double xy[2], const Aperture aperture);
+void sample_aperture(double xy[2], size_t u, size_t v, const Aperture aperture);
 
-void circle_aperture(double size, bool jitter, struct circle_aperture_args *args, Aperture res);
-void cross_aperture(double size, bool jitter, struct cross_aperture_args *args, Aperture res);
-void diamond_aperture(double size, bool jitter, struct diamond_aperture_args *args, Aperture res);
-void doughnut_aperture(double size, bool jitter, struct doughnut_aperture_args *args, Aperture res);
-void square_aperture(double size, bool jitter, Aperture res);
+void circle_aperture(double size, size_t usteps, size_t vsteps, bool jitter, struct circle_aperture_args *args, Aperture res);
+void cross_aperture(double size, size_t usteps, size_t vsteps, bool jitter, struct cross_aperture_args *args, Aperture res);
+void diamond_aperture(double size, size_t usteps, size_t vsteps, bool jitter, struct diamond_aperture_args *args, Aperture res);
+void doughnut_aperture(double size, size_t usteps, size_t vsteps, bool jitter, struct doughnut_aperture_args *args, Aperture res);
+void square_aperture(double size, size_t usteps, size_t vsteps, bool jitter, Aperture res);
 void point_aperture(Aperture res);
 
 #endif

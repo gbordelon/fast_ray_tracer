@@ -13,8 +13,8 @@ circle_aperture_fn(double *x, double *y, Aperture aperture)
 {
     double u, v;
     do {
-        *x = jitter_by(true);
-        *y = jitter_by(true);
+        *x = drand48();
+        *y = drand48();
         u = 2 * *x - 1;
         v = 2 * *y - 1;
     } while (u * u + v * v > aperture->u.circle.r1);
@@ -26,8 +26,8 @@ cross_aperture_fn(double *x, double *y, Aperture aperture)
     double u, v;
     bool check;
     do {
-        *x = jitter_by(true);
-        *y = jitter_by(true);
+        *x = drand48();
+        *y = drand48();
         u = 2 * *x - 1;
         v = 2 * *y - 1;
         check = ((u > aperture->u.cross.x1) && (u <= aperture->u.cross.x2))
@@ -41,8 +41,8 @@ diamond_aperture_fn(double *x, double *y, Aperture aperture)
     double u, v;
     bool check;
     do {
-        *x = jitter_by(true);
-        *y = jitter_by(true);
+        *x = drand48();
+        *y = drand48();
         u = 2 * *x - 1;
         v = 2 * *y - 1;
         check = (u <= 0)
@@ -59,8 +59,8 @@ doughnut_aperture_fn(double *x, double *y, Aperture aperture)
     double mag;
     double u, v;
     do {
-        *x = jitter_by(true);
-        *y = jitter_by(true);
+        *x = drand48();
+        *y = drand48();
         u = 2 * *x - 1;
         v = 2 * *y - 1;
         mag = u * u + v * v;
@@ -77,12 +77,12 @@ point_aperture_fn(double *x, double *y, Aperture aperture)
 void
 square_aperture_fn(double *x, double *y, Aperture aperture)
 {
-    *x = jitter_by(true);
-    *y = jitter_by(true);
+    *x = drand48();
+    *y = drand48();
 }
 
 void
-sample_aperture(double xy[2], const Aperture aperture)
+sample_aperture(double xy[2], size_t u, size_t v, const Aperture aperture)
 {
     aperture->aperture_fn(xy, xy+1, aperture);
     *xy -= 0.5;
@@ -104,8 +104,9 @@ camera(size_t hsize,
        size_t vsize,
        double field_of_view,
        double canvas_distance,
+       size_t usteps,
+       size_t vsteps,
        Aperture aperture,
-       size_t sample_num,
        Matrix transform)
 {
     Camera c = (Camera) malloc(sizeof(struct camera));
@@ -114,8 +115,9 @@ camera(size_t hsize,
     c->vsize = vsize;
     c->field_of_view = field_of_view;
     c->canvas_distance = canvas_distance;
-    c->sample_num = sample_num;
     c->aperture = *aperture;
+    c->usteps = usteps;
+    c->vsteps = vsteps;
 
     camera_set_transform(c, transform);
 
@@ -165,11 +167,12 @@ view_transform(Point fr, Point to, Vector up, Matrix res)
 }
 
 void
-aperture(enum aperture_type type, double size, bool jitter, Aperture res)
+aperture(enum aperture_type type, double size, size_t usteps, size_t vsteps, bool jitter, Aperture res)
 {
     res->type = type;
     res->size = size;
     res->jitter = jitter;
+    sampler_2d(jitter, usteps, vsteps, sampler_default_constraint, &res->sampler);
 
     switch (type) {
     case CIRCULAR_APERTURE:
@@ -203,36 +206,36 @@ aperture(enum aperture_type type, double size, bool jitter, Aperture res)
 }
 
 void
-circle_aperture(double size, bool jitter, struct circle_aperture_args *args, Aperture res)
+circle_aperture(double size, size_t usteps, size_t vsteps, bool jitter, struct circle_aperture_args *args, Aperture res)
 {
-    aperture(CIRCULAR_APERTURE, size, jitter, res);
+    aperture(CIRCULAR_APERTURE, size, usteps, vsteps, jitter, res);
     memcpy(&res->u.circle, args, sizeof(struct circle_aperture_args));
 }
 
-void cross_aperture(double size, bool jitter, struct cross_aperture_args *args, Aperture res)
+void cross_aperture(double size, size_t usteps, size_t vsteps, bool jitter, struct cross_aperture_args *args, Aperture res)
 {
-    aperture(CROSS_APERTURE, size, jitter, res);
+    aperture(CROSS_APERTURE, size, usteps, vsteps, jitter, res);
     memcpy(&res->u.cross, args, sizeof(struct cross_aperture_args));
 }
 
-void diamond_aperture(double size, bool jitter, struct diamond_aperture_args *args, Aperture res)
+void diamond_aperture(double size, size_t usteps, size_t vsteps, bool jitter, struct diamond_aperture_args *args, Aperture res)
 {
-    aperture(DIAMOND_APERTURE, size, jitter, res);
+    aperture(DIAMOND_APERTURE, size, usteps, vsteps, jitter, res);
     memcpy(&res->u.diamond, args, sizeof(struct diamond_aperture_args));
 }
 
-void doughnut_aperture(double size, bool jitter, struct doughnut_aperture_args *args, Aperture res)
+void doughnut_aperture(double size, size_t usteps, size_t vsteps, bool jitter, struct doughnut_aperture_args *args, Aperture res)
 {
-    aperture(DOUGHNUT_APERTURE, size, jitter, res);
+    aperture(DOUGHNUT_APERTURE, size, usteps, vsteps, jitter, res);
     memcpy(&res->u.doughnut, args, sizeof(struct doughnut_aperture_args));
 }
 
-void square_aperture(double size, bool jitter, Aperture res)
+void square_aperture(double size, size_t usteps, size_t vsteps, bool jitter, Aperture res)
 {
-    aperture(SQUARE_APERTURE, size, jitter, res);
+    aperture(SQUARE_APERTURE, size, usteps, vsteps, jitter, res);
 }
 
 void point_aperture(Aperture res)
 {
-    aperture(POINT_APERTURE, 0, false, res);
+    aperture(POINT_APERTURE, 0, 1, 1, false, res);
 }

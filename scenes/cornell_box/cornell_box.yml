@@ -5,7 +5,7 @@
   clamping: False
 
 # ======================================================
-# the camera
+# the test camera
 # ======================================================
 
 - add: camera
@@ -16,28 +16,51 @@
   to: [ 0, 0, 0 ]
   up: [ 0, 1, 0 ]
   focal-length: 1.5
-  samples-per-pixel: 8
+  usteps: 1
+  vsteps: 1
   aperture:
-    jitter: true
+    jitter: false
     size: 0
     type: [ POINT_APERTURE ]
 
 # ======================================================
-# light sources
+# test light sources
+# ======================================================
+
+- add: light
+  at: [ 0, 1.44, -0.4 ]
+  intensity: [ .5, .5, .5 ]
+
+# ======================================================
+# finish camera
+# ======================================================
+
+#- add: camera
+#  width: 800
+#  height: 800
+#  field-of-view: 1.2
+#  from: [ 0, 0, -2.75 ]
+#  to: [ 0, 0, 0 ]
+#  up: [ 0, 1, 0 ]
+#  focal-length: 1.5
+#  samples-per-pixel: 8
+#  aperture:
+#    jitter: true
+#    size: 0
+#    type: [ POINT_APERTURE ]
+
+# ======================================================
+# finish light sources
 # ======================================================
 
 #- add: light
-#  at: [ 0, 1.44, -0.4 ]
-#  intensity: [ .5, .5, .5 ]
-
-- add: light
-  corner: [-0.4, 1.44, -0.5]
-  uvec: [0.8, 0, 0]
-  vvec: [0, 0, 0.4]
-  usteps: 10
-  vsteps: 10
-  jitter: true
-  intensity: [1.0, 1.0, 1.0]
+#  corner: [-0.4, 1.44, -0.5]
+#  uvec: [0.8, 0, 0]
+#  vvec: [0, 0, 0.4]
+#  usteps: 10
+#  vsteps: 10
+#  jitter: true
+#  intensity: [1.0, 1.0, 1.0]
 
 # ======================================================
 # define some constants to avoid duplication
@@ -73,17 +96,6 @@
 # ======================================================
 # describe the elements of the scene
 # ======================================================
-
-#- add: sphere
-#  material:
-#    color: [ 0.373, 0.404, 0.550 ]
-#    diffuse: 0.2
-#    ambient: 0.0
-#    specular: 1.0
-#    shininess: 200
-#    reflective: 0.7
-#    transparency: 0.7
-#    refractive-index: 1.5
 
 # top
 - add: cube
@@ -123,6 +135,8 @@
   - [ rotate-z, 1.5707963267948966 ]
   - [ translate, 1.55, 0, 0 ]
 
+
+
 # light
 - add: cube
   material:
@@ -135,6 +149,8 @@
   - [ scale, 0.4, .01, 0.2 ]
   - [ translate, 0, 1.44, -0.3 ]
 
+
+# mirror ball
 - add: sphere
   material:
     color: [0.0, 0.0, 0.0]
@@ -146,6 +162,7 @@
   - [scale, 0.5, 0.5, 0.5]
   - [translate, -0.6, -0.75, 0.5]
 
+# glass ball
 - add: sphere
   material:
     color: [0.0, 0.0, 0.0]

@@ -109,7 +109,7 @@ default_world()
     point(-10, 10, -10, p);
     Color c = color(1.0, 1.0, 1.0);
     Light l = array_of_lights(1);
-    point_light(p, c, l);
+    point_light(p, c, 10000, l);
     w->lights = l;
     w->lights_num = 1;
     Shape shapes = (Shape) malloc(2 * sizeof(struct shape));

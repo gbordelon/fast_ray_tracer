@@ -57,12 +57,11 @@ is_shadowed(World w, Point light_position, Point pt)
     return retval;
 }
 
-
 void
-ray_for_pixel(Camera cam, double px, double py, double x_jitter, double y_jitter, Ray res)
+ray_for_pixel(Camera cam, size_t px, size_t py, double xy_jitter[2], Ray res)
 {
-    double xoffset = (px + x_jitter) * cam->pixel_size;
-    double yoffset = (py + y_jitter) * cam->pixel_size;
+    double xoffset = ((double)px + xy_jitter[0]) * cam->pixel_size;
+    double yoffset = ((double)py + xy_jitter[1]) * cam->pixel_size;
     double world_x = cam->half_width - xoffset;
     double world_y = cam->half_height - yoffset;
     Matrix inv;
@@ -82,7 +81,7 @@ ray_for_pixel(Camera cam, double px, double py, double x_jitter, double y_jitter
 
     p[0] = 0;
     p[1] = 0;
-    sample_aperture(p, &cam->aperture);
+    sample_aperture(p, px, py, &cam->aperture);
 
     p[0] *= cam->aperture.size;
     p[1] *= cam->aperture.size;
@@ -108,54 +107,22 @@ ray_for_pixel(Camera cam, double px, double py, double x_jitter, double y_jitter
  * average the colors
  */
 void
-pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_t vsteps, bool jitter, Color res, struct container *container)
+pixel_multi_sample(Camera cam, World w, size_t x, size_t y, size_t usteps, size_t vsteps, Sampler sampler, Color res, struct container *container)
 {
-    double x_offset, y_offset;
-    size_t u, v;
+    double jitter[2];
+    size_t u, v, index[2];
     double total_steps = (double)usteps * (double)vsteps;
-    double usteps_inv = 1.0 / (double)usteps;
-    double vsteps_inv = 1.0 / (double)vsteps;
     struct ray r;
     Color c;
     Color acc = color(0.0, 0.0, 0.0);
 
-    size_t n = vsteps;
-    size_t m = usteps;
-    size_t k;
-
-    static double *canonical = NULL;
-    if (canonical == NULL) {
-        canonical = (double *) malloc(2 * vsteps * usteps * sizeof(double));
-    }
-
-    // produce canonical representation
-    for (v = 0; v < n; v++) {
-        for (u = 0; u < m; u++) {
-            canonical[2 * (v * m + u)] = (u + (v + jitter_by(jitter)) / n) / m;
-            canonical[2 * (v * m + u) + 1] = (v + (u + jitter_by(jitter)) / m) / n;
-        }
-    }
-
-    // shuffle canonical for x
-    for (v = 0; v < n; v++) {
-        k = v + jitter_by(jitter) * (n - v);
-        for (u = 0; u < m; u++) {
-            double_swap(&canonical[2 * (v * m + u)], &canonical[2 * (k * m + u)]);
-        }
-    }
-
-    // shuffle canonical for y
-    for (u = 0; u < m; u++) {
-        k = u + jitter_by(jitter) * (m - u);
-        for (v = 0; v < n; v++) {
-            double_swap(&canonical[2 * (v * m + u) + 1], &canonical[2 * (v * m + k) + 1]);
-        }
-    }
+    sampler->reset(sampler);
 
     for (v = 0; v < vsteps; v++) {
+        index[1] = v;
         for (u = 0; u < usteps; u++) {
-            x_offset = ((double)u + canonical[2 * (v * m + u)]) * usteps_inv;
-            y_offset = ((double)v + canonical[2 * (v * m + u) + 1]) * vsteps_inv;
+            index[0] = u;
+            sampler->get_point(sampler, index, jitter);
             c[0] = 0;
             c[1] = 0;
             c[2] = 0;
@@ -167,7 +134,7 @@ pixel_multi_sample(Camera cam, World w, double x, double y, size_t usteps, size_
             r.direction[1] = 0;
             r.direction[2] = 0;
             r.direction[0] = 0;
-            ray_for_pixel(cam, x, y, x_offset, y_offset, &r);
+            ray_for_pixel(cam, x, y, jitter, &r);
             color_at(w, &r, 5, c, container);
             color_accumulate(acc, c);
         }
@@ -282,13 +249,16 @@ render_multi_helper(void *args)
     container.shapes = NULL;
     container.size = 0;
 
+    struct sampler sampler;
+    sampler_2d(jitter, usteps, vsteps, sampler_default_constraint, &sampler);
+
     Color *buf = (Color *)malloc(cam->hsize * sizeof(Color));
 
     int i, j, k;
     for (j = y_start, k=1; j < y_end; ++j, ++k) {
         for (i = 0; i < cam->hsize; ++i) {
             color_default(c);
-            pixel_multi_sample(cam, w, (double)i, (double)j, usteps, vsteps, jitter, c, &container);
+            pixel_multi_sample(cam, w, i, j, usteps, vsteps, &sampler, c, &container);
             color_copy(*(buf+i), c);
         }
         printf("%d: Wrote %d rows out of %lu\n", thread_id, k, y_end - y_start);
@@ -356,13 +326,15 @@ render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
     struct container container;
     container.shapes = NULL;
     container.size = 0;
+    struct sampler sampler;
+    sampler_2d(jitter, usteps, vsteps, sampler_default_constraint, &sampler);
 
 
     k = 0;
     for (j = 0; j < cam->vsize; ++j) {
         for (i = 0; i < cam->hsize; ++i) {
             color_default(c);
-            pixel_multi_sample(cam, w, (double)i, (double)j, usteps, vsteps, jitter, c, &container);
+            pixel_multi_sample(cam, w, i, j, usteps, vsteps, &sampler, c, &container);
             canvas_write_pixel(image, i, j, c);
         }
         k += 1;

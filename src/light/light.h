@@ -33,6 +33,8 @@ typedef struct light {
     enum light_enum type;
     double intensity[3];
     size_t num_samples;
+    double photon_count;
+
     union {
         struct point_light_fields point;
         struct area_light_fields area;
@@ -45,7 +47,7 @@ typedef struct light {
 } *Light;
 
 Light array_of_lights(size_t num);
-void point_light(Point p, Color intensity, Light l);
+void point_light(Point p, Color intensity, double photon_count, Light l);
 void
 area_light(Point corner,
            Vector full_uvec/*vector*/,
@@ -54,6 +56,7 @@ area_light(Point corner,
            size_t vsteps,
            bool jitter,
            Color intensity,
+           double photon_count,
            Light l);
 
 #endif
