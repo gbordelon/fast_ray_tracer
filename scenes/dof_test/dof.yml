@@ -6,15 +6,16 @@
   to: [0, 3, 0]
   up: [0, 1, 0]
   focal-length: 1
-  samples-per-pixel: 2
+  usteps: 8
+  vsteps: 8
   aperture:
-    jitter: true
-    size: 0.4
-#    type: [ CIRCULAR_APERTURE, 1.0 ]
+    jitter: false
+    size: 0.05
+    type: [ CIRCULAR_APERTURE, 1.0 ]
 #    type: [ CROSS_APERTURE, -0.1, 0.1, -0.1, 0.1 ]
 #    type: [ DIAMOND_APERTURE, -1, 1, -1, 1 ]
 #    type: [ DOUBLE_CIRCLE_APERTURE, 1.0, 0.5 ]
-    type: [ POINT_APERTURE ]
+#    type: [ POINT_APERTURE ]
 #    type: [ SQUARE_APERTURE ]
 
 - add: light

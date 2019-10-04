@@ -11,7 +11,7 @@
 #include "light.h"
 
 void
-area_light_point_on_light(Light l, size_t u, size_t v, double uv_jitter[2], Point retval)
+area_light_point_on_light(Light l, double uv_jitter[2], Point retval)
 {
     Vector uvec;
     vector_copy(uvec, l->u.area.uvec);
@@ -19,8 +19,8 @@ area_light_point_on_light(Light l, size_t u, size_t v, double uv_jitter[2], Poin
     Vector vvec;
     vector_copy(vvec, l->u.area.vvec);
 
-    vector_scale(uvec, u + uv_jitter[0]);
-    vector_scale(vvec, v + uv_jitter[1]);
+    vector_scale(uvec, uv_jitter[0]);
+    vector_scale(vvec, uv_jitter[1]);
 
     retval[0] = l->u.area.corner[0] + uvec[0] + vvec[0];
     retval[1] = l->u.area.corner[1] + uvec[1] + vvec[1];
@@ -53,8 +53,10 @@ area_light_surface_points(Light light)
                 for (u = 0; u < light->u.area.usteps; ++u) {
                     index[0] = u;
                     sampler.get_point(&sampler, index, jitter);
+                    jitter[0] *= light->u.area.usteps;
+                    jitter[1] *= light->u.area.vsteps;
                     
-                    area_light_point_on_light(light, u, v, jitter, point);
+                    area_light_point_on_light(light, jitter, point);
                     point_copy(*(itr->points + v * light->u.area.usteps + u), point);
                 }
             }

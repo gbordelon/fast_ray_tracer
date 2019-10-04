@@ -16,10 +16,10 @@
   to: [ 0, 0, 0 ]
   up: [ 0, 1, 0 ]
   focal-length: 1.5
-  usteps: 1
-  vsteps: 1
+  usteps: 4
+  vsteps: 4
   aperture:
-    jitter: false
+    jitter: true
     size: 0
     type: [ POINT_APERTURE ]
 
