@@ -24,7 +24,7 @@ typedef struct world {
 } *World;
 
 World world();
-World world_copy(const World w);
+void world_copy(const World w, World res);
 World default_world();
 
 Intersections intersect_world(const World w, const Ray r);

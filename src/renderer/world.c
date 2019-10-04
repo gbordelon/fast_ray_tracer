@@ -81,14 +81,14 @@ shape_copy(Shape s, Shape parent, Shape res)
     }
 }
 
-World
-world_copy(const World w)
+void
+world_copy(const World w, World new_world)
 {
-    World new_world = world();
     new_world->lights = w->lights;
     new_world->lights_num = w->lights_num;
     new_world->shapes_num = w->shapes_num;
     new_world->shapes = array_of_shapes(w->shapes_num);
+    new_world->xs = intersections_empty(64);
 
     int i;
     Shape from, to;
@@ -97,8 +97,6 @@ world_copy(const World w)
             i++, from++, to++) {
         shape_copy(from, NULL, to);
     }
-
-    return new_world;
 }
 
 World

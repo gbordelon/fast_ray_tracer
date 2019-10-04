@@ -1,5 +1,5 @@
 - add: config
-  thread-count: 6
+  thread-count: 4
   timeout: 600 # in seconds
   divide-threshold: 1
   clamping: False
@@ -16,7 +16,8 @@
   to: [ 6, 0, 6 ]
   up: [ -0.45, 1, 0 ]
   focal-length: 1
-  samples-per-pixel: 2
+  usteps: 2
+  usteps: 2
   aperture:
     jitter: true
     size: 0

@@ -14,6 +14,7 @@
 
 #include "../libs/linalg/linalg.h"
 #include "../libs/sampler/sampler.h"
+#include "../libs/thpool/thpool.h"
 #include "../pattern/pattern.h"
 #include "../shapes/shapes.h"
 #include "../shapes/sphere.h"
@@ -221,17 +222,14 @@ struct render_args {
     size_t vsteps;
     bool jitter;
     int core_id;
-    int thread_id;
-    World w;
     Camera cam;
     Canvas image;
 };
 
-void *
-render_multi_helper(void *args)
+void
+render_multi_helper(World w, void *args)
 {
     Camera cam = ((struct render_args *)args)->cam;
-    World w = ((struct render_args *)args)->w;
     Canvas image = ((struct render_args *)args)->image;
     size_t y_start = ((struct render_args *)args)->y_start;
     size_t y_end = ((struct render_args *)args)->y_end;
@@ -239,7 +237,6 @@ render_multi_helper(void *args)
     size_t vsteps = ((struct render_args *)args)->vsteps;
     bool jitter = ((struct render_args *)args)->jitter;
     int core_id = ((struct render_args *)args)->core_id;
-    int thread_id = ((struct render_args *)args)->thread_id;
 
     //stick_this_thread_to_core(core_id);
 
@@ -261,57 +258,47 @@ render_multi_helper(void *args)
             pixel_multi_sample(cam, w, i, j, usteps, vsteps, &sampler, c, &container);
             color_copy(*(buf+i), c);
         }
-        printf("%d: Wrote %d rows out of %lu\n", thread_id, k, y_end - y_start);
+        printf("Wrote row %lu\n", y_start);
         canvas_write_pixels(image, 0, j, buf, cam->hsize);
     }
 
     free(container.shapes);
     free(buf);
-
-    return NULL;
 }
 
-/*
- * World is not thread safe because of Intersections buffers
- *
- * Use realloc instead of malloc to keep references in tact when a thread needs to
- * resize an Intersections array
- * 
- */
 Canvas
 render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter, size_t num_threads)
 {
     int i;
     Canvas image = canvas_alloc(cam->hsize, cam->vsize);
-
-    pthread_t *threads = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
-
-    struct render_args *args_array = (struct render_args *)malloc(num_threads * sizeof(struct render_args));
-
-    for (i = 0; i < num_threads; i++) {
-        struct render_args *debug = (args_array + i);
-        (args_array + i)->w = world_copy(w);
-        (args_array + i)->cam = cam;
-        (args_array + i)->image = image;
-        (args_array + i)->y_start = i * cam->vsize / num_threads;
-        (args_array + i)->y_end = (i + 1) * cam->vsize / num_threads;
-        (args_array + i)->usteps = usteps;
-        (args_array + i)->vsteps = vsteps;
-        (args_array + i)->jitter = jitter;
-        (args_array + i)->core_id = i % 4;
-        (args_array + i)->thread_id = i;
+    World worlds = (World) malloc(num_threads * sizeof(struct world));
+    struct render_args *args_array = (struct render_args *)malloc(cam->vsize * sizeof(struct render_args));
+struct render_args *debug = args_array;
+    for (i = 0; i < num_threads; ++i) {
+        world_copy(w, worlds + i);
     }
 
-    for (i = 0; i < num_threads; i++) {
-        pthread_create(threads + i, NULL, *render_multi_helper, (void *)(args_array + i));
+    threadpool thpool = thpool_init(num_threads, worlds);
+
+    for (i = 0; i < cam->vsize; ++i) {
+        debug->cam = cam;
+        debug->image = image;
+        debug->y_start = i;
+        debug->y_end = i + 1;
+        debug->usteps = usteps;
+        debug->vsteps = vsteps;
+        debug->jitter = jitter;
+        debug->core_id = i % 4; // 4 cores on this Mac
+        thpool_add_work(thpool, render_multi_helper, debug);
+        debug++;
     }
 
-    for (i = 0; i < num_threads; i++) {
-        pthread_join(*(threads + i), NULL);
-    }
+    thpool_wait(thpool);
+    thpool_destroy(thpool);
 
     free(args_array);
-    // recursive world free for each world
+    // TODO recursive world free for each world
+    free(worlds);
 
     return image;
 }

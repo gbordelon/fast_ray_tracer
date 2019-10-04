@@ -21,6 +21,7 @@
 #endif
 
 #include "thpool.h"
+#include "../../renderer/world.h"
 
 #ifdef THPOOL_DEBUG
 #define THPOOL_DEBUG 1
@@ -53,7 +54,7 @@ typedef struct bsem {
 /* Job */
 typedef struct job{
 	struct job*  prev;                   /* pointer to previous job   */
-	void   (*function)(void* arg);       /* function pointer          */
+	void   (*function)(World, void* arg);       /* function pointer          */
 	void*  arg;                          /* function's argument       */
 } job;
 
@@ -71,6 +72,7 @@ typedef struct jobqueue{
 /* Thread */
 typedef struct thread{
 	int       id;                        /* friendly id               */
+    World     w;
 	pthread_t pthread;                   /* pointer to actual thread  */
 	struct thpool_* thpool_p;            /* access to thpool          */
 } thread;
@@ -93,7 +95,7 @@ typedef struct thpool_{
 /* ========================== PROTOTYPES ============================ */
 
 
-static int  thread_init(thpool_* thpool_p, struct thread** thread_p, int id);
+static int  thread_init(thpool_* thpool_p, struct thread** thread_p, int id, World w);
 static void* thread_do(struct thread* thread_p);
 static void  thread_hold(int sig_id);
 static void  thread_destroy(struct thread* thread_p);
@@ -118,7 +120,7 @@ static void  bsem_wait(struct bsem *bsem_p);
 
 
 /* Initialise thread pool */
-struct thpool_* thpool_init(int num_threads){
+struct thpool_* thpool_init(int num_threads, World w){
 
 	threads_on_hold   = 0;
 	threads_keepalive = 1;
@@ -159,7 +161,7 @@ struct thpool_* thpool_init(int num_threads){
 	/* Thread init */
 	int n;
 	for (n=0; n<num_threads; n++){
-		thread_init(thpool_p, &thpool_p->threads[n], n);
+		thread_init(thpool_p, &thpool_p->threads[n], n, w + n);
 #if THPOOL_DEBUG
 			printf("THPOOL_DEBUG: Created thread %d in pool \n", n);
 #endif
@@ -173,11 +175,11 @@ struct thpool_* thpool_init(int num_threads){
 
 
 /* Add work to the thread pool */
-int thpool_add_work(thpool_* thpool_p, void (*function_p)(void*), void* arg_p){
+int thpool_add_work(thpool_* thpool_p, void (*function_p)(World, void*), void* arg_p){
 	job* newjob;
 
-	newjob=(struct job*)malloc(sizeof(struct job));
-	if (newjob==NULL){
+	newjob = (struct job*)malloc(sizeof(struct job));
+	if (newjob == NULL){
 		err("thpool_add_work(): Could not allocate memory for new job\n");
 		return -1;
 	}
@@ -279,7 +281,7 @@ int thpool_num_threads_working(thpool_* thpool_p){
  * @param id            id to be given to the thread
  * @return 0 on success, -1 otherwise.
  */
-static int thread_init (thpool_* thpool_p, struct thread** thread_p, int id){
+static int thread_init (thpool_* thpool_p, struct thread** thread_p, int id, World w){
 
 	*thread_p = (struct thread*)malloc(sizeof(struct thread));
 	if (thread_p == NULL){
@@ -289,6 +291,7 @@ static int thread_init (thpool_* thpool_p, struct thread** thread_p, int id){
 
 	(*thread_p)->thpool_p = thpool_p;
 	(*thread_p)->id       = id;
+	(*thread_p)->w        = w;
 
 	pthread_create(&(*thread_p)->pthread, NULL, (void *)thread_do, (*thread_p));
 	pthread_detach((*thread_p)->pthread);
@@ -357,13 +360,13 @@ static void* thread_do(struct thread* thread_p){
 			pthread_mutex_unlock(&thpool_p->thcount_lock);
 
 			/* Read job from queue and execute it */
-			void (*func_buff)(void*);
+			void (*func_buff)(World, void*);
 			void*  arg_buff;
 			job* job_p = jobqueue_pull(&thpool_p->jobqueue);
 			if (job_p) {
 				func_buff = job_p->function;
 				arg_buff  = job_p->arg;
-				func_buff(arg_buff);
+				func_buff(thread_p->w, arg_buff);
 				free(job_p);
 			}
 
@@ -406,7 +409,6 @@ static int jobqueue_init(jobqueue* jobqueue_p){
 	if (jobqueue_p->has_jobs == NULL){
 		return -1;
 	}
-
 	pthread_mutex_init(&(jobqueue_p->rwmutex), NULL);
 	bsem_init(jobqueue_p->has_jobs, 0);
 

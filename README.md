@@ -30,3 +30,5 @@ TODO
 * Add heirarchical yaml parsing so I can have a global config which is read first before a scene's yaml file.
 * Add a spot light
 * Genericize patterns so they don't use the Color type
+* Support a thread pool so rows can be handed out independently.
+* Use realloc instead of malloc when resizing arrays for intersections and group.children
