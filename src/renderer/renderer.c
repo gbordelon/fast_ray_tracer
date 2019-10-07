@@ -13,6 +13,7 @@
 
 
 #include "../libs/linalg/linalg.h"
+#include "../libs/photon_map/pm.h"
 #include "../libs/sampler/sampler.h"
 #include "../libs/thpool/thpool.h"
 #include "../pattern/pattern.h"
@@ -33,8 +34,9 @@
 #include "ray.h"
 
 void color_at(const World w, const Ray r, const size_t remaining, Color res, struct container *container);
-void lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity, Color res);
-
+void lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity, bool use_diffuse, bool use_specular_highlights, Color res);
+void lighting_gi(Material material, Shape shape, Point point, Vector eyev, PhotonMap *maps, Color res);
+void shade_hit_gi(World w, Computations comps, Color res);
 
 bool
 is_shadowed(World w, Point light_position, Point pt)
@@ -334,6 +336,21 @@ render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
 }
 
 void
+color_at_gi(const World w, const Ray r, Color res, struct container *container)
+{
+    Intersections xs = intersect_world(w, r);
+    Intersection i = hit(xs, false);
+    struct computations comps;
+    Color c = color(0.0, 0.0, 0.0);
+
+    if (i != NULL && i->object->material->diffuse > 0) {
+        prepare_computations(i, r, c, xs, &comps, container); // can probably do something simpler here
+        shade_hit_gi(w, &comps, c);
+    }
+    color_copy(res, c);
+}
+
+void
 color_at(const World w, const Ray r, const size_t remaining, Color res, struct container *container)
 {
     Intersections xs = intersect_world(w, r);
@@ -342,7 +359,7 @@ color_at(const World w, const Ray r, const size_t remaining, Color res, struct c
     Color c = color(0.0, 0.0, 0.0);
 
     if (i != NULL) {
-        prepare_computations(i, r, xs, &comps, container);
+        prepare_computations(i, r, c, xs, &comps, container);
         shade_hit(w, &comps, remaining, c, container);
     }
     color_copy(res, c);
@@ -350,8 +367,11 @@ color_at(const World w, const Ray r, const size_t remaining, Color res, struct c
 
 
 void
-prepare_computations(Intersection i, Ray r, Intersections xs, Computations res, struct container *container)
+prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs, Computations res, struct container *container)
 {
+    ray_array(r->origin, r->direction, &(res->photon_ray));
+    color_copy(res->photon_power, photon_power);
+
     res->t = i->t;
 
     res->obj = i->object;
@@ -506,6 +526,59 @@ schlick(Computations comps)
     return r0 + (1.0 - r0) * (1.0 - co) * (1.0 - co) * (1.0 - co) * (1.0 - co) * (1.0 - co);
 }
 
+#define USE_DIRECT_DIFFUSE 1
+#define USE_INDIRECT_DIFFUSE 0
+#define USE_SPECULAR_HIGHLIGHTS 0
+#define USE_GI 1
+#define FINAL_GATHER 1
+#define FINAL_GATHER_NUM 64
+#define INCLUDE_SPECULAR 1
+#define INCLUDE_DIRECT 1
+
+void
+shade_hit_gi(World w, Computations comps, Color res)
+{
+    Color indirect;
+    Color c;
+    Color surface;
+    Light itr;
+    size_t i;
+    double intensity = 0;
+
+    color_default(surface);
+/*
+    if (INCLUDE_DIRECT) {
+        for (i = 0, itr = w->lights; i < w->lights_num; i++, itr++) {
+            color_default(c);
+            intensity = itr->intensity_at(itr, w, comps->over_point);
+            lighting(comps->obj->material,
+                     comps->obj,
+                     itr,
+                     comps->over_point,
+                     comps->eyev,
+                     comps->normalv,
+                     intensity,
+                     true,
+                     false,
+                     c);
+
+            color_accumulate(surface, c);
+        }
+    }
+*/
+    color_default(indirect);
+//    if (USE_INDIRECT_DIFFUSE) {
+        lighting_gi(comps->obj->material,
+                    comps->obj,
+                    comps->over_point,
+                    comps->eyev,
+                    w->photon_maps,
+                    indirect);
+        color_scale(surface, 1.0 / M_PI);
+//    }
+    color_copy(res, surface);
+    color_accumulate(res, indirect);
+}
 
 void
 shade_hit(World w, Computations comps, size_t remaining, Color res, struct container *container)
@@ -514,58 +587,147 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
     size_t i;
     Color c;
     Color surface = color(0.0, 0.0, 0.0);
-    double intensity;
+    Color indirect = color(0.0, 0.0, 0.0);
+    double intensity = 0;
 
-    for (i = 0, itr = w->lights; i < w->lights_num; i++, itr++) {
+    // shade the hit with direct ambient and direct specular highlights and maybe direct diffuse
+    if (INCLUDE_DIRECT) {
+        for (i = 0, itr = w->lights; i < w->lights_num; i++, itr++) {
+            color_default(c);
+            intensity = itr->intensity_at(itr, w, comps->over_point);
+            lighting(comps->obj->material,
+                     comps->obj,
+                     itr,
+                     comps->over_point,
+                     comps->eyev,
+                     comps->normalv,
+                     intensity,
+                     USE_DIRECT_DIFFUSE,
+                     USE_SPECULAR_HIGHLIGHTS,
+                     c);
+
+            color_accumulate(surface, c);
+        }
+    }
+
+    // shade the hit with soft indirect diffuse
+    if (USE_GI && comps->obj->material->diffuse > 0) {
         color_default(c);
-        intensity = itr->intensity_at(itr, w, comps->over_point);
-        lighting(comps->obj->material,
-                 comps->obj,
-                 itr,
-                 comps->over_point,
-                 comps->eyev,
-                 comps->normalv,
-                 intensity,
-                 c);
+        size_t num_rays = FINAL_GATHER_NUM;
+        double pdf_inv = 100;
 
-        color_accumulate(surface, c);
+        // approximate for the diffuse component
+        if (USE_INDIRECT_DIFFUSE) { // This results in a direct visualization fo the photon map
+            lighting_gi(comps->obj->material,
+                        comps->obj,
+                        comps->over_point,
+                        comps->eyev,
+                        w->photon_maps,
+                        indirect);
+            color_scale(indirect, pdf_inv);
+        } else {
+            color_copy(indirect, surface); // this isn't quite right because we'll get ambient and specular highlight components
+        }
+
+        if (FINAL_GATHER) {
+            // final gather for diffuse component
+            Vector nt, nb, sample, direction;
+            struct ray r;
+            create_coordinate_system(comps->normalv, nt, nb);
+            double r1, r2;
+            pdf_inv = 2 * M_PI;
+            point_copy(r.origin, comps->over_point);
+            for (i = 0; i < num_rays; ++i) {
+                r1 = drand48();
+                r2 = drand48();
+                uniform_sample_hemisphere(r1, r2, sample);
+                direction[0] = sample[0] * nb[0] + sample[1] * comps->normalv[0] + sample[2] * nt[0];
+                direction[1] = sample[0] * nb[1] + sample[1] * comps->normalv[1] + sample[2] * nt[1];
+                direction[2] = sample[0] * nb[2] + sample[1] * comps->normalv[2] + sample[2] * nt[2];
+                direction[3] = 0;
+                vector_normalize(direction, r.direction);
+
+                color_at_gi(w, &r, c, container);
+                color_scale(c, r1);
+                color_scale(c, pdf_inv);
+                color_accumulate(indirect, c);
+            }
+            color_scale(indirect, 1.0 / (double)(num_rays+1));
+            color_scale(surface, 1.0 / M_PI);
+        }
+        color_accumulate(surface, indirect);
     }
 
-    Color reflected = color(0.0, 0.0, 0.0);
-    reflected_color(w, comps, remaining, reflected, container);
+    // shade the hit with specular reflections and refractions
+    if (INCLUDE_SPECULAR) {
+        Color reflected = color(0.0, 0.0, 0.0);
+        reflected_color(w, comps, remaining, reflected, container);
 
-    Color refracted = color(0.0, 0.0, 0.0);
-    refracted_color(w, comps, remaining, refracted, container);
+        Color refracted = color(0.0, 0.0, 0.0);
+        refracted_color(w, comps, remaining, refracted, container);
 
-    if (comps->obj->material->reflective > 0 && comps->obj->material->transparency > 0) {
-        double reflectance = schlick(comps);
-        color_scale(reflected, reflectance);
-        color_scale(refracted, 1.0 - reflectance);
+        if (comps->obj->material->reflective > 0 && comps->obj->material->transparency > 0) {
+            double reflectance = schlick(comps);
+            color_scale(reflected, reflectance);
+            color_scale(refracted, 1.0 - reflectance);
+        }
+
+        color_accumulate(surface, reflected);
+        color_accumulate(surface, refracted);
     }
 
-    color_accumulate(surface, reflected);
-    color_accumulate(surface, refracted);
+    // TODO shade the hit with caustics
 
     color_copy(res, surface);
 }
 
 void
-lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity, Color res)
+lighting_gi(Material material, Shape shape, Point point, Vector eyev, PhotonMap *maps, Color res)
 {
-    Color scolor;
+    Color direct_color;
+    Color intensity_estimate;
+    Color diffuse;
+
+    if (material->diffuse < 0 || equal(material->diffuse, 0.0)) {
+        return;
+    }
+    double num_photons = (maps+1)->max_photons; // global
+
+    if (material->pattern != NULL) {
+        material->pattern->pattern_at_shape(material->pattern, shape, point, direct_color);
+    } else {
+        color_copy(direct_color, material->color);
+    }
+
+    pm_irradiance_estimate(maps+1, intensity_estimate, point, eyev, 0.1, 500); // ignore caustics map for now
+    color_scale(intensity_estimate, 2 * M_PI / num_photons);
+
+    // diffuse
+    color_copy(diffuse, direct_color);
+    diffuse[0] *= intensity_estimate[0];
+    diffuse[1] *= intensity_estimate[1];
+    diffuse[2] *= intensity_estimate[2];
+
+    //color_scale(diffuse, material->diffuse);
+    color_accumulate(res, diffuse);
+}
+
+void
+lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity, bool use_diffuse, bool use_specular_highlights, Color res)
+{
+    Color direct_color;
     Color ambient;
 
     if (material->pattern != NULL) {
-        material->pattern->pattern_at_shape(material->pattern, shape, point, scolor);
+        material->pattern->pattern_at_shape(material->pattern, shape, point, direct_color);
     } else {
-        color_copy(scolor, material->color);
+        color_copy(direct_color, material->color);
     }
+    color_copy(ambient, direct_color);
 
-    scolor[0] *= light->intensity[0];
-    scolor[1] *= light->intensity[1];
-    scolor[2] *= light->intensity[2];
-
-    color_copy(ambient, scolor);
+    ambient[0] *= light->intensity[0];
+    ambient[1] *= light->intensity[1];
+    ambient[2] *= light->intensity[2];
 
     color_scale(ambient, material->ambient);
     if (equal(shade_intensity, 0.0)) {
@@ -573,12 +735,15 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
         return;
     }
 
-    Color diffuse;
+    Color diffuse, diffuse_acc, specular_acc;
     int i;
-    Points pts = light->light_surface_points(light);
     Vector diff;
     Vector lightv;
     Vector reflectv;
+    Points pts = light->light_surface_points(light);
+
+    color_default(diffuse_acc);
+    color_default(specular_acc);
 
     for (i = 0; i < pts->points_num; i++) {
         vector_from_points(*(pts->points + i), point, diff);
@@ -586,27 +751,40 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
         double light_dot_normal = vector_dot(lightv, normalv);
         if (light_dot_normal >= 0) {
             // diffuse
-            color_copy(diffuse, scolor);
+            color_copy(diffuse, direct_color);
+            diffuse[0] *= light->intensity[0];
+            diffuse[1] *= light->intensity[1];
+            diffuse[2] *= light->intensity[2];
+
             color_scale(diffuse, material->diffuse);
             color_scale(diffuse, light_dot_normal);
-            color_accumulate(res, diffuse);
 
-            // specular
-            vector_scale(lightv, -1);
-            vector_reflect(lightv, normalv, reflectv);
-            vector_scale(lightv, -1);
+            color_accumulate(diffuse_acc, diffuse);
 
-            double reflect_dot_eye = vector_dot(reflectv, eyev);
-            if (reflect_dot_eye > 0 && material->specular > 0) {
-                double factor = pow(reflect_dot_eye, material->shininess);
-                res[0] += light->intensity[0] * material->specular * factor;
-                res[1] += light->intensity[1] * material->specular * factor;
-                res[2] += light->intensity[2] * material->specular * factor;
+            if (use_specular_highlights) {
+                // specular
+                vector_scale(lightv, -1);
+                vector_reflect(lightv, normalv, reflectv);
+                vector_scale(lightv, -1);
+
+                double reflect_dot_eye = vector_dot(reflectv, eyev);
+                if (reflect_dot_eye > 0 && material->specular > 0) {
+                    double factor = pow(reflect_dot_eye, material->shininess);
+                    specular_acc[0] += light->intensity[0] * material->specular * factor;
+                    specular_acc[1] += light->intensity[1] * material->specular * factor;
+                    specular_acc[2] += light->intensity[2] * material->specular * factor;
+                }
             }
         }
     }
 
+    if (use_diffuse) {
+        color_accumulate(res, diffuse_acc);
+    }
+
+    color_accumulate(res, specular_acc);
     double scaling = shade_intensity / (double)light->num_samples;
     color_scale(res, scaling);
+
     color_accumulate(res, ambient);
 }

@@ -3,14 +3,15 @@
   timeout: 600 # in seconds
   divide-threshold: 1
   clamping: False
+  photon-count: 100000
 
 # ======================================================
 # the test camera
 # ======================================================
 
 - add: camera
-  width: 800
-  height: 800
+  width: 1024
+  height: 1024
   field-of-view: 1.2
   from: [ 0, 0, -2.75 ]
   to: [ 0, 0, 0 ]
@@ -19,7 +20,7 @@
   usteps: 4
   vsteps: 4
   aperture:
-    jitter: true
+    jitter: false
     size: 0
     type: [ POINT_APERTURE ]
 
@@ -28,8 +29,20 @@
 # ======================================================
 
 - add: light
-  at: [ 0, 1.44, -0.4 ]
-  intensity: [ .5, .5, .5 ]
+  at: [ 0, 1.4, 0 ]
+  to: [ 0, -1, 0 ]
+#  at: [ 0, 0, 0 ]
+  intensity: [ 1, 1, 1 ]
+
+#- add: light
+#  corner: [-0.5, 1.4, -0.5]
+#  uvec: [1, 0, 0]
+#  vvec: [0, 0, 1]
+#  usteps: 10
+#  vsteps: 10
+#  jitter: true
+#  intensity: [1.0, 1.0, 1.0]
+
 
 # ======================================================
 # finish camera
@@ -43,7 +56,8 @@
 #  to: [ 0, 0, 0 ]
 #  up: [ 0, 1, 0 ]
 #  focal-length: 1.5
-#  samples-per-pixel: 8
+#  usteps: 4
+#  vsteps: 4
 #  aperture:
 #    jitter: true
 #    size: 0
@@ -77,17 +91,17 @@
 - define: blue-material
   extend: white-material
   value:
-    color: [ 0.537, 0.831, 0.914 ]
+    color: [ 0,0,1 ]
 
 - define: red-material
   extend: white-material
   value:
-    color: [ 0.941, 0.322, 0.388 ]
+    color: [ 1,0,0 ]
 
 - define: green-material
   extend: white-material
   value:
-    color: [ 0.373, 0.904, 0.220 ]
+    color: [ 0,1,0 ]
 
 - define: wall-transform
   value:
@@ -146,8 +160,9 @@
     specular: 0
     shadow: false
   transform:
-  - [ scale, 0.4, .01, 0.2 ]
-  - [ translate, 0, 1.44, -0.3 ]
+  - [ scale, 0.5, .01, 0.5 ]
+  - [ translate, 0, 1.44, 0 ]
+#  - [ translate, 0, 1.64, 0.5 ]
 
 
 # mirror ball
@@ -157,6 +172,7 @@
     ambient: 1
     specular: 1
     reflective: 1
+    diffuse: 0
     shininess: 300
   transform:
   - [scale, 0.5, 0.5, 0.5]
@@ -169,8 +185,8 @@
     ambient: 1
     specular: 1
     reflective: 1
-    refractive: 1
     transparency: 1
+    diffuse: 0
     refractive-index: 1.5
     shininess: 300
   transform:

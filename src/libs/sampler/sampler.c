@@ -1,8 +1,54 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "sampler.h"
+
+/*
+ * some function from https://www.scratchapixel.com/code.php?id=34&origin=/lessons/3d-basic-rendering/global-illumination-path-tracing
+ */
+void
+uniform_sample_hemisphere(const double r1, const double r2, Vector res) 
+{ 
+    double sin_theta = sqrt(1 - r1 * r1);
+    double phi = 2 * M_PI * r2;
+    double x = sin_theta * cos(phi);
+    double z = sin_theta * sin(phi);
+    res[0] = x;
+    res[1] = r1;
+    res[2] = z;
+    res[3] = 0;
+}
+
+void
+cosine_weighted_sample_hemisphere(const double r1, const double r2, Vector res)
+{
+    double theta = asin(sqrt(r1));
+    double phi = 2 * M_PI * r2;
+    res[0] = sin(theta) * cos(phi);
+    res[2] = sin(theta) * sin(phi);
+    res[1] = cos(theta);
+    res[3] = 0;
+}
+
+void
+create_coordinate_system(const Vector n, Vector nt, Vector nb) 
+{ 
+    nt[3] = nb[3] = 0;
+    if (fabs(n[0]) > fabs(n[1])) {
+        nt[0] = n[2];
+        nt[1] = 0;
+        nt[2] = -n[0];
+        vector_scale(nt, sqrt(n[0] * n[0] + n[2] * n[2]));
+    } else {
+        nt[0] = 0;
+        nt[1] = -n[2];
+        nt[2] = n[1];
+        vector_scale(nt, sqrt(n[1] * n[1] + n[2] * n[2]));
+    }
+    vector_cross(n, nt, nb);
+} 
 
 /*
 size_t

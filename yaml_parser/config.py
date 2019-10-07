@@ -12,6 +12,8 @@ class GlobalConfig(object):
             obj['divide-threshold'] = 1
         if 'clamping' not in obj:
             obj['clamping'] = False
+        if 'photon-count' not in obj:
+            obj['photon-count'] = 10000
 
         return cls(yaml_obj=obj)
 
@@ -24,8 +26,10 @@ class GlobalConfig(object):
 //    size_t timeout = {1};
     size_t divide_threshold = {2};
 //    bool clamping = {3};
+    size_t photon_count = {4};
     /* end config */
 """.format(self.yaml_obj['thread-count'],
            self.yaml_obj['timeout'],
            self.yaml_obj['divide-threshold'],
-           bool_str)
+           bool_str,
+           self.yaml_obj['photon-count'])

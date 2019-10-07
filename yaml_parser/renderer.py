@@ -95,12 +95,34 @@ class Light(object):
 
     @classmethod
     def from_yaml(cls, obj) -> 'Light':
-        if 'photon-count' not in obj:
-            obj['photon-count'] = 10000
         if 'at' in obj:
+            if 'to' in obj:
+                return HemisphereLight.from_yaml(obj)
             return PointLight.from_yaml(obj)
         elif 'corner' in obj:
             return AreaLight.from_yaml(obj)
+
+class HemisphereLight(Light):
+    def __init__(self, yaml_obj):
+        Light.__init__(self, yaml_obj)
+
+    @classmethod
+    def from_yaml(cls, obj) -> 'HemisphereLight':
+        return cls(obj)
+
+    def c_repr(self, name):
+        return """    /* hemisphere light {0} */
+    Light hemisphere_light_{0} = all_lights + {0};
+    Point hemisphere_light_{0}_point = {{ {1:.10f}, {2:.10f}, {3:.10f}, 1.0 }};
+    Color hemisphere_light_{0}_intensity = color({4:.10f}, {5:.10f}, {6:.10f});
+    Vector hemisphere_light_{0}_normal = {{ {7:.10f}, {8:.10f}, {9:.10f}, 0.0 }};
+    hemisphere_light(hemisphere_light_{0}_point, hemisphere_light_{0}_normal, hemisphere_light_{0}_intensity, hemisphere_light_{0});
+
+    /* end point light {0} */
+""".format(name,
+           self.yaml_obj['at'][0], self.yaml_obj['at'][1], self.yaml_obj['at'][2],
+           self.yaml_obj['intensity'][0], self.yaml_obj['intensity'][1], self.yaml_obj['intensity'][2],
+           self.yaml_obj['to'][0], self.yaml_obj['to'][1], self.yaml_obj['to'][2])
 
 class PointLight(Light):
     def __init__(self, yaml_obj):
@@ -115,12 +137,12 @@ class PointLight(Light):
     Light point_light_{0} = all_lights + {0};
     Point point_light_{0}_point = {{ {1:.10f}, {2:.10f}, {3:.10f}, 1.0 }};
     Color point_light_{0}_intensity = color({4:.10f}, {5:.10f}, {6:.10f});
-    point_light(point_light_{0}_point, point_light_{0}_intensity, {7}/* photon count */, point_light_{0});
+    point_light(point_light_{0}_point, point_light_{0}_intensity, point_light_{0});
 
     /* end point light {0} */
 """.format(name,
            self.yaml_obj['at'][0], self.yaml_obj['at'][1], self.yaml_obj['at'][2],
-           self.yaml_obj['intensity'][0], self.yaml_obj['intensity'][1], self.yaml_obj['intensity'][2], self.yaml_obj['photon-count'])
+           self.yaml_obj['intensity'][0], self.yaml_obj['intensity'][1], self.yaml_obj['intensity'][2])
 
 class AreaLight(Light):
     def __init__(self, yaml_obj):
@@ -141,7 +163,7 @@ class AreaLight(Light):
     Color area_light_{0}_intensity = color({4:.10f}, {5:.10f}, {6:.10f});
     Vector area_light_{0}_uvec = vector_init({7:.10f}, {8:.10f}, {9:.10f});
     Vector area_light_{0}_vvec = vector_init({10:.10f}, {11:.10f}, {12:.10f});
-    area_light(area_light_{0}_corner, area_light_{0}_uvec, {13}/*usteps*/, area_light_{0}_vvec, {14}/*vsteps*/, {15}/*jitter*/, area_light_{0}_intensity, {16}/* photon count */, area_light_{0});
+    area_light(area_light_{0}_corner, area_light_{0}_uvec, {13}/*usteps*/, area_light_{0}_vvec, {14}/*vsteps*/, {15}/*jitter*/, area_light_{0}_intensity, area_light_{0});
 
     /* end area light 0 */
 """.format(name,
@@ -149,7 +171,7 @@ class AreaLight(Light):
            self.yaml_obj['intensity'][0], self.yaml_obj['intensity'][1], self.yaml_obj['intensity'][2],
            self.yaml_obj['uvec'][0], self.yaml_obj['uvec'][1], self.yaml_obj['uvec'][2],
            self.yaml_obj['vvec'][0], self.yaml_obj['vvec'][1], self.yaml_obj['vvec'][2],
-           self.yaml_obj['usteps'], self.yaml_obj['vsteps'], bool_str, self.yaml_obj['photon-count'])
+           self.yaml_obj['usteps'], self.yaml_obj['vsteps'], bool_str)
 
 
 

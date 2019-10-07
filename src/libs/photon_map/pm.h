@@ -3,10 +3,10 @@
 
 /* This is the photon.  The power is not compressed so the size is 28 bytes */
 typedef struct Photon {
-  float pos[3];                 // photon position
+  double pos[3];                 // photon position
   short plane;                  // splitting plane for kd-tree
   unsigned char theta, phi;     // incoming direction
-  float power[3];               // photon power (uncompressed)
+  double power[3];               // photon power (uncompressed)
 } Photon;
 
 
@@ -15,8 +15,8 @@ typedef struct NearestPhotons {
   long max;
   long found;
   int got_heap;
-  float pos[3];
-  float *dist2;
+  double pos[3];
+  double *dist2;
   Photon **index;
 } NearestPhotons;
 
@@ -29,42 +29,47 @@ typedef struct {
   long max_photons;
   long prev_scale;
 
-  float costheta[256];
-  float sintheta[256];
-  float cosphi[256];
-  float sinphi[256];
+  double costheta[256];
+  double sintheta[256];
+  double cosphi[256];
+  double sinphi[256];
 
-  float bbox_min[3];            // use bbox_min;
-  float bbox_max[3];            // use bbox_max;
+  double bbox_min[3];            // use bbox_min;
+  double bbox_max[3];            // use bbox_max;
 } PhotonMap;
 
-void init_Photon_map( long max_phot );
+void init_Photon_map( long max_phot, PhotonMap *pm );
 
-void delete_Photon_map(void);
+void delete_Photon_map(PhotonMap *pm);
 
   void pm_store(
-          float power[3],          // photon power
-          float pos[3],            // photon position
-          float dir[3] );          // photon direction
+          PhotonMap *pm,
+          double power[3],          // photon power
+          double pos[3],            // photon position
+          double dir[3] );          // photon direction
 
   void pm_scale_photon_power(
-          float scale );           // 1/(number of emitted photons)
+          PhotonMap *pm,
+          double scale );           // 1/(number of emitted photons)
 
-  void pm_balance(void);           // balance the kd-tree (before use!)
+  void pm_balance(PhotonMap *pm);           // balance the kd-tree (before use!)
 
   void pm_irradiance_estimate(
-    float irrad[3],                // returned irradiance
-    float pos[3],                  // surface position
-    float normal[3],               // surface normal at pos
-    float max_dist,                // max distance to look for photons
+    PhotonMap *pm,
+    double irrad[3],                // returned irradiance
+    double pos[3],                  // surface position
+    double normal[3],               // surface normal at pos
+    double max_dist,                // max distance to look for photons
     int nphotons );                // number of photons to use
 
   void pm_locate_photons(
+    PhotonMap *pm,
     NearestPhotons *np,            // np is used to locate the photons
     long index );                   // call with index = 1
 
   void pm_photon_dir(
-    float *dir,                    // direction of photon (returned)
+    PhotonMap *pm,
+    double *dir,                    // direction of photon (returned)
     Photon *p );                   // the photon
 
 #endif

@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 
+#include "../libs/photon_map/pm.h"
 #include "../light/light.h"
 #include "../shapes/shapes.h"
 #include "../intersection/intersection.h"
@@ -21,6 +22,7 @@ typedef struct world {
     Intersections xs;
     size_t lights_num;
     size_t shapes_num;
+    PhotonMap *photon_maps;
 } *World;
 
 World world();

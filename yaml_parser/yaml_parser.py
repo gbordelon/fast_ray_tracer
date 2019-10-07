@@ -148,8 +148,10 @@ def world_objects_to_c_file(obj):
 #include "src/libs/canvas/canvas.h"
 #include "src/libs/linalg/linalg.h"
 #include "src/libs/obj_loader/obj_loader.h"
-#include "src/renderer/renderer.h"
+#include "src/libs/photon_map/pm.h"
 #include "src/renderer/camera.h"
+#include "src/renderer/photon_tracer.h"
+#include "src/renderer/renderer.h"
 #include "src/renderer/world.h"
 #include "src/pattern/pattern.h"
 #include "src/shapes/shapes.h"
@@ -182,6 +184,18 @@ int main()
     w->lights_num = {3};
     w->shapes = world_group;
     w->shapes_num = 1;
+    w->photon_maps = array_of_photon_maps(3);
+
+    printf("Tracing photons...");
+    fflush(stdout);
+    int i;
+    for (i = 0; i < 3; ++i) {{
+        init_Photon_map(photon_count, w->photon_maps + i);
+    }}
+    trace_photons(w, 3);
+    printf("Done!\\n");
+    fflush(stdout);
+
     Canvas c = render_multi(cam, w, cam->usteps, cam->vsteps, cam->aperture.jitter, thread_count);
     Ppm ppm = construct_ppm(c, true);
 

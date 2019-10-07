@@ -15,6 +15,7 @@
 
 
 static void balance_segment(
+    PhotonMap *pm,
     Photon **pbal,
     Photon **porg,
     int index,
@@ -29,16 +30,11 @@ static void median_split(
     int axis );
   
 
-static PhotonMap pmap;
-static PhotonMap *pm = &pmap;
-
-static float MAX_R;
-
 /* This is the constructor for the photon map.
  * To create the photon map it is necessary to specify the
  * maximum number of photons that will be stored */
 
-void init_Photon_map( long max_phot )
+void init_Photon_map( long max_phot, PhotonMap *pm )
 
 {
   int i;
@@ -46,7 +42,7 @@ void init_Photon_map( long max_phot )
 
   pm -> stored_photons = 0;
   pm -> prev_scale = 1;
-  pm -> max_photons = max_phot;
+  pm -> max_photons = max_phot; // TODO debugging added 5x multiplier on num photons
 
   pm -> photons = (Photon*)malloc( sizeof( Photon ) * ( pm -> max_photons+1 ) );
 
@@ -55,8 +51,8 @@ void init_Photon_map( long max_phot )
     exit(-1);
   }
 
-  pm -> bbox_min[0] = pm -> bbox_min[1] = pm -> bbox_min[2] = 1e8f;
-  pm -> bbox_max[0] = pm -> bbox_max[1] = pm -> bbox_max[2] = -1e8f;
+  pm -> bbox_min[0] = pm -> bbox_min[1] = pm -> bbox_min[2] = INFINITY;
+  pm -> bbox_max[0] = pm -> bbox_max[1] = pm -> bbox_max[2] = -INFINITY;
   
   //----------------------------------------
   // initialize direction conversion tables
@@ -72,7 +68,7 @@ void init_Photon_map( long max_phot )
 }
 
 
-void delete_Photon_map(void)
+void delete_Photon_map(PhotonMap *pm)
 
 {
   free( pm -> photons );
@@ -81,7 +77,7 @@ void delete_Photon_map(void)
 
 /* photon_dir returns the direction of a photon */
 
-void pm_photon_dir( float *dir, Photon *p )
+void pm_photon_dir( PhotonMap *pm, double *dir, Photon *p )
 
 {
   dir[0] = pm -> sintheta[p->theta]*pm -> cosphi[p->phi];
@@ -92,23 +88,24 @@ void pm_photon_dir( float *dir, Photon *p )
 
 /* irradiance_estimate computes an irradiance estimate
 * at a given surface position */
-
+#define CONE_FILTER_K 1.0
 void pm_irradiance_estimate(
-  float irrad[3],                // returned irradiance
-  float pos[3],                  // surface position
-  float normal[3],               // surface normal at pos
-  float max_dist,                // max distance to look for photons
+  PhotonMap *pm,
+  double irrad[3],                // returned irradiance
+  double pos[3],                  // surface position
+  double normal[3],               // surface normal at pos
+  double max_dist,                // max distance to look for photons
   int nphotons )                 // number of photons to use
 
 {
   int i;
   NearestPhotons np;
-  float pdir[3];
-  float tmp;
+  double pdir[3];
+  double tmp;
 
   irrad[0] = irrad[1] = irrad[2] = 0.0;
 
-  np.dist2 = (float*)malloc( sizeof(float)*(nphotons+1) );
+  np.dist2 = (double*)malloc( sizeof(double)*(nphotons+1) );
   np.index = (Photon**)malloc( sizeof(Photon*)*(nphotons+1) );
 
   np.pos[0] = pos[0]; np.pos[1] = pos[1]; np.pos[2] = pos[2];
@@ -118,31 +115,43 @@ void pm_irradiance_estimate(
   np.dist2[0] = max_dist*max_dist;
 
   // locate the nearest photons
-  pm_locate_photons( &np, 1 );
+  pm_locate_photons( pm, &np, 1 );
 
   // if less than 8 photons return
-  if (np.found<8)
+  if (np.found<8) {
+    free(np.dist2);
+    free(np.index);
     return;
+  }
 
 
   // sum irradiance from all photons
   for (i=1; i<=np.found; i++) {
     Photon *p = np.index[i];
+    // distance between pos and p?
+    double dp = sqrt((pos[0] - p->pos[0]) * (pos[0] - p->pos[0]) +
+                     (pos[1] - p->pos[1]) * (pos[1] - p->pos[1]) +
+                     (pos[2] - p->pos[2]) * (pos[2] - p->pos[2]));
+    double weight = 1.0 - dp / (CONE_FILTER_K * max_dist);
+
     // the photon_dir call and following if can be omitted (for speed)
     // if the scene does not have any thin surfaces
-    pm_photon_dir( pdir, p );
-    if ( (pdir[0]*normal[0]+pdir[1]*normal[1]+pdir[2]*normal[2]) < 0.0f ) {
-      irrad[0] += p->power[0];
-      irrad[1] += p->power[1];
-      irrad[2] += p->power[2];
+    pm_photon_dir( pm, pdir, p );
+    if ( (pdir[0]*normal[0]+pdir[1]*normal[1]+pdir[2]*normal[2]) < 0.0 ) {
+      irrad[0] += p->power[0] * weight;
+      irrad[1] += p->power[1] * weight;
+      irrad[2] += p->power[2] * weight;
     }
   }
 
-  tmp=(1.0f/M_PI)/(np.dist2[0]);    // estimate of density
+  tmp = 1.0/( (1.0 - 2.0 / (3.0 * CONE_FILTER_K)) * (M_PI * np.dist2[0]) );    // estimate of density
 
   irrad[0] *= tmp;
   irrad[1] *= tmp;
   irrad[2] *= tmp;
+
+  free(np.dist2);
+  free(np.index);
 }
 
 
@@ -151,24 +160,25 @@ void pm_irradiance_estimate(
 */
 //******************************************
 void pm_locate_photons(
+  PhotonMap *pm,
   NearestPhotons *np,
   long index ) 
 //******************************************
 {
   Photon *p = &(pm -> photons[index]);
-  float dist1, dist2;
+  double dist1, dist2;
 
-  if (index<pm -> half_stored_photons) {
+  if (index < pm -> half_stored_photons) {
     dist1 = np->pos[ p->plane ] - p->pos[ p->plane ];
 
-    if (dist1>0.0) { // if dist1 is positive search right plane
-      pm_locate_photons( np, 2*index+1 );
-      if ( dist1*dist1 < np->dist2[0] )
-        pm_locate_photons( np, 2*index );
+    if (dist1 > 0.0) { // if dist1 is positive search right plane
+      pm_locate_photons( pm, np, 2*index+1 );
+      if ( dist1 * dist1 < np->dist2[0] )
+        pm_locate_photons( pm, np, 2*index );
     } else {         // dist1 is negative search left first
-      pm_locate_photons( np, 2*index );
+      pm_locate_photons( pm, np, 2*index );
       if ( dist1*dist1 < np->dist2[0] )
-        pm_locate_photons( np, 2*index+1 );
+        pm_locate_photons( pm, np, 2*index+1 );
     }
   }
 
@@ -194,7 +204,7 @@ void pm_locate_photons(
 
       if (np->got_heap==0) { // Do we need to build the heap?
         // Build heap
-        float dst2;
+        double dst2;
         Photon *phot;
         half_found = np->found>>1;
         for ( k=half_found; k>=1; k--) {
@@ -248,9 +258,10 @@ void pm_locate_photons(
 */
 
 void pm_store(
-   float power[3],
-   float pos[3],
-   float dir[3] )
+   PhotonMap *pm,
+   double power[3],
+   double pos[3],
+   double dir[3] )
 
 {
   int i, theta, phi;
@@ -295,7 +306,7 @@ void pm_store(
  * Call this function after each light source is processed.
 */
 //********************************************************
-void pm_scale_photon_power( float scale )
+void pm_scale_photon_power( PhotonMap *pm, double scale )
 //********************************************************
 {
   int i;
@@ -314,7 +325,7 @@ void pm_scale_photon_power( float scale )
  * is used for rendering.
  */
 
-void pm_balance(void)
+void pm_balance(PhotonMap *pm)
 
 { 
   int i;
@@ -329,7 +340,7 @@ void pm_balance(void)
     for (i=0; i<=pm -> stored_photons; i++)
       pa2[i] = &(pm -> photons[i]);
 
-    balance_segment( pa1, pa2, 1, 1, pm -> stored_photons );
+    balance_segment( pm, pa1, pa2, 1, 1, pm -> stored_photons );
     free(pa2);
 
     // reorganize balanced kd-tree (make a heap)
@@ -383,7 +394,7 @@ void median_split(
   int i, j;
 
   while ( right > left ) {
-    float v = p[right]->pos[axis];
+    double v = p[right]->pos[axis];
     i=left-1;
     j=right;
     for (;;) {
@@ -409,6 +420,7 @@ void median_split(
 // for an explanation of this function
 
 void balance_segment(
+  PhotonMap *pm,
   Photon **pbal,
   Photon **porg,
   int index,
@@ -458,9 +470,9 @@ void balance_segment(
   if ( median > start ) {
     // balance left segment
     if ( start < median-1 ) {
-      float tmp=pm -> bbox_max[axis];
+      double tmp=pm -> bbox_max[axis];
       pm -> bbox_max[axis] = pbal[index]->pos[axis];
-      balance_segment( pbal, porg, 2*index, start, median-1 );
+      balance_segment( pm, pbal, porg, 2*index, start, median-1 );
       pm -> bbox_max[axis] = tmp;
     } else {
       pbal[ 2*index ] = porg[start];
@@ -470,9 +482,9 @@ void balance_segment(
   if ( median < end ) {
     // balance right segment
     if ( median+1 < end ) {
-      float tmp = pm -> bbox_min[axis];         
+      double tmp = pm -> bbox_min[axis];         
       pm -> bbox_min[axis] = pbal[index]->pos[axis];
-      balance_segment( pbal, porg, 2*index+1, median+1, end );
+      balance_segment( pm, pbal, porg, 2*index+1, median+1, end );
       pm -> bbox_min[axis] = tmp;
     } else {
       pbal[ 2*index+1 ] = porg[end];

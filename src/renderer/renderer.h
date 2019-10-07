@@ -26,6 +26,8 @@ typedef struct computations {
     Vector eyev;
     Vector normalv;
     Vector reflectv;
+    struct ray photon_ray;
+    Color photon_power;
 } *Computations;
 
 struct container {
@@ -36,7 +38,8 @@ struct container {
 void shade_hit(World w, Computations comps, size_t remaining, Color res, struct container *container);
 bool is_shadowed(World w, Point light_position, Point pt);
 
-void prepare_computations(Intersection i, Ray r, Intersections xs, Computations res, struct container *container);
+double schlick(Computations comps);
+void prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs, Computations res, struct container *container);
 Canvas render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter);
 Canvas render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter, size_t num_threads);
 
