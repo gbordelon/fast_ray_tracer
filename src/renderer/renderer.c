@@ -34,8 +34,9 @@
 #include "ray.h"
 
 void color_at(const World w, const Ray r, const size_t remaining, Color res, struct container *container);
-void lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity, bool use_diffuse, bool use_specular_highlights, Color res);
-void lighting_gi(Material material, Shape shape, Point point, Vector eyev, PhotonMap *maps, Color res);
+void lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity, bool use_ambient, bool use_diffuse, bool use_specular_highlights, Color res);
+void lighting_gi(Material material, Shape shape, Point point, Vector eyev, Vector normalv, PhotonMap *maps, Color res);
+void lighting_caustics(Material material, Shape shape, Point point, Vector eyev, Vector normalv, PhotonMap *maps, Color res);
 void shade_hit_gi(World w, Computations comps, Color res);
 
 bool
@@ -526,14 +527,24 @@ schlick(Computations comps)
     return r0 + (1.0 - r0) * (1.0 - co) * (1.0 - co) * (1.0 - co) * (1.0 - co) * (1.0 - co);
 }
 
-#define USE_DIRECT_DIFFUSE 1
-#define USE_INDIRECT_DIFFUSE 0
-#define USE_SPECULAR_HIGHLIGHTS 0
-#define USE_GI 1
-#define FINAL_GATHER 1
-#define FINAL_GATHER_NUM 64
-#define INCLUDE_SPECULAR 1
 #define INCLUDE_DIRECT 1
+#define USE_AMBIENT 1
+#define USE_DIRECT_DIFFUSE 1
+#define USE_SPECULAR_HIGHLIGHTS 0
+
+#define INCLUDE_SPECULAR 1
+
+#define USE_GI 1
+#define USE_INDIRECT_DIFFUSE 0
+#define USE_CAUSTICS 1
+#define FINAL_GATHER 1
+#define FINAL_GATHER_NUM_U 32
+#define FINAL_GATHER_NUM_V 32
+#define IRRADIANCE_ESTIMATE_NUM 200
+#define IRRADIANCE_ESTIMATE_RADIUS 0.1
+
+#define VISUALIZE_PHOTON_MAP 0
+#define VISUALIZE_SOFT_INDIRECT 0
 
 void
 shade_hit_gi(World w, Computations comps, Color res)
@@ -565,19 +576,115 @@ shade_hit_gi(World w, Computations comps, Color res)
             color_accumulate(surface, c);
         }
     }
+    color_scale(surface, 1.0 / M_PI);
+    color_copy(res, surface);
 */
     color_default(indirect);
-//    if (USE_INDIRECT_DIFFUSE) {
-        lighting_gi(comps->obj->material,
-                    comps->obj,
-                    comps->over_point,
-                    comps->eyev,
-                    w->photon_maps,
-                    indirect);
-        color_scale(surface, 1.0 / M_PI);
-//    }
-    color_copy(res, surface);
+    lighting_gi(comps->obj->material,
+                comps->obj,
+                comps->over_point,
+                comps->eyev,
+                comps->normalv,
+                w->photon_maps,
+                indirect);
     color_accumulate(res, indirect);
+}
+
+void
+final_gather(World w, Computations comps, Color res, struct container *container)
+{
+    Color final_gather, total_power, c;
+    Vector nt, nb, sample, direction;
+    struct ray r;
+    double r1, r2;
+    double pdf_inv = 2 * M_PI; // initialize to a uniform hemisphere prob. dist. func.
+    size_t num_rays = FINAL_GATHER_NUM_U * FINAL_GATHER_NUM_V;
+    size_t index[2];
+    double rands[2];
+    size_t num_samples = 0;
+    Color *cell_power = (Color *)malloc(num_rays * sizeof(Color));
+    struct sampler sampler;
+
+    sampler_2d(true, FINAL_GATHER_NUM_U, FINAL_GATHER_NUM_V, sampler_default_constraint, &sampler);
+       
+    create_coordinate_system(comps->normalv, nt, nb);
+    point_copy(r.origin, comps->over_point);
+    color_default(final_gather);
+    color_default(total_power);
+
+    // importance sampling
+    int i, j;
+    for (j = 0; j < FINAL_GATHER_NUM_V; ++j) {
+        index[1] = j;
+        for (i = 0; i < FINAL_GATHER_NUM_U; ++i) {
+            index[0] = i;
+            sampler.get_point(&sampler, index, rands);
+            uniform_sample_hemisphere(rands[0], rands[1], sample);
+            direction[0] = sample[0] * nb[0] + sample[1] * comps->normalv[0] + sample[2] * nt[0];
+            direction[1] = sample[0] * nb[1] + sample[1] * comps->normalv[1] + sample[2] * nt[1];
+            direction[2] = sample[0] * nb[2] + sample[1] * comps->normalv[2] + sample[2] * nt[2];
+            direction[3] = 0;
+            vector_normalize(direction, r.direction);
+
+            color_default(c);
+            color_at_gi(w, &r, c, container);
+            color_scale(c, rands[0]); // scale by theta
+            color_scale(c, pdf_inv); // scale by hemisphere prob. dist. func.
+            //color_scale(c, 1.0 / (double)num_rays); // scale by the probability of choosing this cell
+            // initialize the power for each cell
+            color_copy(cell_power[j * FINAL_GATHER_NUM_U + i], c);
+
+            // accumulate the total power
+            color_accumulate(total_power, c);
+            ++num_samples;
+        }
+    }
+
+    // now sample again but scale by probability of picking each cell
+    // i.e. cell power / total power
+    // TODO loop this multiple times?
+    sampler.reset(&sampler);
+    for (j = 0; j < FINAL_GATHER_NUM_V; ++j) {
+        index[1] = j;
+        for (i = 0; i < FINAL_GATHER_NUM_U; ++i) {
+            index[0] = i;
+            if (cell_power[j * FINAL_GATHER_NUM_U + i][0] >= (total_power[0] * 0.8) &&
+                cell_power[j * FINAL_GATHER_NUM_U + i][1] >= (total_power[1] * 0.8) &&
+                cell_power[j * FINAL_GATHER_NUM_U + i][2] >= (total_power[2] * 0.8)) { // only sample the upper 80th percentile
+                sampler.get_point(&sampler, index, rands);
+                uniform_sample_hemisphere(rands[0], rands[1], sample);
+                direction[0] = sample[0] * nb[0] + sample[1] * comps->normalv[0] + sample[2] * nt[0];
+                direction[1] = sample[0] * nb[1] + sample[1] * comps->normalv[1] + sample[2] * nt[1];
+                direction[2] = sample[0] * nb[2] + sample[1] * comps->normalv[2] + sample[2] * nt[2];
+                direction[3] = 0;
+                vector_normalize(direction, r.direction);
+
+                color_default(c);
+                color_at_gi(w, &r, c, container);
+                color_scale(c, rands[0]); // scale by theta
+                color_scale(c, pdf_inv); // scale by hemisphere prob. dist. func.
+                // scale by the probability of choosing this cell
+                c[0] *= cell_power[j * FINAL_GATHER_NUM_U + i][0] / total_power[0];
+                c[1] *= cell_power[j * FINAL_GATHER_NUM_U + i][1] / total_power[1];
+                c[2] *= cell_power[j * FINAL_GATHER_NUM_U + i][2] / total_power[2];
+                color_accumulate(cell_power[j * FINAL_GATHER_NUM_U + i], c);
+                color_accumulate(total_power, c);
+
+                ++num_samples;
+            }
+        }
+    }
+
+    //printf("Final gather with %lu samples.\n", num_samples);
+    for (i = 0; i < num_rays; ++i) {
+        color_accumulate(final_gather, cell_power[i]);
+    }
+    color_scale(final_gather, 1.0 / (double)num_samples);
+
+    color_copy(res, final_gather);
+
+    sampler_free(&sampler);
+    free(cell_power);
 }
 
 void
@@ -591,7 +698,7 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
     double intensity = 0;
 
     // shade the hit with direct ambient and direct specular highlights and maybe direct diffuse
-    if (INCLUDE_DIRECT) {
+    if (INCLUDE_DIRECT || VISUALIZE_SOFT_INDIRECT) {
         for (i = 0, itr = w->lights; i < w->lights_num; i++, itr++) {
             color_default(c);
             intensity = itr->intensity_at(itr, w, comps->over_point);
@@ -602,6 +709,7 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
                      comps->eyev,
                      comps->normalv,
                      intensity,
+                     USE_AMBIENT || VISUALIZE_SOFT_INDIRECT,
                      USE_DIRECT_DIFFUSE,
                      USE_SPECULAR_HIGHLIGHTS,
                      c);
@@ -611,51 +719,61 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
     }
 
     // shade the hit with soft indirect diffuse
-    if (USE_GI && comps->obj->material->diffuse > 0) {
+    if ((USE_GI || VISUALIZE_SOFT_INDIRECT) && comps->obj->material->diffuse > 0) {
         color_default(c);
-        size_t num_rays = FINAL_GATHER_NUM;
-        double pdf_inv = 100;
+        Color fgather;
+        Color caustics;
+        color_default(fgather);
+        color_default(caustics);
+        color_default(indirect);
+        color_scale(surface, 2.0 / (M_PI));
 
         // approximate for the diffuse component
-        if (USE_INDIRECT_DIFFUSE) { // This results in a direct visualization fo the photon map
+        if (USE_INDIRECT_DIFFUSE || VISUALIZE_PHOTON_MAP) { // This results in a direct visualization fo the photon map
             lighting_gi(comps->obj->material,
                         comps->obj,
                         comps->over_point,
                         comps->eyev,
+                        comps->normalv,
                         w->photon_maps,
                         indirect);
-            color_scale(indirect, pdf_inv);
-        } else {
-            color_copy(indirect, surface); // this isn't quite right because we'll get ambient and specular highlight components
+        } else if (VISUALIZE_SOFT_INDIRECT) {
+            color_scale(surface, M_PI);
+            //if (comps->obj->material->ambient > 0) {
+            //    color_scale(surface, 1.0 / comps->obj->material->ambient);
+            //}
+            lighting_gi(comps->obj->material,
+                        comps->obj,
+                        comps->over_point,
+                        comps->eyev,
+                        comps->normalv,
+                        w->photon_maps,
+                        indirect);
+            surface[0] *= indirect[0];
+            surface[1] *= indirect[1];
+            surface[2] *= indirect[2];
+            color_default(indirect);
         }
 
-        if (FINAL_GATHER) {
+        if (FINAL_GATHER || VISUALIZE_SOFT_INDIRECT) {
             // final gather for diffuse component
-            Vector nt, nb, sample, direction;
-            struct ray r;
-            create_coordinate_system(comps->normalv, nt, nb);
-            double r1, r2;
-            pdf_inv = 2 * M_PI;
-            point_copy(r.origin, comps->over_point);
-            for (i = 0; i < num_rays; ++i) {
-                r1 = drand48();
-                r2 = drand48();
-                uniform_sample_hemisphere(r1, r2, sample);
-                direction[0] = sample[0] * nb[0] + sample[1] * comps->normalv[0] + sample[2] * nt[0];
-                direction[1] = sample[0] * nb[1] + sample[1] * comps->normalv[1] + sample[2] * nt[1];
-                direction[2] = sample[0] * nb[2] + sample[1] * comps->normalv[2] + sample[2] * nt[2];
-                direction[3] = 0;
-                vector_normalize(direction, r.direction);
-
-                color_at_gi(w, &r, c, container);
-                color_scale(c, r1);
-                color_scale(c, pdf_inv);
-                color_accumulate(indirect, c);
-            }
-            color_scale(indirect, 1.0 / (double)(num_rays+1));
-            color_scale(surface, 1.0 / M_PI);
+            final_gather(w, comps, fgather, container);
+            //color_scale(indirect, 1.0 / M_PI);
         }
+
+        if (USE_CAUSTICS) { // I may not want caustics in the visualize
+            lighting_caustics(comps->obj->material,
+                        comps->obj,
+                        comps->over_point,
+                        comps->eyev,
+                        comps->normalv,
+                        w->photon_maps,
+                        caustics);
+        }
+
         color_accumulate(surface, indirect);
+        color_accumulate(surface, fgather);
+        color_accumulate(surface, caustics);
     }
 
     // shade the hit with specular reflections and refractions
@@ -676,44 +794,81 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
         color_accumulate(surface, refracted);
     }
 
-    // TODO shade the hit with caustics
-
     color_copy(res, surface);
 }
 
 void
-lighting_gi(Material material, Shape shape, Point point, Vector eyev, PhotonMap *maps, Color res)
+lighting_caustics(Material material, Shape shape, Point point, Vector eyev, Vector normalv, PhotonMap *maps, Color res)
+{
+    Color intensity_estimate = {0.0, 0.0, 0.0, 0.0};
+    Color caustic, direct_color;
+
+    if (material->diffuse < 0 || equal(material->diffuse, 0.0)) {
+        return;
+    }
+
+    pm_irradiance_estimate(maps+0, intensity_estimate, point, eyev, IRRADIANCE_ESTIMATE_RADIUS, IRRADIANCE_ESTIMATE_NUM);
+    color_scale(intensity_estimate, 1.0 / M_PI);
+
+    if (VISUALIZE_PHOTON_MAP) { // TODO investigate whether or not I should do this or always return the intensity_estimate
+        color_copy(res, intensity_estimate);
+    } else {
+        double eye_dot_normal = vector_dot(eyev, normalv);
+        if (material->pattern != NULL) {
+            material->pattern->pattern_at_shape(material->pattern, shape, point, direct_color);
+        } else {
+            color_copy(direct_color, material->color);
+        }
+
+        // diffuse
+        color_copy(caustic, direct_color);
+        caustic[0] *= intensity_estimate[0];
+        caustic[1] *= intensity_estimate[1];
+        caustic[2] *= intensity_estimate[2];
+
+        color_scale(caustic, eye_dot_normal);
+        color_accumulate(res, caustic);
+    }
+}
+
+void
+lighting_gi(Material material, Shape shape, Point point, Vector eyev, Vector normalv, PhotonMap *maps, Color res)
 {
     Color direct_color;
-    Color intensity_estimate;
+    Color intensity_estimate = {0.0, 0.0, 0.0, 0.0};
     Color diffuse;
 
     if (material->diffuse < 0 || equal(material->diffuse, 0.0)) {
         return;
     }
-    double num_photons = (maps+1)->max_photons; // global
+    pm_irradiance_estimate(maps+1, intensity_estimate, point, eyev, IRRADIANCE_ESTIMATE_RADIUS, IRRADIANCE_ESTIMATE_NUM); // using global map
+    // TODO take IRRADIANCE_ESTIMATE_NUM into account
+    color_scale(intensity_estimate, 1.5 * M_PI * M_PI / (double)(maps+1)->max_photons); // using global map
 
-    if (material->pattern != NULL) {
-        material->pattern->pattern_at_shape(material->pattern, shape, point, direct_color);
+    if (VISUALIZE_PHOTON_MAP || VISUALIZE_SOFT_INDIRECT) {
+        color_copy(res, intensity_estimate);
     } else {
-        color_copy(direct_color, material->color);
+        double eye_dot_normal = vector_dot(eyev, normalv);
+        if (material->pattern != NULL) {
+            material->pattern->pattern_at_shape(material->pattern, shape, point, direct_color);
+        } else {
+            color_copy(direct_color, material->color);
+        }
+
+        // diffuse
+        color_copy(diffuse, direct_color);
+        diffuse[0] *= intensity_estimate[0];
+        diffuse[1] *= intensity_estimate[1];
+        diffuse[2] *= intensity_estimate[2];
+
+        color_scale(diffuse, material->diffuse);
+        color_scale(diffuse, eye_dot_normal);
+        color_accumulate(res, diffuse);
     }
-
-    pm_irradiance_estimate(maps+1, intensity_estimate, point, eyev, 0.1, 500); // ignore caustics map for now
-    color_scale(intensity_estimate, 2 * M_PI / num_photons);
-
-    // diffuse
-    color_copy(diffuse, direct_color);
-    diffuse[0] *= intensity_estimate[0];
-    diffuse[1] *= intensity_estimate[1];
-    diffuse[2] *= intensity_estimate[2];
-
-    //color_scale(diffuse, material->diffuse);
-    color_accumulate(res, diffuse);
 }
 
 void
-lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity, bool use_diffuse, bool use_specular_highlights, Color res)
+lighting(Material material, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity, bool use_ambient, bool use_diffuse, bool use_specular_highlights, Color res)
 {
     Color direct_color;
     Color ambient;
@@ -731,7 +886,9 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
 
     color_scale(ambient, material->ambient);
     if (equal(shade_intensity, 0.0)) {
-        color_accumulate(res, ambient);
+        if (use_ambient) {
+            color_accumulate(res, ambient);
+        }
         return;
     }
 
@@ -745,46 +902,47 @@ lighting(Material material, Shape shape, Light light, Point point, Vector eyev, 
     color_default(diffuse_acc);
     color_default(specular_acc);
 
-    for (i = 0; i < pts->points_num; i++) {
-        vector_from_points(*(pts->points + i), point, diff);
-        vector_normalize(diff, lightv);
-        double light_dot_normal = vector_dot(lightv, normalv);
-        if (light_dot_normal >= 0) {
-            // diffuse
-            color_copy(diffuse, direct_color);
-            diffuse[0] *= light->intensity[0];
-            diffuse[1] *= light->intensity[1];
-            diffuse[2] *= light->intensity[2];
+    if (use_diffuse || use_specular_highlights) {
+        for (i = 0; i < pts->points_num; i++) {
+            vector_from_points(*(pts->points + i), point, diff);
+            vector_normalize(diff, lightv);
+            double light_dot_normal = vector_dot(lightv, normalv);
+            if (light_dot_normal >= 0) {
+                if (use_diffuse) {
+                    // diffuse
+                    color_copy(diffuse, direct_color);
+                    diffuse[0] *= light->intensity[0];
+                    diffuse[1] *= light->intensity[1];
+                    diffuse[2] *= light->intensity[2];
 
-            color_scale(diffuse, material->diffuse);
-            color_scale(diffuse, light_dot_normal);
+                    color_scale(diffuse, material->diffuse);
+                    color_scale(diffuse, light_dot_normal);
 
-            color_accumulate(diffuse_acc, diffuse);
+                    color_accumulate(diffuse_acc, diffuse);
+                }
+                if (use_specular_highlights) {
+                    // specular
+                    vector_scale(lightv, -1);
+                    vector_reflect(lightv, normalv, reflectv);
+                    vector_scale(lightv, -1);
 
-            if (use_specular_highlights) {
-                // specular
-                vector_scale(lightv, -1);
-                vector_reflect(lightv, normalv, reflectv);
-                vector_scale(lightv, -1);
-
-                double reflect_dot_eye = vector_dot(reflectv, eyev);
-                if (reflect_dot_eye > 0 && material->specular > 0) {
-                    double factor = pow(reflect_dot_eye, material->shininess);
-                    specular_acc[0] += light->intensity[0] * material->specular * factor;
-                    specular_acc[1] += light->intensity[1] * material->specular * factor;
-                    specular_acc[2] += light->intensity[2] * material->specular * factor;
+                    double reflect_dot_eye = vector_dot(reflectv, eyev);
+                    if (reflect_dot_eye > 0 && material->specular > 0) {
+                        double factor = pow(reflect_dot_eye, material->shininess);
+                        specular_acc[0] += light->intensity[0] * material->specular * factor;
+                        specular_acc[1] += light->intensity[1] * material->specular * factor;
+                        specular_acc[2] += light->intensity[2] * material->specular * factor;
+                    }
                 }
             }
         }
-    }
-
-    if (use_diffuse) {
         color_accumulate(res, diffuse_acc);
+        color_accumulate(res, specular_acc);
+        double scaling = shade_intensity / (double)light->num_samples;
+        color_scale(res, scaling);
     }
 
-    color_accumulate(res, specular_acc);
-    double scaling = shade_intensity / (double)light->num_samples;
-    color_scale(res, scaling);
-
-    color_accumulate(res, ambient);
+    if (use_ambient) {
+        color_accumulate(res, ambient);
+    }
 }

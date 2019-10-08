@@ -46,14 +46,14 @@ reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comp
     Color diffuse_color;
 
     if (comps->obj->material->pattern != NULL) {
-        comps->obj->material->pattern->pattern_at_shape(comps->obj->material->pattern,
+        comps->obj->material->pattern->pattern_at_shape(
+                comps->obj->material->pattern,
                 comps->obj,
                 comps->p,
                 diffuse_color);
     } else {
         color_copy(diffuse_color, comps->obj->material->color);
     }
-    //color_copy(diffuse_color, comps->photon_power);
     diffuse_color[0] *= comps->photon_power[0];
     diffuse_color[1] *= comps->photon_power[1];
     diffuse_color[2] *= comps->photon_power[2];
@@ -104,17 +104,16 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, enum refl
     PhotonMap *maps = w->photon_maps;
     int hit = 0;
     
-    if (remaining == 0) {
+    if (remaining <= 0) {
         return 0;
     }
 
+    // don't bother recursing with shadow or dead photons
     if (comps->photon_power[0] <= 0 && comps->photon_power[1] <= 0 && comps->photon_power[2] <= 0) {
         return 0;
     }
 
     if (comps->obj->material->diffuse > 0) {
-        pm_store(maps + 1, comps->photon_power, comps->p, comps->photon_ray.direction);
-        hit += 1;
         if (map_type == CAUSTIC) {
             if (type == SPECULAR) { // only store photons with at least one specular reflection in the caustics map
                 pm_store(maps + 0, comps->photon_power, comps->p, comps->photon_ray.direction);
@@ -122,32 +121,26 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, enum refl
             } else {
                 return 0;
             }
+        } else if (map_type == GLOBAL) {
+            // never store the first diffuse hit in the global map
+            if (type != NONE) {
+                pm_store(maps + 1, comps->photon_power, comps->p, comps->photon_ray.direction);
+                hit += 1;
+            }
         }
     }
 
-    // decide reflect, absorb, or refract
+    // russian roulette
     double r = drand48();
     double total_refract_reflect = comps->obj->material->diffuse +
-                                   comps->obj->material->specular +
+                                   comps->obj->material->reflective +
                                    comps->obj->material->transparency;
-/*
-    if (comps->obj->material->diffuse > 0) {
-        pm_store(maps + 1, comps->photon_power, comps->p, comps->photon_ray.direction);
-        hit += 1 + reflect_photon_diffuse(map_type, w, comps, remaining, container);
-    }
-    if (comps->obj->material->specular > 0) {
-        hit += reflect_photon_specular(map_type, w, comps, remaining, container);
-    }
-    if (comps->obj->material->transparency > 0) {
-        hit += refract_photon(map_type, w, comps, remaining, container);
-    }
-*/
 
     if (map_type != CAUSTIC && (r * total_refract_reflect < comps->obj->material->diffuse)) {
         hit += reflect_photon_diffuse(map_type, w, comps, remaining, container);
-    } else if (r * total_refract_reflect < comps->obj->material->diffuse + comps->obj->material->specular) {
+    } else if (r * total_refract_reflect < comps->obj->material->diffuse + comps->obj->material->reflective) {
         hit += reflect_photon_specular(map_type, w, comps, remaining, container);
-    } else if (r * total_refract_reflect < comps->obj->material->diffuse + comps->obj->material->specular + comps->obj->material->transparency) {
+    } else if (r * total_refract_reflect < comps->obj->material->diffuse + comps->obj->material->reflective + comps->obj->material->transparency) {
         hit += refract_photon(map_type, w, comps, remaining, container);
     }
 
@@ -199,13 +192,12 @@ trace_photons(const World w, size_t num_maps)
     }
 
     for (i = 0, itr = w->lights; i < w->lights_num; ++i, ++itr) {
-/*
         for (j = 0; j < itr->num_photons;) {
             itr->emit_photon(itr, &r); // get ray from light
             hit = power_at(CAUSTIC, w, &r, itr->intensity, NONE, 5, &container);
             j += hit;
         }
-*/
+
         global_total = 0;
         for (j = 0; j < itr->num_photons;) {
             itr->emit_photon(itr, &r); // get ray from light

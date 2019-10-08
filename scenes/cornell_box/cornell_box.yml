@@ -10,15 +10,15 @@
 # ======================================================
 
 - add: camera
-  width: 1024
-  height: 1024
+  width: 400
+  height: 400
   field-of-view: 1.2
   from: [ 0, 0, -2.75 ]
   to: [ 0, 0, 0 ]
   up: [ 0, 1, 0 ]
   focal-length: 1.5
-  usteps: 4
-  vsteps: 4
+  usteps: 1
+  vsteps: 1
   aperture:
     jitter: false
     size: 0

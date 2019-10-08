@@ -34,3 +34,4 @@ TODO
 * Use realloc instead of malloc when resizing arrays for intersections and group.children
 * Remove malloc/free from the photon map where possible.
 * Implement MTL file parsing.
+* Implement project map for generating the caustics photon map.

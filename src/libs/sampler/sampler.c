@@ -15,10 +15,12 @@ uniform_sample_hemisphere(const double r1, const double r2, Vector res)
     double phi = 2 * M_PI * r2;
     double x = sin_theta * cos(phi);
     double z = sin_theta * sin(phi);
-    res[0] = x;
-    res[1] = r1;
-    res[2] = z;
-    res[3] = 0;
+    Vector v;
+    v[0] = x;
+    v[1] = r1;
+    v[2] = z;
+    v[3] = 0;
+    vector_normalize(v, res);
 }
 
 void
@@ -26,27 +28,31 @@ cosine_weighted_sample_hemisphere(const double r1, const double r2, Vector res)
 {
     double theta = asin(sqrt(r1));
     double phi = 2 * M_PI * r2;
-    res[0] = sin(theta) * cos(phi);
-    res[2] = sin(theta) * sin(phi);
-    res[1] = cos(theta);
-    res[3] = 0;
+    Vector v;
+    v[0] = sin(theta) * cos(phi);
+    v[2] = sin(theta) * sin(phi);
+    v[1] = cos(theta);
+    v[3] = 0;
+    vector_normalize(v, res);
 }
 
 void
 create_coordinate_system(const Vector n, Vector nt, Vector nb) 
 { 
+    Vector tmp;
     nt[3] = nb[3] = 0;
     if (fabs(n[0]) > fabs(n[1])) {
-        nt[0] = n[2];
-        nt[1] = 0;
-        nt[2] = -n[0];
-        vector_scale(nt, sqrt(n[0] * n[0] + n[2] * n[2]));
+        tmp[0] = n[2];
+        tmp[1] = 0;
+        tmp[2] = -n[0];
+        vector_scale(tmp, sqrt(n[0] * n[0] + n[2] * n[2]));
     } else {
-        nt[0] = 0;
-        nt[1] = -n[2];
-        nt[2] = n[1];
-        vector_scale(nt, sqrt(n[1] * n[1] + n[2] * n[2]));
+        tmp[0] = 0;
+        tmp[1] = -n[2];
+        tmp[2] = n[1];
+        vector_scale(tmp, sqrt(n[1] * n[1] + n[2] * n[2]));
     }
+    vector_normalize(tmp, nt); // probably don't have to do this with the sqrt scaling above
     vector_cross(n, nt, nb);
 } 
 
