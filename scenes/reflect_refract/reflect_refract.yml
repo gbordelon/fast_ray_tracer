@@ -3,7 +3,7 @@
   timeout: 600 # in seconds
   divide-threshold: 1
   clamping: False
-  photon-count: 0
+  photon-count: 1000000
 
 
 # ======================================================
@@ -21,15 +21,15 @@
 # ======================================================
 
 - add: camera
-  width: 1200
-  height: 600
+  width: 400
+  height: 200
   field-of-view: 1.152
-  from: [-3.6, 1.5, -4.9]
+  from: [-2.6, 1.5, -3.9]
   to: [-0.6, 1, -0.8]
   up: [0, 1, 0]
   focal-length: 1
-  usteps: 4
-  vsteps: 4
+  usteps: 1
+  vsteps: 1
   aperture:
     jitter: false
     size: 0
@@ -175,7 +175,7 @@
   material:
     color: [0, 0, 0.2]
     ambient: 0
-    diffuse: 0.4
+    diffuse: 0.0
     specular: 0.9
     shininess: 300
     reflective: 0.9
@@ -190,7 +190,7 @@
   material:
     color: [0, 0.2, 0]
     ambient: 0
-    diffuse: 0.4
+    diffuse: 0.0
     specular: 0.9
     shininess: 300
     reflective: 0.9

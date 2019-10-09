@@ -130,9 +130,9 @@ def expand_defines_in_tree(tree, defines):
                                     i += 1
                 if obj["add"] == "group" and "children" in obj:
                     expand_defines_in_tree(obj["children"], defines)
-                #if obj["add"] == "csg" and "left" in obj and "right" in obj:
-                #    expand_defines_in_tree(obj["left"], defines)
-                #    expand_defines_in_tree(obj["right"], defines)
+                if obj["add"] == "csg" and "left" in obj and "right" in obj:
+                    expand_defines_in_tree([obj["left"]], defines)
+                    expand_defines_in_tree([obj["right"]], defines)
 
 
 def world_objects_to_c_file(obj):

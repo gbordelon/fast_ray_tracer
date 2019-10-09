@@ -1,0 +1,144 @@
+- add: config
+  thread-count: 4
+  timeout: 600 # in seconds
+  divide-threshold: 1
+  clamping: False
+  photon-count: 0
+
+- add: camera
+  width: 1200
+  height: 600
+  field-of-view: 2
+  from: [0, 0, -3]
+  to: [0, 0, 0]
+  up: [0, 1, 0]
+  focal-length: 1
+  usteps: 1
+  vsteps: 1
+  aperture:
+    jitter: false
+    size: 0.1
+#    type: [ CIRCULAR_APERTURE, 1.0 ]
+#    type: [ CROSS_APERTURE, -0.1, 0.1, -0.1, 0.1 ]
+#    type: [ DIAMOND_APERTURE, -1, 1, -1, 1 ]
+#    type: [ DOUBLE_CIRCLE_APERTURE, 1.0, 0.5 ]
+    type: [ POINT_APERTURE ]
+#    type: [ SQUARE_APERTURE ]
+
+- add: light
+  at: [10, 10, -10]
+  to: [0,0,1]
+  intensity: [1, 1, 1]
+
+- define: glass
+  value:
+    color: [0.3,0.2,1]
+    ambient: 0.0
+    diffuse: 1
+    specular: 0
+    reflective: 0
+    refractive-index: 1.5
+    transparency: 1
+    shadow: false
+
+- define: glassySphere
+  value:
+    add: sphere
+    material: glass
+
+- define: glassyCube
+  value:
+    add: cube
+    material: glass
+
+- define: lensTwoSpheres
+  value:
+    add: csg
+    operation: intersection
+    left:
+      add: glassySphere
+      transform:
+      - [ translate, 0, 0, 1.0 ]
+    right:
+      add: glassySphere
+      transform:
+      - [ translate, 0, 0, -0.9 ]
+
+- define: lensSphereCube
+  value:
+    add: csg
+    operation: intersection
+    left:
+      add: glassySphere
+      transform:
+      - [ translate, 0, 0, 1.0 ]
+    right:
+      add: glassyCube
+      transform:
+      - [ translate, 0, 0, -0.9 ]
+
+- define: thickCylinder
+  value:
+    add: csg
+    operation: difference
+    left:
+      add: cylinder
+      min: -0.2
+      max: 0.2
+      closed: true
+      material: glass
+    right:
+      add: cylinder
+      min: -0.3
+      max: 0.3
+      closed: true
+      material: glass
+      transform:
+      - [ scale, 0.5, 1, 0.5 ]
+
+- define: lensWithCylinder
+  value:
+    add: csg
+    operation: difference
+    left:
+      add: lensTwoSpheres
+    right:
+      add: thickCylinder
+      transform:
+      - [ scale, 0.5, 1, 0.5 ]
+      - [ rotate-x, 1.5707963267948966 ]
+
+# background
+- add: cube
+  transform:
+  - [scale, 20, 20, 0.001]
+  #- [rotate-x, 0.7853981633974483 ]
+  - [translate, 0, 10, 10]
+  material:
+    color: [ 1, 1, 1 ]
+    ambient: 1
+    diffuse: 1
+    specular: 0
+    pattern:
+      type: checker
+      colors:
+      - [ 0.2, 0.2, 0.2 ]
+      - [ 0.0, 0.0, 0.0 ]
+      transform:
+      - [ scale, 0.05, 0.05, 0.05]
+      #- [ scale, 2, 2, 2]
+      - [ translate, 1, 0, 0]
+
+
+# lens
+- add: lensWithCylinder
+  transform:
+  - [scale, 4, 4, 4]
+  #- [rotate-x, 1.61707963267948966]
+  - [translate, 0,0,-2]
+
+#- add: lensSphereCube
+#  transform:
+#  - [scale, 2, 2, 1]
+#  - [rotate-x, 3.141592653589793]
+#  - [translate, 0,0,-2]
