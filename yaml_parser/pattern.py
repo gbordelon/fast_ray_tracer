@@ -23,9 +23,13 @@ class Pattern(object):
 
         typ = self.yaml_obj['type']
         # base patterns
-        if typ in ['checker', 'checkers', 'gradient', 'radial-gradient', 'rings', 'ring', 'stripe']:
+        if typ in ['checker', 'checkers', 'gradient', 'radial-gradient', 'rings', 'ring', 'stripe', 'stripes']:
             if typ == 'rings':
                 typ = 'ring'
+            if typ == 'checkers':
+                typ = 'checker'
+            if typ == 'stripes':
+                typ = 'stripe'
             buf += """    Color pattern_{0}_color_0 = color({2:.10f}, {3:.10f}, {4:.10f});
     Color pattern_{0}_color_1 = color({5:.10f}, {6:.10f}, {7:.10f});
     Pattern pattern_{0} = {1}_pattern_alloc(pattern_{0}_color_0, pattern_{0}_color_1);

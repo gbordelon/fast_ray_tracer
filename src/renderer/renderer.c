@@ -386,12 +386,11 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
 
     res->inside = false;
 
-    vector_reflect(r->direction, res->normalv, res->reflectv);
-
     if (vector_dot(res->normalv, res->eyev) < 0) {
         res->inside = true;
         vector_scale(res->normalv, -1);
     }
+    vector_reflect(r->direction, res->normalv, res->reflectv);
 
     res->over_point[0] = res->p[0] + res->normalv[0] * EPSILON;
     res->over_point[1] = res->p[1] + res->normalv[1] * EPSILON;
@@ -406,8 +405,6 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
     res->n1 = 1.0;
     res->n2 = 1.0;
 
-    Computations c = res;
-
     int j, k;
     Intersection x;
     size_t container_len = 0;
@@ -420,35 +417,31 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
 
     for (j = 0, x = xs->xs; j < xs->num; x++, j++) {
         if (x == i) {// address compare should be okay.
-            if (container_len == 0) {
-                c->n1 = 1.0;
-            } else {
-                c->n1 = container->shapes[container_len-1]->material->refractive_index;
+            if (container_len > 0) {
+                res->n1 = container->shapes[container_len-1]->material->refractive_index;
             }
         }
 
         for (k = 0; k < container_len; k++) {
-            if (container->shapes[k] == i->object) {
+            if (container->shapes[k] == x->object) {
                 break;
             }
         }
 
         if (k < container_len) {
             // shift everything left one slot, overwriting container[index_of_object] first
-            for (; k < container_len - 1; k++) {
+            --container_len;
+            for (; k < container_len; k++) {
                 container->shapes[k] = container->shapes[k+1];
             }
-            container_len--;
         } else {
-            container->shapes[container_len] = i->object;
-            container_len++;
+            container->shapes[container_len] = x->object;
+            ++container_len;
         }
 
         if (x == i) {
-            if (container_len == 0) {
-                c->n2 = 1.0;
-            } else {
-                c->n2 = container->shapes[container_len-1]->material->refractive_index;
+            if (container_len > 0) {
+                res->n2 = container->shapes[container_len-1]->material->refractive_index;
             }
             break;
         }
@@ -498,11 +491,11 @@ refracted_color(World w, Computations comps, size_t remaining, Color res, struct
     vector_copy(t1, comps->normalv);
     vector_scale(t1, n_ratio * cos_i - cos_t);
     vector_copy(t2, comps->eyev);
-
     vector_scale(t2, n_ratio);
-    vector(t1[0] - t2[0], t1[1] - t2[1], t1[2] - t2[2], direction);
 
+    vector(t1[0] - t2[0], t1[1] - t2[1], t1[2] - t2[2], direction);
     ray_array(comps->under_point, direction, &refracted_ray);
+
     color_at(w, &refracted_ray, remaining - 1, c, container);
     color_scale(c, comps->obj->material->transparency);
     color_accumulate(res, c);
@@ -521,7 +514,7 @@ schlick(Computations comps)
         co = sqrt(1.0 - sin2_t);
     }
 
-    double r0 = ((comps->n1 - comps->n2) / (comps->n1 + comps->n2));
+    double r0 = (comps->n1 - comps->n2) / (comps->n1 + comps->n2);
     r0 = r0 * r0;
 
     return r0 + (1.0 - r0) * (1.0 - co) * (1.0 - co) * (1.0 - co) * (1.0 - co) * (1.0 - co);
@@ -530,11 +523,11 @@ schlick(Computations comps)
 #define INCLUDE_DIRECT 1
 #define USE_AMBIENT 1
 #define USE_DIRECT_DIFFUSE 1
-#define USE_SPECULAR_HIGHLIGHTS 0
+#define USE_SPECULAR_HIGHLIGHTS 1
 
 #define INCLUDE_SPECULAR 1
 
-#define USE_GI 1
+#define USE_GI 0
 #define USE_INDIRECT_DIFFUSE 0
 #define USE_CAUSTICS 1
 #define FINAL_GATHER 1

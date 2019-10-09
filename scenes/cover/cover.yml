@@ -3,6 +3,7 @@
   timeout: 600 # in seconds
   divide-threshold: 1
   clamping: False
+  photon-count: 0
 
 # ======================================================
 # the camera

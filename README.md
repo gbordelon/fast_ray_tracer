@@ -35,3 +35,5 @@ TODO
 * Remove malloc/free from the photon map where possible.
 * Implement MTL file parsing.
 * Implement project map for generating the caustics photon map.
+* Implement selective projection maps. Perhaps object opt-in.
+* Add GI parameters to the config parser.

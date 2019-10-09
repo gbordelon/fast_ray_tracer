@@ -118,8 +118,6 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, enum refl
             if (type == SPECULAR) { // only store photons with at least one specular reflection in the caustics map
                 pm_store(maps + 0, comps->photon_power, comps->p, comps->photon_ray.direction);
                 return 1;
-            } else {
-                return 0;
             }
         } else if (map_type == GLOBAL) {
             // never store the first diffuse hit in the global map

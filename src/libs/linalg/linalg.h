@@ -88,8 +88,8 @@ static const Matrix MATRIX_IDENTITY = {
 #define point_default(p) memcpy((p), POINT_IDENTITY, sizeof(Point))
 #define vector_default(v) memcpy((v), VECTOR_IDENTITY, sizeof(Vector))
 
-#define point(x,y,z,res) (res)[0]=(x);(res)[1]=(y);(res)[2]=(z);(res)[3]=1.0
-#define vector(x,y,z,res) (res)[0]=(x);(res)[1]=(y);(res)[2]=(z);(res)[3]=0.0
+#define point(x,y,z,_res) (_res)[0]=(x);(_res)[1]=(y);(_res)[2]=(z);(_res)[3]=1.0
+#define vector(x,y,z,_res) (_res)[0]=(x);(_res)[1]=(y);(_res)[2]=(z);(_res)[3]=0.0
 #define vector_init(x,y,z) { (x), (y), (z), 0.0 }
 
 void point_print(Point p);

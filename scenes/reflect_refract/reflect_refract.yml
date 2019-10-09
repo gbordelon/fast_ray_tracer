@@ -3,7 +3,7 @@
   timeout: 600 # in seconds
   divide-threshold: 1
   clamping: False
-  photon-count: 10000000
+  photon-count: 0
 
 
 # ======================================================
@@ -21,17 +21,17 @@
 # ======================================================
 
 - add: camera
-  width: 400
-  height: 200
+  width: 1200
+  height: 600
   field-of-view: 1.152
-  from: [-2.6, 1.5, -3.9]
+  from: [-3.6, 1.5, -4.9]
   to: [-0.6, 1, -0.8]
   up: [0, 1, 0]
-  focal-length: 1.5
-  usteps: 2
-  vsteps: 2
+  focal-length: 1
+  usteps: 4
+  vsteps: 4
   aperture:
-    jitter: true
+    jitter: false
     size: 0
     type: [ POINT_APERTURE ]
 
@@ -118,9 +118,9 @@
     - [ translate, 0, 0, -5 ]
   material: wall-material
 
-# ----------------------
-# background balls
-# ----------------------
+## ----------------------
+## background balls
+## ----------------------
 
 - add: sphere
   transform:
