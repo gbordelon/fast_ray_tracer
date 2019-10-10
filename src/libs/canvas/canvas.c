@@ -5,8 +5,11 @@
 #include <pthread.h>
 #include <stdint.h>
 
+#include <png.h>
+
 #include "../linalg/linalg.h"
 #include "../../color/color.h"
+#include "../../color/rgb.h"
 
 #include "canvas.h"
 
@@ -121,7 +124,7 @@ construct_ppm(Canvas c, bool use_scaling)
     unsigned char *out, *buf;
     uint16_t r_scaled, g_scaled, b_scaled;
     double r_inverse, g_inverse, b_inverse;
-    Color lab_max, lab_tmp, rgb_max, rgb_tmp;
+    Color rgb_tmp, srgb_tmp, srgb_max;
     Color *cur_val;
     Ppm ppm;
 
@@ -148,81 +151,62 @@ construct_ppm(Canvas c, bool use_scaling)
 
     free(buf);
 
-    rgb_max[0] = 1.0;
-    rgb_max[1] = 1.0;
-    rgb_max[2] = 1.0;
+    color_default(srgb_max);
 
-    // iterate over all colors in c->arr and find the max
-    if (use_scaling) {
-        // iterate to find max rgb for scaling to provide to max_lab
-        for (i = 0; i < c->width * c->height; i++) {
-            if ((*(c->arr + i))[0] > rgb_max[0]) {
-                rgb_max[0] = (*(c->arr + i))[0];
-            }
-            if ((*(c->arr + i))[1] > rgb_max[1]) {
-                rgb_max[1] = (*(c->arr + i))[1];
-            }
-            if ((*(c->arr + i))[2] > rgb_max[2]) {
-                rgb_max[2] = (*(c->arr + i))[2];
-            }
-        }
-        lab_max[0] = 0;
-        lab_max[1] = 0;
-        lab_max[2] = 0;
+    srgb_max[0] = 1.0;
+    srgb_max[1] = 1.0;
+    srgb_max[2] = 1.0;
 
-        // iterate to find max L*
-        for (i = 0; i < c->width * c->height; i++) {
-            color_copy(rgb_tmp, *(c->arr + i));
-            rgb_tmp[0] /= rgb_max[0];
-            rgb_tmp[1] /= rgb_max[1];
-            rgb_tmp[2] /= rgb_max[2];
-
-            rgb_to_lab(rgb_tmp, lab_tmp);
-            if (lab_compare_l(lab_tmp, lab_max) > 0) {
-                lab_max[0] = lab_tmp[0];
-            }
-        }
-
-        printf("lab_max: %f %f %f\n", lab_max[0], lab_max[1], lab_max[2]);
-        lab_to_rgb(lab_max, rgb_max);
-    } else {
-        rgb_max[0] = 1.0;
-        rgb_max[1] = 1.0;
-        rgb_max[2] = 1.0;
-    }
-
-    printf("rgb_max: %f %f %f\n", rgb_max[0], rgb_max[1], rgb_max[2]); 
-    r_inverse = 65535.0 / rgb_max[0];
-    g_inverse = 65535.0 / rgb_max[1];
-    b_inverse = 65535.0 / rgb_max[2];
+    r_inverse = 65535.0 / srgb_max[0];
+    g_inverse = 65535.0 / srgb_max[1];
+    b_inverse = 65535.0 / srgb_max[2];
 
     for (cur_val = c->arr; n < out_len - 1; n += 6, cur_val++) {
-        if ((*cur_val)[0] >= rgb_max[0]) {
+        color_copy(rgb_tmp, *cur_val);
+        // clamping
+        if (rgb_tmp[0] > 1.0) {
+            rgb_tmp[0] = 1.0;
+        } else if (rgb_tmp[0] < 0) {
+            rgb_tmp[0] = 0.0;
+        }
+        if (rgb_tmp[1] > 1.0) {
+            rgb_tmp[1] = 1.0;
+        } else if (rgb_tmp[1] < 0) {
+            rgb_tmp[1] = 0.0;
+        }
+        if (rgb_tmp[2] > 1.0) {
+            rgb_tmp[2] = 1.0;
+        } else if (rgb_tmp[2] < 0) {
+            rgb_tmp[2] = 0.0;
+        }
+        rgb_to_srgb(rgb_tmp, srgb_tmp);
+
+        if (srgb_tmp[0] > srgb_max[0]) {
             r_scaled = 65535;
-        } else if ((*cur_val)[0] <= 0) {
+        } else if (srgb_tmp[0] < 0) {
             r_scaled = 0;
         } else {
-            r_scaled = (uint16_t)floor((*cur_val)[0] * r_inverse);
+            r_scaled = (uint16_t)floor(srgb_tmp[0] * r_inverse);
         }
         *out++ = (r_scaled & 0xFF00) >> 8;
         *out++ = (r_scaled & 0x00FF);
 
-        if ((*cur_val)[1] >= rgb_max[1]) {
+        if (srgb_tmp[1] > srgb_max[1]) {
             g_scaled = 65535;
-        } else if ((*cur_val)[1] <= 0) {
+        } else if (srgb_tmp[1] < 0) {
             g_scaled = 0;
         } else {
-            g_scaled = (uint16_t)floor((*cur_val)[1] * g_inverse);
+            g_scaled = (uint16_t)floor(srgb_tmp[1] * g_inverse);
         }
         *out++ = (g_scaled & 0xFF00) >> 8;
         *out++ = (g_scaled & 0x00FF);
 
-        if ((*cur_val)[2] >= rgb_max[2]) {
+        if (srgb_tmp[2] > srgb_max[2]) {
             b_scaled = 65535;
-        } else if ((*cur_val)[2] <= 0) {
+        } else if (srgb_tmp[2] < 0) {
             b_scaled = 0;
         } else {
-            b_scaled = (uint16_t)floor((*cur_val)[2] * b_inverse);
+            b_scaled = (uint16_t)floor(srgb_tmp[2] * b_inverse);
         }
         *out++ = (b_scaled & 0xFF00) >> 8;
         *out++ = (b_scaled & 0x00FF);
@@ -272,3 +256,154 @@ construct_canvas_from_ppm_file(const char * file_path)
 
     return c;
 }
+
+
+/*
+
+   mostly taken from https://gitlab.com/mmbl.pie/yar/blob/master/src/canvas_png.cpp
+
+ */
+int
+write_png(Canvas c, const char *file_name)
+{
+  int code = 0, row;
+  // NOTE: This code wraps around C code with setjmp.  I avoid C++
+  // exceptions at all costs except at the end
+  FILE *fp = NULL;
+  uint16_t *buffer = NULL;
+  png_structp png_ptr = NULL;
+  png_infop info_ptr = NULL;
+	
+  // Open file for writing (binary mode)
+  fp = fopen(file_name, "wb");
+  if (fp == NULL) {
+    code = 1;
+    goto cleanup;
+  }
+
+  // Initialize write structure
+  png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+  if (png_ptr == NULL) {
+    code = 2;
+    goto cleanup;
+  }
+
+  // Initialize info structure
+  info_ptr = png_create_info_struct(png_ptr);
+  if (info_ptr == NULL) {
+    code = 2;
+    goto cleanup;
+  }
+
+  // Setup Exception handling
+  if (setjmp(png_jmpbuf(png_ptr))) {
+    code = 2;
+    goto cleanup;
+  }
+
+  png_init_io(png_ptr, fp);
+
+  // Default to 48-bit RGB image
+  png_set_IHDR(png_ptr, info_ptr, c->width, c->height,
+               16, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+               PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+  // Indicate sRGB storage
+  png_set_sRGB(png_ptr, info_ptr, PNG_sRGB_INTENT_ABSOLUTE);
+
+  png_text title_text;
+  title_text.compression = PNG_TEXT_COMPRESSION_NONE;
+  title_text.key = "Title";
+  title_text.text = NULL;
+  title_text.text_length = 0;
+  png_set_text(png_ptr, info_ptr, &title_text, 1);
+  png_write_info(png_ptr, info_ptr);
+
+
+    buffer = (uint16_t *)malloc(c->width * c->height * 3 * sizeof(uint16_t));
+    uint8_t *out = (uint8_t *)buffer;
+    Color rgb_tmp, srgb_tmp, rgb_max, *cur_val;
+    size_t n;
+    rgb_max[0] = 1.0;
+    rgb_max[1] = 1.0;
+    rgb_max[2] = 1.0;
+    double r_inverse = 65535.0 / rgb_max[0];
+    double g_inverse = 65535.0 / rgb_max[1];
+    double b_inverse = 65535.0 / rgb_max[2];
+    uint16_t r_scaled, g_scaled, b_scaled;
+
+    for (cur_val = c->arr, n = 0; n < c->width * c->height; ++n, cur_val++) {
+        color_copy(rgb_tmp, *cur_val);
+        // clamping
+        if (rgb_tmp[0] > 1.0) {
+            rgb_tmp[0] = 1.0;
+        } else if (rgb_tmp[0] < 0) {
+            rgb_tmp[0] = 0.0;
+        }
+        if (rgb_tmp[1] > 1.0) {
+            rgb_tmp[1] = 1.0;
+        } else if (rgb_tmp[1] < 0) {
+            rgb_tmp[1] = 0.0;
+        }
+        if (rgb_tmp[2] > 1.0) {
+            rgb_tmp[2] = 1.0;
+        } else if (rgb_tmp[2] < 0) {
+            rgb_tmp[2] = 0.0;
+        }
+        rgb_to_srgb(rgb_tmp, srgb_tmp);
+        color_copy(rgb_tmp, srgb_tmp);
+
+        if (rgb_tmp[0] > rgb_max[0]) {
+            r_scaled = 65535;
+        } else if (rgb_tmp[0] < 0) {
+            r_scaled = 0;
+        } else {
+            r_scaled = (uint16_t)floor(rgb_tmp[0] * r_inverse);
+        }
+        *out++ = (r_scaled & 0xFF00) >> 8;
+        *out++ = (r_scaled & 0x00FF);
+
+        if (rgb_tmp[1] > rgb_max[1]) {
+            g_scaled = 65535;
+        } else if (rgb_tmp[1] < 0) {
+            g_scaled = 0;
+        } else {
+            g_scaled = (uint16_t)floor(rgb_tmp[1] * g_inverse);
+        }
+        *out++ = (g_scaled & 0xFF00) >> 8;
+        *out++ = (g_scaled & 0x00FF);
+
+        if (rgb_tmp[2] > rgb_max[2]) {
+            b_scaled = 65535;
+        } else if (rgb_tmp[2] < 0) {
+            b_scaled = 0;
+        } else {
+            b_scaled = (uint16_t)floor(rgb_tmp[2] * b_inverse);
+        }
+        *out++ = (b_scaled & 0xFF00) >> 8;
+        *out++ = (b_scaled & 0x00FF);
+    }
+
+  for (row = 0; row < c->height; ++row) {
+    png_write_row(png_ptr, (png_bytep) buffer + 3 * sizeof(uint16_t) * row * c->width);
+  }
+
+  // End write
+  png_write_end(png_ptr, NULL);
+
+ cleanup:
+  if (fp != NULL) {
+    fclose(fp);
+  }
+  if (info_ptr != NULL) {
+    png_free_data(png_ptr, info_ptr, PNG_FREE_ALL, -1);
+  }
+  if (png_ptr != NULL) {
+    png_destroy_write_struct(&png_ptr, &info_ptr);
+  }
+  if (buffer != NULL) {
+    free(buffer);
+  }
+
+  return code;
+}
+

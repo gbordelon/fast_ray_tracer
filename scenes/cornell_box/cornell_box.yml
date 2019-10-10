@@ -3,7 +3,7 @@
   timeout: 600 # in seconds
   divide-threshold: 1
   clamping: False
-  photon-count: 100000
+  photon-count: 0
 
 # ======================================================
 # the test camera
@@ -114,6 +114,95 @@
   value:
   - [ scale, 1.5, 0.1, 1.5 ]
 
+- define: glass
+  value:
+    color: [0,0,0]
+    ambient: 0.0
+    diffuse: 0
+    specular: 1
+    reflective: 1
+    refractive-index: 10
+    transparency: 1
+    shininess: 300
+
+- define: mirror-material
+  value:
+    color: [0,0,0]
+    ambient: 0
+    diffuse: 0
+    specular: 1
+    reflective: 1
+    refractive-index: 1
+    transparency: 0
+    shininess: 300
+
+- define: glassySphere
+  value:
+    add: sphere
+    material: glass
+
+- define: glassyCube
+  value:
+    add: cube
+    material: glass
+
+- define: lensTwoSpheres
+  value:
+    add: csg
+    operation: intersection
+    left:
+      add: glassySphere
+      transform:
+      - [ translate, 0, 0, 1.0 ]
+    right:
+      add: glassySphere
+      transform:
+      - [ translate, 0, 0, -0.9 ]
+
+- define: lensSphereCube
+  value:
+    add: csg
+    operation: intersection
+    left:
+      add: glassySphere
+      transform:
+      - [ translate, 0, 0, 1.0 ]
+    right:
+      add: glassyCube
+      transform:
+      - [ translate, 0, 0, -0.9 ]
+
+- define: thickCylinder
+  value:
+    add: csg
+    operation: difference
+    left:
+      add: cylinder
+      min: -0.2
+      max: 0.2
+      closed: true
+      material: mirror-material
+    right:
+      add: cylinder
+      min: -0.3
+      max: 0.3
+      closed: true
+      material: mirror-material
+      transform:
+      - [ scale, 0.5, 1, 0.5 ]
+
+- define: lensWithCylinder
+  value:
+    add: csg
+    operation: difference
+    left:
+      add: lensTwoSpheres
+    right:
+      add: thickCylinder
+      transform:
+      - [ scale, 0.5, 1, 0.5 ]
+      - [ rotate-x, 1.5707963267948966 ]
+
 # ======================================================
 # describe the elements of the scene
 # ======================================================
@@ -157,7 +246,6 @@
   - [ translate, 1.55, 0, 0 ]
 
 
-
 # light
 - add: cube
   material:
@@ -174,28 +262,20 @@
 
 # mirror ball
 - add: sphere
-  material:
-    color: [0.0, 0.0, 0.0]
-    ambient: 1
-    specular: 1
-    reflective: 1
-    diffuse: 0
-    shininess: 300
+  material: mirror-material
   transform:
   - [scale, 0.5, 0.5, 0.5]
   - [translate, -0.6, -0.75, 0.5]
 
+
 # glass ball
-- add: sphere
-  material:
-    color: [0.0, 0.0, 0.0]
-    ambient: 1
-    specular: 1
-    reflective: 1
-    transparency: 1
-    diffuse: 0
-    refractive-index: 1.5
-    shininess: 300
+- add: lensWithCylinder
   transform:
-  - [scale, 0.5, 0.5, 0.5]
-  - [translate, 0.6, -0.75, 0.0]
+#  - [scale, 0.5, 0.5, 0.5]
+#  - [translate, 0.6, -0.75, 0.0]
+  - [scale, 2, 2, 2]
+#  - [rotate-x, -1.3707963267948966]
+#  - [rotate-z, 0.55707963267948966]
+  - [rotate-y, 1.5707963267948966]
+#  - [translate, 0.6, -0.75, 0.0]
+  - [translate, 0.0, -0.9, 0.0]

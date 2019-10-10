@@ -65,6 +65,10 @@ reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comp
 int
 reflect_photon_specular(enum photon_map_type map_type, World w, Computations comps, size_t remaining, struct container *container)
 {
+    if (equal(comps->obj->material->reflective, 0)) {
+        return 0;
+    }
+
     struct ray reflect_ray;
     ray_array(comps->over_point, comps->reflectv, &reflect_ray);
     return power_at(map_type, w, &reflect_ray, comps->photon_power, SPECULAR, remaining - 1, container);
@@ -73,6 +77,10 @@ reflect_photon_specular(enum photon_map_type map_type, World w, Computations com
 int
 refract_photon(enum photon_map_type map_type, World w, Computations comps, size_t remaining, struct container *container)
 {
+    if (equal(comps->obj->material->transparency, 0)) {
+        return 0;
+    }
+
     double n_ratio = comps->n1 / comps->n2;
     double cos_i = vector_dot(comps->eyev, comps->normalv);
     double sin2_t = n_ratio * n_ratio * (1.0 - cos_i * cos_i);
@@ -130,17 +138,28 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, enum refl
 
     // russian roulette
     double r = drand48();
-    double total_refract_reflect = comps->obj->material->diffuse +
-                                   comps->obj->material->reflective +
-                                   comps->obj->material->transparency;
-
-    if (map_type != CAUSTIC && (r * total_refract_reflect < comps->obj->material->diffuse)) {
-        hit += reflect_photon_diffuse(map_type, w, comps, remaining, container);
-    } else if (r * total_refract_reflect < comps->obj->material->diffuse + comps->obj->material->reflective) {
-        hit += reflect_photon_specular(map_type, w, comps, remaining, container);
-    } else if (r * total_refract_reflect < comps->obj->material->diffuse + comps->obj->material->reflective + comps->obj->material->transparency) {
-        hit += refract_photon(map_type, w, comps, remaining, container);
+    double total_refract_reflect;
+    if (map_type != CAUSTIC) {
+        total_refract_reflect = comps->obj->material->diffuse +
+                                comps->obj->material->reflective +
+                                comps->obj->material->transparency;
+        if (r * total_refract_reflect < comps->obj->material->diffuse) {
+            hit += reflect_photon_diffuse(map_type, w, comps, remaining, container);
+        } else if (r * total_refract_reflect < comps->obj->material->diffuse + comps->obj->material->reflective) {
+            hit += reflect_photon_specular(map_type, w, comps, remaining, container);
+        } else if (r * total_refract_reflect < comps->obj->material->diffuse + comps->obj->material->reflective + comps->obj->material->transparency) {
+            hit += refract_photon(map_type, w, comps, remaining, container);
+        }
+    } else {
+        total_refract_reflect = comps->obj->material->reflective +
+                                comps->obj->material->transparency;
+        if (r * total_refract_reflect < comps->obj->material->reflective) {
+            hit += reflect_photon_specular(map_type, w, comps, remaining, container);
+        } else if (r * total_refract_reflect < comps->obj->material->reflective + comps->obj->material->transparency) {
+            hit += refract_photon(map_type, w, comps, remaining, container);
+        }
     }
+
 
     return hit;
 }

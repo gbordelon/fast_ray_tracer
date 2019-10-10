@@ -3,7 +3,7 @@
   timeout: 600 # in seconds
   divide-threshold: 1
   clamping: False
-  photon-count: 1000000
+  photon-count: 0
 
 
 # ======================================================
@@ -175,7 +175,7 @@
   material:
     color: [0, 0, 0.2]
     ambient: 0
-    diffuse: 0.0
+    diffuse: 0.4
     specular: 0.9
     shininess: 300
     reflective: 0.9
@@ -190,7 +190,7 @@
   material:
     color: [0, 0.2, 0]
     ambient: 0
-    diffuse: 0.0
+    diffuse: 0.4
     specular: 0.9
     shininess: 300
     reflective: 0.9

@@ -30,8 +30,12 @@ class Pattern(object):
                 typ = 'checker'
             if typ == 'stripes':
                 typ = 'stripe'
-            buf += """    Color pattern_{0}_color_0 = color({2:.10f}, {3:.10f}, {4:.10f});
-    Color pattern_{0}_color_1 = color({5:.10f}, {6:.10f}, {7:.10f});
+            buf += """    Color pattern_{0}_color_0_srgb = color({2:.10f}, {3:.10f}, {4:.10f});
+    Color pattern_{0}_color_1_srgb = color({5:.10f}, {6:.10f}, {7:.10f});
+    Color pattern_{0}_color_0;
+    Color pattern_{0}_color_1;
+    srgb_to_rgb(pattern_{0}_color_0_srgb, pattern_{0}_color_0);
+    srgb_to_rgb(pattern_{0}_color_1_srgb, pattern_{0}_color_1);
     Pattern pattern_{0} = {1}_pattern_alloc(pattern_{0}_color_0, pattern_{0}_color_1);
 
 """.format(name, typ,
@@ -188,8 +192,12 @@ class UVPattern(object):
     def c_repr(self, name):
         typ = self.yaml_obj['type']
         if typ in ['checkers', 'check']:
-            buf = """    Color {0}_color_0 = color({2:.10f}, {3:.10f}, {4:.10f});
-    Color {0}_color_1 = color({5:.10f}, {6:.10f}, {7:.10f});
+            buf = """    Color {0}_color_0_srgb = color({2:.10f}, {3:.10f}, {4:.10f});
+    Color {0}_color_1_srgb = color({5:.10f}, {6:.10f}, {7:.10f});
+    Color {0}_color_0;
+    Color {0}_color_1;
+    srgb_to_rgb({0}_color_0_srgb, {0}_color_0);
+    srgb_to_rgb({0}_color_1_srgb, {0}_color_1);
     uv_check_pattern({0}_color_0, {0}_color_1, {8}, {9}, {0});
 
 """.format(name,
@@ -208,11 +216,21 @@ class UVPattern(object):
                 typ = 'align_check'
             colors = self.yaml_obj['colors'] # dict
 
-            buf = """    Color {0}_color_0 = color({2:.10f}, {3:.10f}, {4:.10f});
-    Color {0}_color_1 = color({5:.10f}, {6:.10f}, {7:.10f});
-    Color {0}_color_2 = color({8:.10f}, {9:.10f}, {10:.10f});
-    Color {0}_color_3 = color({11:.10f}, {12:.10f}, {13:.10f});
-    Color {0}_color_4 = color({14:.10f}, {15:.10f}, {16:.10f});
+            buf = """    Color {0}_color_0_srgb = color({2:.10f}, {3:.10f}, {4:.10f});
+    Color {0}_color_1_srgb = color({5:.10f}, {6:.10f}, {7:.10f});
+    Color {0}_color_2_srgb = color({8:.10f}, {9:.10f}, {10:.10f});
+    Color {0}_color_3_srgb = color({11:.10f}, {12:.10f}, {13:.10f});
+    Color {0}_color_4_srgb = color({14:.10f}, {15:.10f}, {16:.10f});
+    Color {0}_color_0;
+    Color {0}_color_1;
+    Color {0}_color_2;
+    Color {0}_color_3;
+    Color {0}_color_4;
+    srgb_to_rgb({0}_color_0_srgb, {0}_color_0);
+    srgb_to_rgb({0}_color_1_srgb, {0}_color_1);
+    srgb_to_rgb({0}_color_2_srgb, {0}_color_2);
+    srgb_to_rgb({0}_color_3_srgb, {0}_color_3);
+    srgb_to_rgb({0}_color_4_srgb, {0}_color_4);
     uv_align_check_pattern({0}_color_0, {0}_color_1, {0}_color_2, {0}_color_3, {0}_color_4, {0});
 
 """.format(name,

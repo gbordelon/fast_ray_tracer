@@ -149,6 +149,8 @@ def world_objects_to_c_file(obj):
 #include "src/libs/linalg/linalg.h"
 #include "src/libs/obj_loader/obj_loader.h"
 #include "src/libs/photon_map/pm.h"
+#include "src/color/srgb.h"
+
 #include "src/renderer/camera.h"
 #include "src/renderer/photon_tracer.h"
 #include "src/renderer/renderer.h"
@@ -205,13 +207,9 @@ int main()
     fclose (pFile);
 
     ppm_free(ppm);
-    ppm = construct_ppm(c, false);
 
-    pFile = fopen("/tmp/{7}.ppm", "wb");
-    fwrite (ppm->arr, sizeof(unsigned char), ppm->len, pFile);
-    fclose (pFile);
+    write_png(c, "/tmp/{6}.png");
 
-    ppm_free(ppm);
     canvas_free(c);
 
     return 0;
@@ -222,8 +220,7 @@ int main()
            len(obj['lights']),
            allocate_shapes(obj['world']),
            len(obj['world']),
-           "unclamped",
-           "clamped")
+           "srgb_render")
 
     print(c_code)
     

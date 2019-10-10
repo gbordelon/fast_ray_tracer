@@ -26,6 +26,8 @@ void color_copy(Color to, const Color from);
 
 void print_color(const Color c);
 
+
+// forward declarations
 void rgb_to_lab(const Color rgb, Color lab);
 void lab_to_rgb(const Color lab, Color rgb);
 
