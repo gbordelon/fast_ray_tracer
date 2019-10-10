@@ -124,7 +124,7 @@ construct_ppm(Canvas c, bool use_scaling)
     unsigned char *out, *buf;
     uint16_t r_scaled, g_scaled, b_scaled;
     double r_inverse, g_inverse, b_inverse;
-    Color rgb_tmp, srgb_tmp, srgb_max;
+    Color rgb_tmp, srgb_tmp, srgb_max, rgb_max;
     Color *cur_val;
     Ppm ppm;
 
@@ -151,11 +151,52 @@ construct_ppm(Canvas c, bool use_scaling)
 
     free(buf);
 
+    color_default(rgb_max);
+    for (i = 0, cur_val = c->arr; i < c->width * c->height; ++i, ++cur_val) {
+        color_copy(rgb_tmp, *cur_val);
+        if (rgb_tmp[0] > rgb_max[0]) {
+            rgb_max[0] = rgb_tmp[0];
+        }
+        if (rgb_tmp[1] > rgb_max[1]) {
+            rgb_max[1] = rgb_tmp[1];
+        }
+        if (rgb_tmp[2] > rgb_max[2]) {
+            rgb_max[2] = rgb_tmp[2];
+        }
+    }
+    print_color(rgb_max);
+
     color_default(srgb_max);
 
-    srgb_max[0] = 1.0;
-    srgb_max[1] = 1.0;
-    srgb_max[2] = 1.0;
+    for (i = 0, cur_val = c->arr; i < c->width * c->height; ++i, ++cur_val) {
+        color_copy(rgb_tmp, *cur_val);
+        rgb_tmp[0] /= rgb_max[0];
+        rgb_tmp[1] /= rgb_max[1];
+        rgb_tmp[2] /= rgb_max[2];
+
+        rgb_to_srgb(rgb_tmp, srgb_tmp);
+        if (srgb_tmp[0] > srgb_max[0]) {
+            srgb_max[0] = srgb_tmp[0];
+        }
+        if (srgb_tmp[1] > srgb_max[1]) {
+            srgb_max[1] = srgb_tmp[1];
+        }
+        if (srgb_tmp[2] > srgb_max[2]) {
+            srgb_max[2] = srgb_tmp[2];
+        }
+    }
+
+    if (rgb_max[0] < 1.0) {
+        rgb_max[0] = 1.0;
+    }
+    if (rgb_max[1] < 1.0) {
+        rgb_max[1] = 1.0;
+    }
+    if (rgb_max[2] < 1.0) {
+        rgb_max[2] = 1.0;
+    }
+
+    print_color(srgb_max);
 
     r_inverse = 65535.0 / srgb_max[0];
     g_inverse = 65535.0 / srgb_max[1];
@@ -163,21 +204,27 @@ construct_ppm(Canvas c, bool use_scaling)
 
     for (cur_val = c->arr; n < out_len - 1; n += 6, cur_val++) {
         color_copy(rgb_tmp, *cur_val);
-        // clamping
-        if (rgb_tmp[0] > 1.0) {
-            rgb_tmp[0] = 1.0;
-        } else if (rgb_tmp[0] < 0) {
-            rgb_tmp[0] = 0.0;
-        }
-        if (rgb_tmp[1] > 1.0) {
-            rgb_tmp[1] = 1.0;
-        } else if (rgb_tmp[1] < 0) {
-            rgb_tmp[1] = 0.0;
-        }
-        if (rgb_tmp[2] > 1.0) {
-            rgb_tmp[2] = 1.0;
-        } else if (rgb_tmp[2] < 0) {
-            rgb_tmp[2] = 0.0;
+        if (use_scaling) {
+            rgb_tmp[0] /= rgb_max[0];
+            rgb_tmp[1] /= rgb_max[1];
+            rgb_tmp[2] /= rgb_max[2];
+        } else {
+            // clamping
+            if (rgb_tmp[0] > 1.0) {
+                rgb_tmp[0] = 1.0;
+            } else if (rgb_tmp[0] < 0) {
+                rgb_tmp[0] = 0.0;
+            }
+            if (rgb_tmp[1] > 1.0) {
+                rgb_tmp[1] = 1.0;
+            } else if (rgb_tmp[1] < 0) {
+                rgb_tmp[1] = 0.0;
+            }
+            if (rgb_tmp[2] > 1.0) {
+                rgb_tmp[2] = 1.0;
+            } else if (rgb_tmp[2] < 0) {
+                rgb_tmp[2] = 0.0;
+            }
         }
         rgb_to_srgb(rgb_tmp, srgb_tmp);
 

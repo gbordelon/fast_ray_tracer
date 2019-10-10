@@ -25,12 +25,12 @@ enum photon_map_type {
 };
 
 int
-power_at(enum photon_map_type map_type, const World w, const Ray r, Color power, enum reflect_type type, const size_t remaining, struct container *container);
+power_at(enum photon_map_type map_type, const World w, const Ray r, Color power, bool had_diffuse, bool had_specular, const size_t remaining, struct container *container);
 
 // prepare_computations assumes the ray direction is from the camera but should be resusable
 
 int
-reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comps, size_t remaining, struct container *container)
+reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comps, bool had_specular, size_t remaining, struct container *container)
 {
     Vector nt, nb, random_diffuse, sample;
     create_coordinate_system(comps->normalv, nt, nb);
@@ -57,13 +57,15 @@ reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comp
     diffuse_color[0] *= comps->photon_power[0];
     diffuse_color[1] *= comps->photon_power[1];
     diffuse_color[2] *= comps->photon_power[2];
+    // debug
+    //color_copy(diffuse_color, comps->photon_power);
 
     ray_array(comps->over_point, random_diffuse, &reflect_ray);
-    return power_at(map_type, w, &reflect_ray, diffuse_color, DIFFUSE, remaining - 1, container);
+    return power_at(map_type, w, &reflect_ray, diffuse_color, true, had_specular, remaining - 1, container);
 }
 
 int
-reflect_photon_specular(enum photon_map_type map_type, World w, Computations comps, size_t remaining, struct container *container)
+reflect_photon_specular(enum photon_map_type map_type, World w, Computations comps, bool had_diffuse, size_t remaining, struct container *container)
 {
     if (equal(comps->obj->material->reflective, 0)) {
         return 0;
@@ -71,11 +73,11 @@ reflect_photon_specular(enum photon_map_type map_type, World w, Computations com
 
     struct ray reflect_ray;
     ray_array(comps->over_point, comps->reflectv, &reflect_ray);
-    return power_at(map_type, w, &reflect_ray, comps->photon_power, SPECULAR, remaining - 1, container);
+    return power_at(map_type, w, &reflect_ray, comps->photon_power, had_diffuse, true, remaining - 1, container);
 }
 
 int
-refract_photon(enum photon_map_type map_type, World w, Computations comps, size_t remaining, struct container *container)
+refract_photon(enum photon_map_type map_type, World w, Computations comps, bool had_diffuse, size_t remaining, struct container *container)
 {
     if (equal(comps->obj->material->transparency, 0)) {
         return 0;
@@ -103,11 +105,11 @@ refract_photon(enum photon_map_type map_type, World w, Computations comps, size_
     vector(t1[0] - t2[0], t1[1] - t2[1], t1[2] - t2[2], direction);
 
     ray_array(comps->under_point, direction, &refracted_ray);
-    return power_at(map_type, w, &refracted_ray, comps->photon_power, SPECULAR, remaining - 1, container);
+    return power_at(map_type, w, &refracted_ray, comps->photon_power, had_diffuse, true, remaining - 1, container);
 }
 
 int
-photon_hit(enum photon_map_type map_type, World w, Computations comps, enum reflect_type type, size_t remaining, struct container *container)
+photon_hit(enum photon_map_type map_type, World w, Computations comps, bool had_diffuse, bool had_specular, size_t remaining, struct container *container)
 {
     PhotonMap *maps = w->photon_maps;
     int hit = 0;
@@ -121,51 +123,54 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, enum refl
         return 0;
     }
 
+    // only store photons if the struck material is diffuse
     if (comps->obj->material->diffuse > 0) {
+        // only store photons with at least one specular reflection in the caustics map
         if (map_type == CAUSTIC) {
-            if (type == SPECULAR) { // only store photons with at least one specular reflection in the caustics map
+            if (had_specular) {
                 pm_store(maps + 0, comps->photon_power, comps->p, comps->photon_ray.direction);
                 return 1;
             }
+        // never store the first diffuse hit in the global map
         } else if (map_type == GLOBAL) {
-            // never store the first diffuse hit in the global map
-            if (type != NONE) {
+            if (had_diffuse) {
                 pm_store(maps + 1, comps->photon_power, comps->p, comps->photon_ray.direction);
                 hit += 1;
             }
         }
+        // participating media map?
     }
 
     // russian roulette
     double r = drand48();
     double total_refract_reflect;
-    if (map_type != CAUSTIC) {
+    if (map_type == GLOBAL) {
         total_refract_reflect = comps->obj->material->diffuse +
                                 comps->obj->material->reflective +
                                 comps->obj->material->transparency;
         if (r * total_refract_reflect < comps->obj->material->diffuse) {
-            hit += reflect_photon_diffuse(map_type, w, comps, remaining, container);
+            hit += reflect_photon_diffuse(map_type, w, comps, had_specular, remaining, container);
         } else if (r * total_refract_reflect < comps->obj->material->diffuse + comps->obj->material->reflective) {
-            hit += reflect_photon_specular(map_type, w, comps, remaining, container);
+            hit += reflect_photon_specular(map_type, w, comps, had_diffuse, remaining, container);
         } else if (r * total_refract_reflect < comps->obj->material->diffuse + comps->obj->material->reflective + comps->obj->material->transparency) {
-            hit += refract_photon(map_type, w, comps, remaining, container);
+            hit += refract_photon(map_type, w, comps, had_diffuse, remaining, container);
         }
-    } else {
+    } else if (map_type == CAUSTIC) {
         total_refract_reflect = comps->obj->material->reflective +
                                 comps->obj->material->transparency;
         if (r * total_refract_reflect < comps->obj->material->reflective) {
-            hit += reflect_photon_specular(map_type, w, comps, remaining, container);
+            hit += reflect_photon_specular(map_type, w, comps, had_diffuse, remaining, container);
         } else if (r * total_refract_reflect < comps->obj->material->reflective + comps->obj->material->transparency) {
-            hit += refract_photon(map_type, w, comps, remaining, container);
+            hit += refract_photon(map_type, w, comps, had_diffuse, remaining, container);
         }
     }
-
+    // else participating media
 
     return hit;
 }
 
 int
-power_at(enum photon_map_type map_type, const World w, const Ray r, Color power, enum reflect_type type, const size_t remaining, struct container *container)
+power_at(enum photon_map_type map_type, const World w, const Ray r, Color power, bool had_diffuse, bool had_specular, const size_t remaining, struct container *container)
 {
     Intersections xs = intersect_world(w, r);
     Intersection i = hit(xs, true);
@@ -174,7 +179,7 @@ power_at(enum photon_map_type map_type, const World w, const Ray r, Color power,
 
     if (i != NULL) {
         prepare_computations(i, r, power, xs, &comps, container);
-        hit = photon_hit(map_type, w, &comps, type, remaining, container);
+        hit = photon_hit(map_type, w, &comps, had_diffuse, had_specular, remaining, container);
     }
 
     return hit;
@@ -211,14 +216,14 @@ trace_photons(const World w, size_t num_maps)
     for (i = 0, itr = w->lights; i < w->lights_num; ++i, ++itr) {
         for (j = 0; j < itr->num_photons;) {
             itr->emit_photon(itr, &r); // get ray from light
-            hit = power_at(CAUSTIC, w, &r, itr->intensity, NONE, 5, &container);
+            hit = power_at(CAUSTIC, w, &r, itr->intensity, false, false, 5, &container);
             j += hit;
         }
 
         global_total = 0;
         for (j = 0; j < itr->num_photons;) {
             itr->emit_photon(itr, &r); // get ray from light
-            hit = power_at(GLOBAL, w, &r, itr->intensity, NONE, 5, &container);
+            hit = power_at(GLOBAL, w, &r, itr->intensity, false, false, 5, &container);
             j += hit;
             global_total += hit;
         }

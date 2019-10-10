@@ -258,7 +258,9 @@ render_multi_helper(World w, void *args)
     for (j = y_start, k=1; j < y_end; ++j, ++k) {
         for (i = 0; i < cam->hsize; ++i) {
             color_default(c);
-            pixel_multi_sample(cam, w, i, j, usteps, vsteps, &sampler, c, &container);
+            //if (j == 355 && i == 200) { // debug
+                pixel_multi_sample(cam, w, i, j, usteps, vsteps, &sampler, c, &container);
+            //}
             color_copy(*(buf+i), c);
         }
         printf("Wrote row %lu\n", y_start);
@@ -528,11 +530,10 @@ schlick(Computations comps)
 #define INCLUDE_SPECULAR 1
 
 #define USE_GI 0
-#define USE_INDIRECT_DIFFUSE 0
 #define USE_CAUSTICS 1
 #define FINAL_GATHER 1
-#define FINAL_GATHER_NUM_U 32
-#define FINAL_GATHER_NUM_V 32
+#define FINAL_GATHER_NUM_U 8
+#define FINAL_GATHER_NUM_V 8
 #define IRRADIANCE_ESTIMATE_NUM 200
 #define IRRADIANCE_ESTIMATE_RADIUS 0.1
 
@@ -655,7 +656,7 @@ final_gather(World w, Computations comps, Color res, struct container *container
 void
 shade_hit(World w, Computations comps, size_t remaining, Color res, struct container *container)
 {
-    Light itr;
+    Light light;
     size_t i;
     Color c;
     Color surface = color(0.0, 0.0, 0.0);
@@ -664,18 +665,18 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
 
     // shade the hit with direct ambient and direct specular highlights and maybe direct diffuse
     if (INCLUDE_DIRECT || VISUALIZE_SOFT_INDIRECT) {
-        for (i = 0, itr = w->lights; i < w->lights_num; i++, itr++) {
+        for (i = 0, light = w->lights; i < w->lights_num; i++, light++) {
             color_default(c);
-            intensity = itr->intensity_at(itr, w, comps->over_point);
+            intensity = light->intensity_at(light, w, comps->over_point);
             lighting(comps->obj->material,
                      comps->obj,
-                     itr,
+                     light,
                      comps->over_point,
                      comps->eyev,
                      comps->normalv,
                      intensity,
                      USE_AMBIENT || VISUALIZE_SOFT_INDIRECT,
-                     USE_DIRECT_DIFFUSE && !VISUALIZE_SOFT_INDIRECT,
+                     USE_DIRECT_DIFFUSE || VISUALIZE_SOFT_INDIRECT,
                      USE_SPECULAR_HIGHLIGHTS && !VISUALIZE_SOFT_INDIRECT,
                      c);
 
@@ -691,10 +692,9 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
         color_default(fgather);
         color_default(caustics);
         color_default(indirect);
-        color_scale(surface, 2.0 / (M_PI));
 
         // approximate for the diffuse component, really only useful for visualizing the global pmap
-        if (USE_INDIRECT_DIFFUSE || VISUALIZE_PHOTON_MAP) {
+        if (VISUALIZE_PHOTON_MAP) {
             lighting_gi(comps->obj->material,
                         comps->obj,
                         comps->over_point,
@@ -703,7 +703,6 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
                         w->photon_maps,
                         indirect);
         } else if (VISUALIZE_SOFT_INDIRECT) {
-            color_scale(surface, M_PI);
             lighting_gi(comps->obj->material,
                         comps->obj,
                         comps->over_point,
@@ -711,19 +710,22 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
                         comps->normalv,
                         w->photon_maps,
                         indirect);
-            surface[0] *= indirect[0];
-            surface[1] *= indirect[1];
-            surface[2] *= indirect[2];
+            //surface[0] *= indirect[0];
+            //surface[1] *= indirect[1];
+            //surface[2] *= indirect[2];
             color_default(indirect);
         }
 
+        // final gather for soft indirect diffuse component
         if (FINAL_GATHER || VISUALIZE_SOFT_INDIRECT) {
-            // final gather for diffuse component
             final_gather(w, comps, fgather, container);
-            //color_scale(surface, M_PI);
+            //surface[0] *= fgather[0];
+            //surface[1] *= fgather[1];
+            //surface[2] *= fgather[2];
+            //color_default(fgather);
         }
 
-        if (USE_CAUSTICS  && !VISUALIZE_SOFT_INDIRECT) { // I may not want caustics in the visualize
+        if (USE_CAUSTICS && !VISUALIZE_SOFT_INDIRECT) {
             lighting_caustics(comps->obj->material,
                         comps->obj,
                         comps->over_point,
@@ -802,14 +804,26 @@ lighting_gi(Material material, Shape shape, Point point, Vector eyev, Vector nor
     if (material->diffuse < 0 || equal(material->diffuse, 0.0)) {
         return;
     }
-    pm_irradiance_estimate(maps+1, intensity_estimate, point, eyev, IRRADIANCE_ESTIMATE_RADIUS, IRRADIANCE_ESTIMATE_NUM); // using global map
+    pm_irradiance_estimate(maps+1, intensity_estimate, point, eyev, IRRADIANCE_ESTIMATE_RADIUS, IRRADIANCE_ESTIMATE_NUM);
     // TODO take IRRADIANCE_ESTIMATE_NUM into account
-    //color_scale(intensity_estimate, 1.5 * M_PI * M_PI / (double)(maps+1)->max_photons); // using global map
-    color_scale(intensity_estimate, M_PI * M_PI / (double)(maps+1)->max_photons); // using global map
 
     if (VISUALIZE_PHOTON_MAP || VISUALIZE_SOFT_INDIRECT) {
+        color_scale(intensity_estimate, M_PI * M_PI * M_PI / (double)(maps+1)->max_photons);
         color_copy(res, intensity_estimate);
+/*
+    } else if (VISUALIZE_SOFT_INDIRECT) {
+        color_copy(diffuse, direct_color);
+        diffuse[0] *= intensity_estimate[0];
+        diffuse[1] *= intensity_estimate[1];
+        diffuse[2] *= intensity_estimate[2];
+
+        // may want to do ambient instead
+        color_scale(diffuse, material->diffuse);
+        color_scale(diffuse, eye_dot_normal);
+        color_accumulate(res, diffuse);
+*/
     } else {
+        color_scale(intensity_estimate, M_PI * M_PI / (double)(maps+1)->max_photons);
         double eye_dot_normal = vector_dot(eyev, normalv);
         if (material->pattern != NULL) {
             material->pattern->pattern_at_shape(material->pattern, shape, point, direct_color);
@@ -817,7 +831,6 @@ lighting_gi(Material material, Shape shape, Point point, Vector eyev, Vector nor
             color_copy(direct_color, material->color);
         }
 
-        // diffuse
         color_copy(diffuse, direct_color);
         diffuse[0] *= intensity_estimate[0];
         diffuse[1] *= intensity_estimate[1];
