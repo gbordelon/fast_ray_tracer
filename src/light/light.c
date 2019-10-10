@@ -104,22 +104,21 @@ area_light_point_on_light(Light l, double uv_jitter[2], Point retval)
     retval[2] = l->u.area.corner[2] + uvec[2] + vvec[2];
 }
 
-#define AREA_LIGHT_CACHE_SIZE 65536
-Points
-area_light_surface_points(Light light)
+void
+construct_area_light_surface_points_cache(Light light, size_t cache_size)
 {
     if (light->surface_points_cache == NULL) {
         int u, v, i;
         double jitter[2];
         size_t index[2];
         Point point = {0.0, 0.0, 0.0, 1.0};
-        Points pts = (Points) malloc(AREA_LIGHT_CACHE_SIZE * sizeof(struct pts));
+        Points pts = (Points) malloc(cache_size * sizeof(struct pts));
         Points itr = pts;
         struct sampler sampler;
 
         sampler_2d(light->u.area.jitter, light->u.area.usteps, light->u.area.vsteps, sampler_default_constraint, &sampler);
         
-        for (i = 0, itr = pts; i < AREA_LIGHT_CACHE_SIZE; i++, itr++) {
+        for (i = 0, itr = pts; i < cache_size; i++, itr++) {
             itr->points_num = light->num_samples;
             itr->points = (Point*) malloc(light->num_samples * sizeof(Point));
 
@@ -139,9 +138,13 @@ area_light_surface_points(Light light)
             }
         }
         light->surface_points_cache = pts;
-        light->surface_points_cache_len = AREA_LIGHT_CACHE_SIZE;
+        light->surface_points_cache_len = cache_size;
     }
+}
 
+Points
+area_light_surface_points(Light light)
+{
     int choice = rand() % light->surface_points_cache_len;
     return light->surface_points_cache + choice;
 }
@@ -207,6 +210,7 @@ area_light(Point corner,
            Vector full_vvec,
            size_t vsteps,
            bool jitter,
+           size_t cache_size,
            Color intensity,
            Light l)
 {
@@ -233,7 +237,7 @@ area_light(Point corner,
 
     // populate surface_points_cache
     l->surface_points_cache = NULL;
-    area_light_surface_points(l);
+    construct_area_light_surface_points_cache(l, cache_size);
 }
 
 Light
@@ -243,10 +247,11 @@ area_light_alloc(Point corner,
                  Vector full_vvec,
                  size_t vsteps,
                  bool jitter,
+                 size_t cache_size,
                  Color intensity)
 {
     Light l = (Light) malloc(sizeof(struct light));
-    area_light(corner, full_uvec, usteps, full_vvec, vsteps, jitter, intensity, l);
+    area_light(corner, full_uvec, usteps, full_vvec, vsteps, jitter, cache_size, intensity, l);
     return l;
 }
 

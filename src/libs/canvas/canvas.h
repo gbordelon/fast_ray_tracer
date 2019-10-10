@@ -30,7 +30,7 @@ void canvas_write_pixels(Canvas c, int col, int row, Color *colors, size_t num);
 void canvas_write_pixel(Canvas c, int col, int row, Color color);
 void canvas_pixel_at(Canvas c, int col, int row, Color res);
 
-Ppm construct_ppm(Canvas, bool use_clamping);
+int write_ppm_file(Canvas c, const bool use_scaling, const char *file_name);
 int write_png(Canvas c, const char *file_name);
 
 Canvas construct_canvas_from_ppm_file(const char * file_path);

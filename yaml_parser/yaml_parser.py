@@ -149,7 +149,12 @@ def world_objects_to_c_file(obj):
 #include "src/libs/linalg/linalg.h"
 #include "src/libs/obj_loader/obj_loader.h"
 #include "src/libs/photon_map/pm.h"
+#include "src/color/hsl.h"
+#include "src/color/lab.h"
+#include "src/color/rgb.h"
 #include "src/color/srgb.h"
+#include "src/color/xyz.h"
+#include "src/color/xyy.h"
 
 #include "src/renderer/camera.h"
 #include "src/renderer/config.h"
@@ -209,17 +214,11 @@ main()
         printf("Skipping photon tracing because photon_count is 0.\\n");
         fflush(stdout);
     }}
+
     Canvas c = render_multi(cam, w, cam->usteps, cam->vsteps, cam->aperture.jitter);
-    Ppm ppm = construct_ppm(c, true);
 
-    FILE * pFile;
-    pFile = fopen ("/tmp/{6}.ppm", "wb");
-    fwrite (ppm->arr, sizeof(unsigned char), ppm->len, pFile);
-    fclose (pFile);
-
-    ppm_free(ppm);
-
-    write_png(c, "/tmp/{6}.png");
+    write_ppm_file(c, true, global_config.output.file_path);
+    write_png(c, global_config.output.file_path);
 
     canvas_free(c);
 
@@ -230,8 +229,7 @@ main()
            allocate_lights(obj['lights']),
            len(obj['lights']),
            allocate_shapes(obj['world']),
-           len(obj['world']),
-           "srgb_render")
+           len(obj['world']))
 
     print(c_code)
     

@@ -66,6 +66,7 @@ area_light(Point corner,
            Vector full_vvec/*vector*/,
            size_t vsteps,
            bool jitter,
+           size_t cache_size,
            Color intensity,
            Light l);
 

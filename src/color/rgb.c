@@ -7,6 +7,12 @@
 #include "xyz.h"
 
 void
+rgb_to_rgb(const Color from, Color to)
+{
+    color_copy(to, from);
+}
+
+void
 rgb_to_hsl(const Color rgb, Color hsl)
 {
     double r = rgb[0];

@@ -60,7 +60,8 @@ void delete_Photon_map(PhotonMap *pm);
     double pos[3],                  // surface position
     double normal[3],               // surface normal at pos
     double max_dist,                // max distance to look for photons
-    int nphotons );                // number of photons to use
+    int nphotons,
+    double cone_filter_k );                // number of photons to use
 
   void pm_locate_photons(
     PhotonMap *pm,

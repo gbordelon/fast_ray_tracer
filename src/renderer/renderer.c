@@ -1,21 +1,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <pthread.h>
-#include <errno.h>
-#include <unistd.h>
-
-#include <sys/types.h>
-#include <sys/sysctl.h>
-#include <mach/mach_init.h>
-#include <mach/thread_policy.h>
-#include <sched.h>
-
 
 #include "../libs/linalg/linalg.h"
 #include "../libs/photon_map/pm.h"
 #include "../libs/sampler/sampler.h"
 #include "../libs/thpool/thpool.h"
+#include "../libs/core_select/core_select.h"
+
 #include "../pattern/pattern.h"
 #include "../shapes/shapes.h"
 #include "../shapes/sphere.h"
@@ -148,76 +140,6 @@ pixel_multi_sample(Camera cam, World w, size_t x, size_t y, size_t usteps, size_
     color_copy(res, acc);
 }
 
-/*
- * https://yyshen.github.io/2015/01/18/binding_threads_to_cores_osx.html
- */
-#define SYSCTL_CORE_COUNT   "machdep.cpu.core_count"
-
-typedef struct cpu_set {
-  uint32_t    count;
-} cpu_set_t;
-
-static inline void
-CPU_ZERO(cpu_set_t *cs) { cs->count = 0; }
-
-static inline void
-CPU_SET(int num, cpu_set_t *cs) { cs->count |= (1 << num); }
-
-static inline int
-CPU_ISSET(int num, cpu_set_t *cs) { return (cs->count & (1 << num)); }
-
-int
-sched_getaffinity(pid_t pid, size_t cpu_size, cpu_set_t *cpu_set)
-{
-  int32_t core_count = 0;
-  size_t  len = sizeof(core_count);
-  int ret = sysctlbyname(SYSCTL_CORE_COUNT, &core_count, &len, 0, 0);
-  if (ret) {
-    printf("error while get core count %d\n", ret);
-    return -1;
-  }
-  cpu_set->count = 0;
-  for (int i = 0; i < core_count; i++) {
-    cpu_set->count |= (1 << i);
-  }
-
-  return 0;
-}
-
-int
-pthread_setaffinity_np(pthread_t thread, size_t cpu_size, cpu_set_t *cpu_set)
-{
-  thread_port_t mach_thread;
-  int core = 0;
-
-  for (core = 0; core < 8 * cpu_size; core++) {
-    if (CPU_ISSET(core, cpu_set)) break;
-  }
-  printf("binding to core %d\n", core);
-  thread_affinity_policy_data_t policy = { core };
-  mach_thread = pthread_mach_thread_np(thread);
-  thread_policy_set(mach_thread, THREAD_AFFINITY_POLICY,
-                    (thread_policy_t)&policy, 1);
-  return 0;
-}
-
-/*
- * https://stackoverflow.com/questions/1407786/how-to-set-cpu-affinity-of-a-particular-pthread
- */
-int
-stick_this_thread_to_core(int core_id) {
-   int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
-   if (core_id < 0 || core_id >= num_cores)
-      return EINVAL;
-
-   cpu_set_t cpuset;
-   CPU_ZERO(&cpuset);
-   CPU_SET(core_id, &cpuset);
-
-   pthread_t current_thread = pthread_self();    
-   return pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
-}
-
 struct render_args {
     size_t y_start;
     size_t y_end;
@@ -286,6 +208,7 @@ static size_t final_gather_usteps;
 static size_t final_gather_vsteps;
 static size_t irradiance_estimate_num;
 static double irradiance_estimate_radius;
+static double irradiance_estimate_cone_filter_k;
 
 Canvas
 render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
@@ -304,6 +227,7 @@ render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
     final_gather_vsteps = w->global_config->illumination.gi.vsteps;
     irradiance_estimate_num = w->global_config->illumination.gi.irradiance_estimate_num;
     irradiance_estimate_radius = w->global_config->illumination.gi.irradiance_estimate_radius;
+    irradiance_estimate_cone_filter_k =  w->global_config->illumination.gi.irradiance_estimate_cone_filter_k;
 
     int i;
     size_t num_threads = w->global_config->threading.num_threads;
@@ -785,8 +709,8 @@ lighting_caustics(Material material, Shape shape, Point point, Vector eyev, Vect
         return;
     }
 
-    pm_irradiance_estimate(maps+0, intensity_estimate, point, eyev, irradiance_estimate_radius, irradiance_estimate_num);
-    color_scale(intensity_estimate, 2.0 / M_PI);
+    pm_irradiance_estimate(maps+0, intensity_estimate, point, eyev, irradiance_estimate_radius, irradiance_estimate_num, irradiance_estimate_cone_filter_k);
+    color_scale(intensity_estimate, 1.0 / 10.0);
 
     if (visualize_photon_map) { // TODO investigate whether or not I should do this or always return the intensity_estimate
         color_copy(res, intensity_estimate);
@@ -818,7 +742,7 @@ lighting_gi(Material material, Shape shape, Point point, Vector eyev, Vector nor
     if (material->diffuse < 0 || equal(material->diffuse, 0.0)) {
         return;
     }
-    pm_irradiance_estimate(maps+1, intensity_estimate, point, eyev, irradiance_estimate_radius, irradiance_estimate_num);
+    pm_irradiance_estimate(maps+1, intensity_estimate, point, eyev, irradiance_estimate_radius, irradiance_estimate_num, irradiance_estimate_cone_filter_k);
     // TODO take irradiance_estimate_num into account
 
     if (visualize_photon_map || visualize_soft_indirect) {

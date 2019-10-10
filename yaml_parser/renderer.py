@@ -95,6 +95,8 @@ class Light(object):
 
     @classmethod
     def from_yaml(cls, obj) -> 'Light':
+        if 'cache-size' not in obj:
+            obj['cache-size'] = 65536
         if 'at' in obj:
             if 'to' in obj:
                 return HemisphereLight.from_yaml(obj)
@@ -163,7 +165,7 @@ class AreaLight(Light):
     Color area_light_{0}_intensity = color({4:.10f}, {5:.10f}, {6:.10f});
     Vector area_light_{0}_uvec = vector_init({7:.10f}, {8:.10f}, {9:.10f});
     Vector area_light_{0}_vvec = vector_init({10:.10f}, {11:.10f}, {12:.10f});
-    area_light(area_light_{0}_corner, area_light_{0}_uvec, {13}/*usteps*/, area_light_{0}_vvec, {14}/*vsteps*/, {15}/*jitter*/, area_light_{0}_intensity, area_light_{0});
+    area_light(area_light_{0}_corner, area_light_{0}_uvec, {13}/*usteps*/, area_light_{0}_vvec, {14}/*vsteps*/, {15}/*jitter*/, {16}/*cache_size*/, area_light_{0}_intensity, area_light_{0});
 
     /* end area light 0 */
 """.format(name,
@@ -171,7 +173,7 @@ class AreaLight(Light):
            self.yaml_obj['intensity'][0], self.yaml_obj['intensity'][1], self.yaml_obj['intensity'][2],
            self.yaml_obj['uvec'][0], self.yaml_obj['uvec'][1], self.yaml_obj['uvec'][2],
            self.yaml_obj['vvec'][0], self.yaml_obj['vvec'][1], self.yaml_obj['vvec'][2],
-           self.yaml_obj['usteps'], self.yaml_obj['vsteps'], bool_str)
+           self.yaml_obj['usteps'], self.yaml_obj['vsteps'], bool_str, self.yaml_obj['cache-size'])
 
 
 

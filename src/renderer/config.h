@@ -15,6 +15,7 @@ struct global_illumination {
     size_t vsteps;
     size_t irradiance_estimate_num;
     double irradiance_estimate_radius;
+    double irradiance_estimate_cone_filter_k;
     size_t photon_count;
 };
 
@@ -36,10 +37,25 @@ struct scene_config {
     size_t divide_threshold;
 };
 
+enum color_space_type {
+    SRGB,
+    RGB,
+    HSL,
+    XYZ,
+    XYY,
+    LAB
+};
+
+struct output_config {
+    const char *file_path;
+    enum color_space_type color_space;
+};
+
 typedef struct global_config {
     struct illumination_config illumination;
     struct threading_config threading;
     struct scene_config scene;
+    struct output_config output;
 
 } *Global_config;
 

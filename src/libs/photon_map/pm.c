@@ -88,14 +88,14 @@ void pm_photon_dir( PhotonMap *pm, double *dir, Photon *p )
 
 /* irradiance_estimate computes an irradiance estimate
 * at a given surface position */
-#define CONE_FILTER_K 1.0
 void pm_irradiance_estimate(
   PhotonMap *pm,
   double irrad[3],                // returned irradiance
   double pos[3],                  // surface position
   double normal[3],               // surface normal at pos
   double max_dist,                // max distance to look for photons
-  int nphotons )                 // number of photons to use
+  int nphotons,
+  double cone_filter_k )                 // number of photons to use
 
 {
   int i;
@@ -132,7 +132,7 @@ void pm_irradiance_estimate(
     double dp = sqrt((pos[0] - p->pos[0]) * (pos[0] - p->pos[0]) +
                      (pos[1] - p->pos[1]) * (pos[1] - p->pos[1]) +
                      (pos[2] - p->pos[2]) * (pos[2] - p->pos[2]));
-    double weight = 1.0 - dp / (CONE_FILTER_K * max_dist);
+    double weight = 1.0 - dp / (cone_filter_k * max_dist);
 
     // the photon_dir call and following if can be omitted (for speed)
     // if the scene does not have any thin surfaces
@@ -144,7 +144,7 @@ void pm_irradiance_estimate(
     }
   }
 
-  tmp = 1.0/( (1.0 - 2.0 / (3.0 * CONE_FILTER_K)) * (M_PI * np.dist2[0]) );    // estimate of density
+  tmp = 1.0/( (1.0 - 2.0 / (3.0 * cone_filter_k)) * (M_PI * np.dist2[0]) );    // estimate of density
 
   irrad[0] *= tmp;
   irrad[1] *= tmp;

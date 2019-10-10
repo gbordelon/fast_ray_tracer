@@ -22,6 +22,10 @@
     thread-count: 4
   scene:
     divide-threshold: 1
+  output:
+    file: '/tmp/out_file'
+    # see src/renderer/config.h for the enum
+    color-space: 'SRGB'
 
 
 # ======================================================
@@ -61,7 +65,7 @@
   vsteps: 10
   jitter: true
   intensity: [1.0, 1.0, 1.0]
-  cache-size: 1
+  cache-size: 16384
 
 
 # ======================================================

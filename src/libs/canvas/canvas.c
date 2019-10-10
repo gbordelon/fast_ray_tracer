@@ -263,6 +263,33 @@ construct_ppm(Canvas c, bool use_scaling)
     return ppm;
 }
 
+// TODO add error checking and return codes
+int
+write_ppm_file(Canvas c, const bool use_scaling, const char *file_path)
+{
+    FILE *pFile;
+    size_t len = strlen(file_path);
+    char *full_file_path = (char *)malloc((len + 5) * sizeof(char));
+
+    strcpy(full_file_path, file_path);
+    *(full_file_path + len) = '.';
+    *(full_file_path + len + 1) = 'p';
+    *(full_file_path + len + 2) = 'p';
+    *(full_file_path + len + 3) = 'm';
+    *(full_file_path + len + 4) = '\0';
+
+    Ppm ppm = construct_ppm(c, use_scaling);
+
+    pFile = fopen (full_file_path, "wb");
+    fwrite (ppm->arr, sizeof(unsigned char), ppm->len, pFile);
+    fclose (pFile);
+
+    ppm_free(ppm);
+    free(full_file_path);
+
+    return 0;
+}
+
 Canvas
 construct_canvas_from_ppm_file(const char * file_path)
 {
@@ -320,9 +347,19 @@ write_png(Canvas c, const char *file_name)
   uint16_t *buffer = NULL;
   png_structp png_ptr = NULL;
   png_infop info_ptr = NULL;
-	
+
+    size_t len = strlen(file_name);
+    char *full_file_path = (char *)malloc((len + 5) * sizeof(char));
+
+    strcpy(full_file_path, file_name);
+    *(full_file_path + len) = '.';
+    *(full_file_path + len + 1) = 'p';
+    *(full_file_path + len + 2) = 'n';
+    *(full_file_path + len + 3) = 'g';
+    *(full_file_path + len + 4) = '\0';
+
   // Open file for writing (binary mode)
-  fp = fopen(file_name, "wb");
+  fp = fopen(full_file_path, "wb");
   if (fp == NULL) {
     code = 1;
     goto cleanup;
@@ -449,6 +486,9 @@ write_png(Canvas c, const char *file_name)
   }
   if (buffer != NULL) {
     free(buffer);
+  }
+  if (full_file_path != NULL) {
+    free(full_file_path);
   }
 
   return code;

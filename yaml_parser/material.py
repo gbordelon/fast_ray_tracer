@@ -60,10 +60,10 @@ class Material(object):
         else:
             pat = Pattern.from_yaml(self.yaml_obj['pattern'])
         return """{1}
-    Color material_{0}_color_srgb = color({2:.10f}, {3:.10f}, {4:.10f});
+    Color material_{0}_color_raw = color({2:.10f}, {3:.10f}, {4:.10f});
 
     Material material_{0} = material_alloc();
-    srgb_to_rgb(material_{0}_color_srgb, material_{0}->color);
+    color_space_fn(material_{0}_color_raw, material_{0}->color);
 
     material_{0}->ambient = {5:.10f};
     material_{0}->diffuse = {6:.10f};

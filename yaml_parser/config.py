@@ -10,21 +10,26 @@ class GlobalConfig(object):
             obj['threading'] = {}
         if 'scene' not in obj:
             obj['scene'] = {}
+        if 'output' not in obj:
+            obj['output'] = {}
         return cls(yaml_obj=obj)
 
     def c_repr(self):
         illum = IlluminationConfig.from_yaml(self.yaml_obj['illumination'])
         threading = ThreadingConfig.from_yaml(self.yaml_obj['threading'])
         scene = SceneConfig.from_yaml(self.yaml_obj['scene'])
+        output = OutputConfig.from_yaml(self.yaml_obj['output'])
         return """    /* config */
     struct global_config global_config;
 {0}
 {1}
 {2}
+{3}
     /* end config */
 """.format(illum.c_repr(),
            threading.c_repr(),
-           scene.c_repr())
+           scene.c_repr(),
+           output.c_repr())
 
 class SceneConfig(object):
     def __init__(self, yaml_obj):
@@ -51,6 +56,47 @@ class ThreadingConfig(object):
 
     def c_repr(self):
         return """    global_config.threading.num_threads = {0};""".format(self.yaml_obj['thread-count'])
+
+class OutputConfig(object):
+    def __init__(self, yaml_obj):
+        self.yaml_obj = yaml_obj
+
+    @classmethod
+    def from_yaml(cls, obj):
+        if 'file' not in obj:
+            obj['file'] = '/tmp/ray_tracer_out.ppm'
+        if 'color-space' not in obj:
+            obj['color-space'] = 'SRGB'
+        return cls(yaml_obj=obj)
+
+    def c_repr(self):
+        return """    global_config.output.file_path = "{0}";
+    global_config.output.color_space = {1};
+
+    void (*color_space_fn)(const Color, Color) = NULL;
+    switch (global_config.output.color_space) {{
+    case RGB:
+        color_space_fn = rgb_to_rgb;
+        break;
+    case HSL:
+        color_space_fn = hsl_to_rgb;
+        break;
+    case XYZ:
+        color_space_fn = xyz_to_rgb;
+        break;
+    case XYY:
+        color_space_fn = xyy_to_rgb;
+        break;
+    case LAB:
+        color_space_fn = lab_to_rgb;
+        break;
+    case SRGB:
+        // this is the default
+    default:
+        color_space_fn = srgb_to_rgb;
+        break;
+    }}
+""".format(self.yaml_obj['file'], self.yaml_obj['color-space'])
 
 class DirectIlluminationConfig(object):
     def __init__(self, yaml_obj):
@@ -97,6 +143,8 @@ class GlobalIlluminationConfig(object):
             obj['irradiance-estimate-num'] = 200
         if 'irradiance-estimate-radius' not in obj:
             obj['irradiance-estimate-radius'] = 0.1
+        if 'irradiance-estimate-cone-filter-k' not in obj:
+            obj['irradiance-estimate-cone-filter-k'] = 1.0
         if 'photon-count' not in obj:
             obj['photon-count'] = 0
 
@@ -109,13 +157,15 @@ class GlobalIlluminationConfig(object):
     global_config.illumination.gi.vsteps = {3};
     global_config.illumination.gi.irradiance_estimate_num = {4};
     global_config.illumination.gi.irradiance_estimate_radius = {5:.10f};
-    global_config.illumination.gi.photon_count = {6};
+    global_config.illumination.gi.irradiance_estimate_cone_filter_k = {6:.10f};
+    global_config.illumination.gi.photon_count = {7};
 """.format(self.yaml_obj['include-caustics'],
            self.yaml_obj['include-final-gather'],
            self.yaml_obj['usteps'],
            self.yaml_obj['vsteps'],
            self.yaml_obj['irradiance-estimate-num'],
            self.yaml_obj['irradiance-estimate-radius'],
+           self.yaml_obj['irradiance-estimate-cone-filter-k'],
            self.yaml_obj['photon-count'])
 
 class IlluminationConfig(object):
