@@ -8,6 +8,7 @@
 #include "../shapes/shapes.h"
 #include "../intersection/intersection.h"
 
+#include "config.h"
 #include "renderer.h"
 
 struct light;
@@ -23,6 +24,7 @@ typedef struct world {
     size_t lights_num;
     size_t shapes_num;
     PhotonMap *photon_maps;
+    Global_config global_config;
 } *World;
 
 World world();

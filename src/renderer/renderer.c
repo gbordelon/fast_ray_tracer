@@ -271,10 +271,42 @@ render_multi_helper(World w, void *args)
     free(buf);
 }
 
+// for easier reading
+static bool visualize_photon_map;
+static bool visualize_soft_indirect;
+static bool include_direct;
+static bool include_ambient;
+static bool include_diffuse;
+static bool include_spec_highlight; 
+static bool include_specular;
+static bool use_gi;
+static bool use_caustics;
+static bool use_final_gather;
+static size_t final_gather_usteps;
+static size_t final_gather_vsteps;
+static size_t irradiance_estimate_num;
+static double irradiance_estimate_radius;
+
 Canvas
-render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter, size_t num_threads)
+render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
 {
+    visualize_photon_map = w->global_config->illumination.debug_visualize_photon_map;
+    visualize_soft_indirect = w->global_config->illumination.debug_visualize_soft_indirect;
+    include_direct = w->global_config->illumination.include_direct || visualize_soft_indirect;
+    include_ambient = w->global_config->illumination.di.include_ambient || visualize_soft_indirect;
+    include_diffuse = w->global_config->illumination.di.include_diffuse || visualize_soft_indirect;
+    include_spec_highlight = w->global_config->illumination.di.include_specular_highlight && !visualize_soft_indirect;
+    include_specular = w->global_config->illumination.di.include_specular;
+    use_gi = w->global_config->illumination.include_global || visualize_soft_indirect || visualize_photon_map;
+    use_caustics = w->global_config->illumination.gi.include_caustics && !visualize_soft_indirect;
+    use_final_gather = w->global_config->illumination.gi.include_final_gather || visualize_soft_indirect;
+    final_gather_usteps = w->global_config->illumination.gi.usteps;
+    final_gather_vsteps = w->global_config->illumination.gi.vsteps;
+    irradiance_estimate_num = w->global_config->illumination.gi.irradiance_estimate_num;
+    irradiance_estimate_radius = w->global_config->illumination.gi.irradiance_estimate_radius;
+
     int i;
+    size_t num_threads = w->global_config->threading.num_threads;
     Canvas image = canvas_alloc(cam->hsize, cam->vsize);
     World worlds = (World) malloc(num_threads * sizeof(struct world));
     struct render_args *args_array = (struct render_args *)malloc(cam->vsize * sizeof(struct render_args));
@@ -522,24 +554,6 @@ schlick(Computations comps)
     return r0 + (1.0 - r0) * (1.0 - co) * (1.0 - co) * (1.0 - co) * (1.0 - co) * (1.0 - co);
 }
 
-#define INCLUDE_DIRECT 1
-#define USE_AMBIENT 1
-#define USE_DIRECT_DIFFUSE 1
-#define USE_SPECULAR_HIGHLIGHTS 1
-
-#define INCLUDE_SPECULAR 1
-
-#define USE_GI 0
-#define USE_CAUSTICS 1
-#define FINAL_GATHER 1
-#define FINAL_GATHER_NUM_U 8
-#define FINAL_GATHER_NUM_V 8
-#define IRRADIANCE_ESTIMATE_NUM 200
-#define IRRADIANCE_ESTIMATE_RADIUS 0.1
-
-#define VISUALIZE_PHOTON_MAP 0
-#define VISUALIZE_SOFT_INDIRECT 0
-
 void
 shade_hit_gi(World w, Computations comps, Color res)
 {
@@ -564,14 +578,14 @@ final_gather(World w, Computations comps, Color res, struct container *container
     struct ray r;
     double r1, r2;
     double pdf_inv = 2 * M_PI; // initialize to a uniform hemisphere prob. dist. func.
-    size_t num_rays = FINAL_GATHER_NUM_U * FINAL_GATHER_NUM_V;
+    size_t num_rays = final_gather_usteps * final_gather_vsteps;
     size_t index[2];
     double rands[2];
     size_t num_samples = 0;
     Color *cell_power = (Color *)malloc(num_rays * sizeof(Color));
     struct sampler sampler;
 
-    sampler_2d(true, FINAL_GATHER_NUM_U, FINAL_GATHER_NUM_V, sampler_default_constraint, &sampler);
+    sampler_2d(true, final_gather_usteps, final_gather_vsteps, sampler_default_constraint, &sampler);
        
     create_coordinate_system(comps->normalv, nt, nb);
     point_copy(r.origin, comps->over_point);
@@ -580,9 +594,9 @@ final_gather(World w, Computations comps, Color res, struct container *container
 
     // importance sampling
     int i, j;
-    for (j = 0; j < FINAL_GATHER_NUM_V; ++j) {
+    for (j = 0; j < final_gather_vsteps; ++j) {
         index[1] = j;
-        for (i = 0; i < FINAL_GATHER_NUM_U; ++i) {
+        for (i = 0; i < final_gather_usteps; ++i) {
             index[0] = i;
             sampler.get_point(&sampler, index, rands);
             uniform_sample_hemisphere(rands[0], rands[1], sample);
@@ -598,7 +612,7 @@ final_gather(World w, Computations comps, Color res, struct container *container
             color_scale(c, pdf_inv); // scale by hemisphere prob. dist. func.
             //color_scale(c, 1.0 / (double)num_rays); // scale by the probability of choosing this cell
             // initialize the power for each cell
-            color_copy(cell_power[j * FINAL_GATHER_NUM_U + i], c);
+            color_copy(cell_power[j * final_gather_usteps + i], c);
 
             // accumulate the total power
             color_accumulate(total_power, c);
@@ -610,13 +624,13 @@ final_gather(World w, Computations comps, Color res, struct container *container
     // i.e. cell power / total power
     // TODO loop this multiple times?
     sampler.reset(&sampler);
-    for (j = 0; j < FINAL_GATHER_NUM_V; ++j) {
+    for (j = 0; j < final_gather_vsteps; ++j) {
         index[1] = j;
-        for (i = 0; i < FINAL_GATHER_NUM_U; ++i) {
+        for (i = 0; i < final_gather_usteps; ++i) {
             index[0] = i;
-            if (cell_power[j * FINAL_GATHER_NUM_U + i][0] >= (total_power[0] * 0.8) &&
-                cell_power[j * FINAL_GATHER_NUM_U + i][1] >= (total_power[1] * 0.8) &&
-                cell_power[j * FINAL_GATHER_NUM_U + i][2] >= (total_power[2] * 0.8)) { // only sample the upper 80th percentile
+            if (cell_power[j * final_gather_usteps + i][0] >= (total_power[0] * 0.8) &&
+                cell_power[j * final_gather_usteps + i][1] >= (total_power[1] * 0.8) &&
+                cell_power[j * final_gather_usteps + i][2] >= (total_power[2] * 0.8)) { // only sample the upper 80th percentile
                 sampler.get_point(&sampler, index, rands);
                 uniform_sample_hemisphere(rands[0], rands[1], sample);
                 direction[0] = sample[0] * nb[0] + sample[1] * comps->normalv[0] + sample[2] * nt[0];
@@ -630,10 +644,10 @@ final_gather(World w, Computations comps, Color res, struct container *container
                 color_scale(c, rands[0]); // scale by theta
                 color_scale(c, pdf_inv); // scale by hemisphere prob. dist. func.
                 // scale by the probability of choosing this cell
-                c[0] *= cell_power[j * FINAL_GATHER_NUM_U + i][0] / total_power[0];
-                c[1] *= cell_power[j * FINAL_GATHER_NUM_U + i][1] / total_power[1];
-                c[2] *= cell_power[j * FINAL_GATHER_NUM_U + i][2] / total_power[2];
-                color_accumulate(cell_power[j * FINAL_GATHER_NUM_U + i], c);
+                c[0] *= cell_power[j * final_gather_usteps + i][0] / total_power[0];
+                c[1] *= cell_power[j * final_gather_usteps + i][1] / total_power[1];
+                c[2] *= cell_power[j * final_gather_usteps + i][2] / total_power[2];
+                color_accumulate(cell_power[j * final_gather_usteps + i], c);
                 color_accumulate(total_power, c);
 
                 ++num_samples;
@@ -664,7 +678,7 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
     double intensity = 0;
 
     // shade the hit with direct ambient and direct specular highlights and maybe direct diffuse
-    if (INCLUDE_DIRECT || VISUALIZE_SOFT_INDIRECT) {
+    if (include_direct) {
         for (i = 0, light = w->lights; i < w->lights_num; i++, light++) {
             color_default(c);
             intensity = light->intensity_at(light, w, comps->over_point);
@@ -675,9 +689,9 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
                      comps->eyev,
                      comps->normalv,
                      intensity,
-                     USE_AMBIENT || VISUALIZE_SOFT_INDIRECT,
-                     USE_DIRECT_DIFFUSE || VISUALIZE_SOFT_INDIRECT,
-                     USE_SPECULAR_HIGHLIGHTS && !VISUALIZE_SOFT_INDIRECT,
+                     include_ambient,
+                     include_diffuse,
+                     include_spec_highlight,
                      c);
 
             color_accumulate(surface, c);
@@ -685,7 +699,7 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
     }
 
     // shade the hit with soft indirect diffuse an caustics
-    if ((USE_GI || VISUALIZE_SOFT_INDIRECT || VISUALIZE_PHOTON_MAP) && comps->obj->material->diffuse > 0) {
+    if (use_gi && comps->obj->material->diffuse > 0) {
         color_default(c);
         Color fgather;
         Color caustics;
@@ -694,7 +708,7 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
         color_default(indirect);
 
         // approximate for the diffuse component, really only useful for visualizing the global pmap
-        if (VISUALIZE_PHOTON_MAP) {
+        if (w->global_config->illumination.debug_visualize_photon_map) {
             lighting_gi(comps->obj->material,
                         comps->obj,
                         comps->over_point,
@@ -702,7 +716,7 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
                         comps->normalv,
                         w->photon_maps,
                         indirect);
-        } else if (VISUALIZE_SOFT_INDIRECT) {
+        } else if (w->global_config->illumination.debug_visualize_soft_indirect) {
             lighting_gi(comps->obj->material,
                         comps->obj,
                         comps->over_point,
@@ -717,7 +731,7 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
         }
 
         // final gather for soft indirect diffuse component
-        if (FINAL_GATHER || VISUALIZE_SOFT_INDIRECT) {
+        if (use_final_gather) {
             final_gather(w, comps, fgather, container);
             //surface[0] *= fgather[0];
             //surface[1] *= fgather[1];
@@ -725,7 +739,7 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
             //color_default(fgather);
         }
 
-        if (USE_CAUSTICS && !VISUALIZE_SOFT_INDIRECT) {
+        if (use_caustics) {
             lighting_caustics(comps->obj->material,
                         comps->obj,
                         comps->over_point,
@@ -741,7 +755,7 @@ shade_hit(World w, Computations comps, size_t remaining, Color res, struct conta
     }
 
     // shade the hit with specular reflections and refractions
-    if (INCLUDE_SPECULAR) {
+    if (include_specular) {
         Color reflected = color(0.0, 0.0, 0.0);
         reflected_color(w, comps, remaining, reflected, container);
 
@@ -771,10 +785,10 @@ lighting_caustics(Material material, Shape shape, Point point, Vector eyev, Vect
         return;
     }
 
-    pm_irradiance_estimate(maps+0, intensity_estimate, point, eyev, IRRADIANCE_ESTIMATE_RADIUS, IRRADIANCE_ESTIMATE_NUM);
+    pm_irradiance_estimate(maps+0, intensity_estimate, point, eyev, irradiance_estimate_radius, irradiance_estimate_num);
     color_scale(intensity_estimate, 2.0 / M_PI);
 
-    if (VISUALIZE_PHOTON_MAP) { // TODO investigate whether or not I should do this or always return the intensity_estimate
+    if (visualize_photon_map) { // TODO investigate whether or not I should do this or always return the intensity_estimate
         color_copy(res, intensity_estimate);
     } else {
         double eye_dot_normal = vector_dot(eyev, normalv);
@@ -804,14 +818,14 @@ lighting_gi(Material material, Shape shape, Point point, Vector eyev, Vector nor
     if (material->diffuse < 0 || equal(material->diffuse, 0.0)) {
         return;
     }
-    pm_irradiance_estimate(maps+1, intensity_estimate, point, eyev, IRRADIANCE_ESTIMATE_RADIUS, IRRADIANCE_ESTIMATE_NUM);
-    // TODO take IRRADIANCE_ESTIMATE_NUM into account
+    pm_irradiance_estimate(maps+1, intensity_estimate, point, eyev, irradiance_estimate_radius, irradiance_estimate_num);
+    // TODO take irradiance_estimate_num into account
 
-    if (VISUALIZE_PHOTON_MAP || VISUALIZE_SOFT_INDIRECT) {
+    if (visualize_photon_map || visualize_soft_indirect) {
         color_scale(intensity_estimate, M_PI * M_PI * M_PI / (double)(maps+1)->max_photons);
         color_copy(res, intensity_estimate);
 /*
-    } else if (VISUALIZE_SOFT_INDIRECT) {
+    } else if (visualize_soft_indirect) {
         color_copy(diffuse, direct_color);
         diffuse[0] *= intensity_estimate[0];
         diffuse[1] *= intensity_estimate[1];

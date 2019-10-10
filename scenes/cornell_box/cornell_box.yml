@@ -1,9 +1,27 @@
 - add: config
-  thread-count: 4
-  timeout: 600 # in seconds
-  divide-threshold: 1
-  clamping: False
-  photon-count: 0
+  illumination:
+    include-direct: true
+    include-global: true
+    visualize-photon-map: false
+    visualize-soft-indirect: false
+    direct-illumination:
+      include-ambient: true
+      include-diffuse: true
+      include-specular: true
+      include-specular-highlight: true
+    global-illumination:
+      include-caustics: true
+      include-final-gather: true
+      usteps: 8
+      vsteps: 8
+      irradiance-estimate-num: 200
+      irradiance-estimate-radius: 0.1
+      photon-count: 100000
+  threading:
+    thread-count: 4
+  scene:
+    divide-threshold: 1
+
 
 # ======================================================
 # the test camera
@@ -121,7 +139,7 @@
     diffuse: 0
     specular: 1
     reflective: 1
-    refractive-index: 10
+    refractive-index: 1.5
     transparency: 1
     shininess: 300
 
@@ -249,7 +267,8 @@
 # light
 - add: cube
   material:
-    color: [1.5, 1.5, 1.5]
+    #color: [1.5, 1.5, 1.5]
+    color: [1.0, 1.0, 1.0]
     ambient: 1
     diffuse: 0
     specular: 0
@@ -269,13 +288,16 @@
 
 
 # glass ball
-- add: lensWithCylinder
+- add: sphere
+  material: glass
   transform:
-#  - [scale, 0.5, 0.5, 0.5]
-#  - [translate, 0.6, -0.75, 0.0]
-  - [scale, 2, 2, 2]
-#  - [rotate-x, -1.3707963267948966]
-#  - [rotate-z, 0.55707963267948966]
-  - [rotate-y, 1.5707963267948966]
-#  - [translate, 0.6, -0.75, 0.0]
-  - [translate, 0.0, -0.9, 0.0]
+  - [scale, 0.5, 0.5, 0.5]
+  - [translate, 0.6, -0.75, 0.0]
+  #- [translate, 0.85, -0.85, 0.0]
+
+## lens
+#- add: lensWithCylinder
+#  transform:
+#  - [scale, 2, 2, 2]
+#  - [rotate-y, 1.5707963267948966]
+#  - [translate, 0.0, -0.9, 0.0]

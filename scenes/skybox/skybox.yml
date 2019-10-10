@@ -3,6 +3,8 @@
   timeout: 600 # in seconds
   divide-threshold: 1
   clamping: False
+  photon-count: 0
+
 
 - add: camera
   width: 800
@@ -12,7 +14,8 @@
   to: [0, 0, 5]
   up: [0, 1, 0]
   focal-length: 5
-  samples-per-pixel: 8
+  usteps: 8
+  vsteps: 8
   aperture:
     jitter: false
     size: 0.4

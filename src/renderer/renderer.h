@@ -41,6 +41,6 @@ bool is_shadowed(World w, Point light_position, Point pt);
 double schlick(Computations comps);
 void prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs, Computations res, struct container *container);
 Canvas render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter);
-Canvas render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter, size_t num_threads);
+Canvas render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter);
 
 #endif

@@ -10,6 +10,7 @@
 #include "../linalg/linalg.h"
 #include "../../color/color.h"
 #include "../../color/rgb.h"
+#include "../../color/srgb.h"
 
 #include "canvas.h"
 
@@ -113,8 +114,7 @@ canvas_write_pixel(Canvas c, int col, int row, Color color)
 void
 canvas_pixel_at(Canvas c, int col, int row, Color res)
 {
-    // null check c
-    color_copy(res, *(c->arr + row * c->width + col));
+    srgb_to_rgb(*(c->arr + row * c->width + col), res);
 }
 
 Ppm

@@ -21,6 +21,8 @@ world()
     w->shapes_num = 0;
     w->xs = intersections_empty(64);
     w->photon_maps = NULL;
+    w->global_config = NULL;
+
     return w;
 }
 
@@ -91,6 +93,7 @@ world_copy(const World w, World new_world)
     new_world->shapes = array_of_shapes(w->shapes_num);
     new_world->xs = intersections_empty(64);
     new_world->photon_maps = w->photon_maps;
+    new_world->global_config = w->global_config;
 
     int i;
     Shape from, to;

@@ -152,6 +152,7 @@ def world_objects_to_c_file(obj):
 #include "src/color/srgb.h"
 
 #include "src/renderer/camera.h"
+#include "src/renderer/config.h"
 #include "src/renderer/photon_tracer.h"
 #include "src/renderer/renderer.h"
 #include "src/renderer/world.h"
@@ -167,7 +168,11 @@ def world_objects_to_c_file(obj):
 #include "src/shapes/triangle.h"
 #include "src/shapes/toroid.h"
 
-int main()
+#define True true
+#define False false
+
+int
+main()
 {{
 {0}
 {1}
@@ -177,7 +182,7 @@ int main()
     group(world_group, all_shapes, {5});
     printf("Balancing scene...");
     fflush(stdout);
-    world_group->divide(world_group, divide_threshold);
+    world_group->divide(world_group, global_config.scene.divide_threshold);
     printf("Done!\\n");
     fflush(stdout);
 
@@ -186,19 +191,25 @@ int main()
     w->lights_num = {3};
     w->shapes = world_group;
     w->shapes_num = 1;
-    w->photon_maps = array_of_photon_maps(3);
+    w->global_config = &global_config;
 
-    printf("Tracing photons...");
-    fflush(stdout);
-    int i;
-    for (i = 0; i < 3; ++i) {{
-        init_Photon_map(photon_count, w->photon_maps + i);
+    if (global_config.illumination.gi.photon_count > 0) {{
+        w->photon_maps = array_of_photon_maps(3);
+        printf("Tracing photons...");
+        fflush(stdout);
+        int i;
+        for (i = 0; i < 3; ++i) {{
+            init_Photon_map(global_config.illumination.gi.photon_count, w->photon_maps + i);
+        }}
+        trace_photons(w, 3);
+        printf("Done!\\n");
+        fflush(stdout);
+    }} else {{
+        w->photon_maps = NULL;
+        printf("Skipping photon tracing because photon_count is 0.\\n");
+        fflush(stdout);
     }}
-    trace_photons(w, 3);
-    printf("Done!\\n");
-    fflush(stdout);
-
-    Canvas c = render_multi(cam, w, cam->usteps, cam->vsteps, cam->aperture.jitter, thread_count);
+    Canvas c = render_multi(cam, w, cam->usteps, cam->vsteps, cam->aperture.jitter);
     Ppm ppm = construct_ppm(c, true);
 
     FILE * pFile;
