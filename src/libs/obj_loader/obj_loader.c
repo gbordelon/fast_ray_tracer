@@ -24,7 +24,7 @@ f 3209/835/3210 3219/1227/3220 3220/1229/3221 3210/1219/3211
    v0  v01 v02                  v10  v11  v12  v20  v21  v22
 */
 struct shape_num_tuple
-fan_triangulation(char *line, double *vertexes, double *textures, double *normals, bool contains_textures, bool contains_normals)
+fan_triangulation(char *line, double *vertexes, double *textures, double *normals)
 {
     struct shape_num_tuple rv;
     size_t v10, v11, v12, t10, t11, t12, n10, n11, n12;
@@ -32,6 +32,8 @@ fan_triangulation(char *line, double *vertexes, double *textures, double *normal
     char *first_slash;
     Shape shape = array_of_shapes(32);
     size_t shape_capacity = 32;
+    bool use_normals;
+    bool use_textures;
 
     rv.num = 0;
     rv.shapes = shape;
@@ -39,11 +41,13 @@ fan_triangulation(char *line, double *vertexes, double *textures, double *normal
     if (strchr(pch, '/') == NULL) {
         sscanf(pch, "%lu", &v10);
     } else {
+        use_normals = true;
         first_slash = strchr(pch, '/');
         if (*first_slash == '/' && *(first_slash+1) == '/') {
             sscanf(pch, "%lu//%lu", &v10, &n10);
         } else {
             sscanf(pch, "%lu/%lu/%lu", &v10, &t10, &n10);
+            use_textures = true;
         }
     }
 
@@ -81,7 +85,7 @@ fan_triangulation(char *line, double *vertexes, double *textures, double *normal
             shape = new_arr + rv.num;
         }
 
-        if (contains_normals) {
+        if (use_normals) {
             smooth_triangle(shape,
                             vertexes + 4 * (v10-1), vertexes + 4 * (v11-1), vertexes + 4 * (v12-1),
                             normals + 4 * (n10-1), normals + 4 * (n11-1), normals + 4 * (n12-1));
@@ -91,7 +95,7 @@ fan_triangulation(char *line, double *vertexes, double *textures, double *normal
                      vertexes + v10 * 4, vertexes + v11 * 4, vertexes + v12 * 4);
         }
 
-        if (contains_textures) {
+        if (use_textures) {
             memcpy(shape->fields.triangle.t1, textures + t10 * 4, 4 * sizeof(double));
             memcpy(shape->fields.triangle.t2, textures + t11 * 4, 4 * sizeof(double));
             memcpy(shape->fields.triangle.t3, textures + t12 * 4, 4 * sizeof(double));
@@ -122,7 +126,7 @@ parse_vertex(char *line, double *arr, size_t offset)
 }
 
 int
-parse_line(char *line, group_with_name *first_group, size_t *current_group_index, size_t *number_of_groups, double *head_vertexes, double *head_textures, double *head_normals, size_t *number_of_vertexes, size_t *number_of_textures, size_t *number_of_normals)
+obj_parse_line(char *line, group_with_name *first_group, size_t *current_group_index, size_t *number_of_groups, double *head_vertexes, double *head_textures, double *head_normals, size_t *number_of_vertexes, size_t *number_of_textures, size_t *number_of_normals)
 {
     char *new_group_name;
     struct shape_num_tuple children;
@@ -144,7 +148,7 @@ parse_line(char *line, group_with_name *first_group, size_t *current_group_index
             return 2;
         } else if (strncmp(line, "f ", 2) == 0) {
             // fan triangulate line and put triangles into the current group
-            children = fan_triangulation(line+2, head_vertexes, head_textures, head_normals, *number_of_textures > 0, *number_of_normals > 0);
+            children = fan_triangulation(line+2, head_vertexes, head_textures, head_normals);
             if (children.num > 0) {
                 group_add_children((first_group + *current_group_index)->group,
                                    children.shapes,
@@ -182,18 +186,61 @@ parse_line(char *line, group_with_name *first_group, size_t *current_group_index
 #define DEFAULT_VERTEX_NUM 32768
 #define DEFAULT_GROUP_NUM 1024
 
+struct materials {
+    Material arr;
+    size_t size;
+    size_t num;
+};
+
 void
-construct_group_from_obj_file(const char *file_path, Shape result_group)
+parse_mtl(FILE *mtl_file)
+{
+    char line[1024];
+
+    // I need a mechanism to map material name to the material object
+    // djb2 hash function from http://www.cse.yorku.ca/~oz/hash.html
+    while(fgets(line, sizeof(line), mtl_file)) {
+        if (strlen(line) > 0) { // ignore empty lines
+            if (strncmp(line, "newmtl", 6) == 0) { // line starts with "newmtl"
+                // new material starting
+                
+            }
+        }
+    }
+}
+
+void
+construct_group_from_obj_file(const char *file_path, bool use_mtl, Shape result_group)
 {
     char line[1024];
     int line_type;
     size_t vertex_count = 0, texture_count = 0, normal_count = 0;
 
-    FILE *file = fopen(file_path, "r");
-    if (file == NULL) {
+    FILE *obj_file = fopen(file_path, "r");
+    if (obj_file == NULL) {
         printf("Error opening file %s", file_path);
         return;
     }
+
+    size_t len = strlen(file_path);
+    char *mtl_file_path = (char *)malloc((len + 1) * sizeof(char));
+
+    strcpy(mtl_file_path, file_path);
+    *(mtl_file_path + len - 3) = 'm';
+    *(mtl_file_path + len - 2) = 't';
+    *(mtl_file_path + len - 1) = 'l';
+    *(mtl_file_path + len + 1) = '\0';
+
+
+    FILE *mtl_file = fopen(mtl_file_path, "r");
+    if (mtl_file == NULL) {
+        fclose(obj_file);
+        printf("Error opening file %s", mtl_file_path);
+        return;
+    }
+    parse_mtl(mtl_file);
+
+    fclose(mtl_file);
 
     double *vertexes = (double *)malloc(4 * DEFAULT_VERTEX_NUM * sizeof(double));
     double *textures = (double *)malloc(4 * DEFAULT_VERTEX_NUM * sizeof(double));
@@ -218,8 +265,8 @@ construct_group_from_obj_file(const char *file_path, Shape result_group)
     group(groups->group, NULL, 0);
     groups_count++;
 
-    while(fgets(line, sizeof(line), file)) {
-        line_type = parse_line(line,
+    while(fgets(line, sizeof(line), obj_file)) {
+        line_type = obj_parse_line(line,
                                 groups,
                                 &current_group_index, 
                                 &groups_count,
@@ -266,7 +313,7 @@ construct_group_from_obj_file(const char *file_path, Shape result_group)
         }
     }
 
-    fclose(file);
+    fclose(obj_file);
 
     // add other groups to default_group
     Shape all_groups = groups->group;
@@ -288,4 +335,5 @@ construct_group_from_obj_file(const char *file_path, Shape result_group)
     free(vertexes);
     free(textures);
     free(normals);
+    free(mtl_file_path);
 }

@@ -9,6 +9,7 @@ class Shape(object):
     def __init__(self, yaml_obj, defines=None):
         self.yaml_obj = yaml_obj
         self.defines = defines
+        self.name = ...
 
     @classmethod
     def from_yaml(cls, obj, defines) -> 'Shape':
@@ -50,7 +51,12 @@ class Shape(object):
 
         raise ValueError("unsupported shape.")
 
-    def c_repr(self, name, parent_name, offset):
+    def get_file_name(self):
+        if 'file' in self.yaml_obj:
+            return self.yaml_obj['file']
+        return None
+
+    def c_repr(self, name, parent_name, offset, resources):
         raise NotImplementedError
 
 class CSG(Shape):
@@ -61,10 +67,11 @@ class CSG(Shape):
     def from_yaml(cls, tree, defines) -> 'CSG':
         return cls(tree, defines)
 
-    def c_repr(self, name, parent_name, offset):
+    def c_repr(self, name, parent_name, offset, resources):
         transform = Transform.from_yaml(self.yaml_obj['transform'])
         left = Shape.from_yaml(self.yaml_obj['left'], self.defines)
         right = Shape.from_yaml(self.yaml_obj['right'], self.defines)
+
         if 'op' in self.yaml_obj:
             op = self.yaml_obj['op']
         else:
@@ -84,11 +91,18 @@ class CSG(Shape):
     Shape shape_{0}_children = array_of_shapes({1});
 """.format(name, 2)
 
-        buf += """
-    {0}
-    {1}
-""".format(left.c_repr('{}_left'.format(name), 'shape_{0}_children'.format(name), 0),
-           right.c_repr('{}_right'.format(name), 'shape_{0}_children'.format(name), 1)) 
+        buf += """    {0}""".format(left.c_repr('{}_left'.format(name), 'shape_{0}_children'.format(name), 0, resources))
+
+        file_name = left.get_file_name()
+        if file_name is not None:
+            resources[file_name] = 'shape_{}_left'.format(name)
+
+        buf += """    {0}""".format(right.c_repr('{}_right'.format(name), 'shape_{0}_children'.format(name), 1, resources))
+
+        file_name = right.get_file_name()
+        if file_name is not None:
+            resources[file_name] = 'shape_{}_right'.format(name)
+
 
         buf += """
     /* end children for {0} */
@@ -114,7 +128,7 @@ class Group(Shape):
     def from_yaml(cls, tree, defines) -> 'Group':
         return cls(tree, defines)
 
-    def c_repr(self, name, parent_name, offset):
+    def c_repr(self, name, parent_name, offset, resources):
         if 'transform' not in self.yaml_obj:
             yaml_obj['transform'] = []
 
@@ -131,14 +145,17 @@ class Group(Shape):
         for i, child in enumerate(children):
             buf += """
     {0}
-""".format(child.c_repr('{0}_child_{1}'.format(name, i), 'shape_{0}_children'.format(name), i))
+""".format(child.c_repr('{0}_child_{1}'.format(name, i), 'shape_{0}_children'.format(name), i, resources))
 
+            file_name = child.get_file_name()
+            if file_name is not None:
+                resources[file_name] = 'shape_{0}_child_{1}'.format(name, i)
         buf += """    /* end children for {0} */
 
     {2}
     Shape shape_{0} = {1} + {4};
     group(shape_{0}, shape_{0}_children, {3});
-    shape_free(shape_{0}_children);
+    //shape_free(shape_{0}_children);
     shape_set_transform(shape_{0}, transform_{0});
 """.format(name,
           parent_name,
@@ -157,7 +174,7 @@ class Sphere(Shape):
     def from_yaml(cls, obj) -> 'Sphere':
         return cls(obj)
 
-    def c_repr(self, name, parent_name, offset):
+    def c_repr(self, name, parent_name, offset, resources):
         material = Material.from_yaml(self.yaml_obj['material'])
         transform = Transform.from_yaml(self.yaml_obj['transform'])
         buf = """
@@ -187,7 +204,7 @@ class Toroid(Shape):
             obj['r2'] = 0.25
         return cls(obj)
 
-    def c_repr(self, name, parent_name, offset):
+    def c_repr(self, name, parent_name, offset, resources):
         material = Material.from_yaml(self.yaml_obj['material'])
         transform = Transform.from_yaml(self.yaml_obj['transform'])
         buf = """
@@ -217,7 +234,7 @@ class Plane(Shape):
     def from_yaml(cls, obj) -> 'Plane':
         return cls(yaml_obj=obj)
 
-    def c_repr(self, name, parent_name, offset):
+    def c_repr(self, name, parent_name, offset, resources):
         material = Material.from_yaml(self.yaml_obj['material'])
         transform = Transform.from_yaml(self.yaml_obj['transform'])
         buf = """
@@ -244,7 +261,7 @@ class Cube(Shape):
     def from_yaml(cls, obj) -> 'Cube':
         return cls(yaml_obj=obj)
 
-    def c_repr(self, name, parent_name, offset):
+    def c_repr(self, name, parent_name, offset, resources):
         material = Material.from_yaml(self.yaml_obj['material'])
         transform = Transform.from_yaml(self.yaml_obj['transform'])
         buf = """
@@ -271,7 +288,7 @@ class Cone(Shape):
     def from_yaml(cls, obj) -> 'Cone':
         return cls(yaml_obj=obj)
 
-    def c_repr(self, name, parent_name, offset):
+    def c_repr(self, name, parent_name, offset, resources):
         material = Material.from_yaml(self.yaml_obj['material'])
         transform = Transform.from_yaml(self.yaml_obj['transform'])
         buf = """
@@ -311,7 +328,7 @@ class Cylinder(Shape):
             b = obj['closed']
         return cls(yaml_obj=obj)
 
-    def c_repr(self, name, parent_name, offset):
+    def c_repr(self, name, parent_name, offset, resources):
         material = Material.from_yaml(self.yaml_obj['material'])
         transform = Transform.from_yaml(self.yaml_obj['transform'])
         buf = """
@@ -348,7 +365,7 @@ class Triangle(Shape):
     def from_yaml(cls, obj) -> 'Triangle':
         return cls(yaml_obj=obj)
 
-    def c_repr(self, name, parent_name, offset):
+    def c_repr(self, name, parent_name, offset, resources):
         if 'material' not in self.yaml_obj:
             self.yaml_obj['material'] = {}
         if 'transform' not in self.yaml_obj:
@@ -388,7 +405,7 @@ class SmoothTriangle(Shape):
     def from_yaml(cls, obj) -> 'SmoothTriangle':
         return cls(yaml_obj=obj)
 
-    def c_repr(self, name, parent_name, offset):
+    def c_repr(self, name, parent_name, offset, resources):
         if 'material' not in self.yaml_obj:
             self.yaml_obj['material'] = {}
         if 'transform' not in self.yaml_obj:
@@ -433,6 +450,7 @@ class SmoothTriangle(Shape):
 
 def allocate_shapes(list_of_shapes):
     num = len(list_of_shapes)
+    resources = {}
     buf = """    /* shapes */
     Shape all_shapes = array_of_shapes({0});
 """.format(num)
@@ -440,7 +458,10 @@ def allocate_shapes(list_of_shapes):
         buf += """
     /* shape {0} */
 {1}
-    /* end shape {0} */""".format(i, shape.c_repr(i, "all_shapes", i))
+    /* end shape {0} */""".format(i, shape.c_repr(i, "all_shapes", i, resources))
+    file_name = shape.get_file_name()
+    if file_name is not None:
+        resources[file_name] = 'shape_{0}'.format(i)
 
     buf += """
     /* end shapes */

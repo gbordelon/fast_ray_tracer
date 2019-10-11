@@ -31,6 +31,8 @@ World world();
 void world_copy(const World w, World res);
 World default_world();
 
+void shape_copy(Shape s, Shape parent, Shape res);
+
 Intersections intersect_world(const World w, const Ray r);
 
 #endif

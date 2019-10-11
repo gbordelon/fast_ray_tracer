@@ -1,8 +1,9 @@
-from shapes import Material
+from shapes import Material, Shape
 from transform import Transform
 
-class OBJParser(object):
+class OBJParser(Shape):
     def __init__(self, yaml_obj, defines=None):
+        Shape.__init__(self, yaml_obj, defines)
         self.yaml_obj = yaml_obj
         self.defines = defines
 
@@ -10,7 +11,7 @@ class OBJParser(object):
     def from_yaml(cls, obj, defines) -> 'OBJParser':
         return cls(obj, defines)
 
-    def c_repr(self, name, parent_name, offset):
+    def c_repr(self, name, parent_name, offset, resources):
         if 'material' not in self.yaml_obj:
             self.yaml_obj['material'] = {}
         if 'transform' not in self.yaml_obj:
@@ -19,33 +20,32 @@ class OBJParser(object):
         transform = Transform.from_yaml(self.yaml_obj['transform'])
         file_path = self.yaml_obj['file']
 
-        buf = """{6}
-    {7}
-    Shape shape_{0} = {4} + {5};
-    
+        buf = """{3}
+    {4}
+    Shape shape_{0} = {1} + {2};
+""".format(name, parent_name, offset, material.c_repr(name), transform.c_repr(name))
+        if file_path in resources:
+            buf += """    shape_copy({2}, NULL, shape_{0});""".format(name, file_path, resources[file_path])
+        else:
+            buf += """
     if (access("{1}", F_OK ) == -1 ) {{
         printf("file '{1}' does not exist.");
         return 1;
     }}
+    bool shape_{0}_use_mtl = access("{2}", F_OK ) >= 0;
     printf("Loading resource '{1}'... ");
     fflush(stdout);
-    construct_group_from_obj_file("{1}", shape_{0});
+    construct_group_from_obj_file("{1}", shape_{0}_use_mtl, shape_{0});
     printf("Done!\\n");
     fflush(stdout);
+""".format(name, file_path, file_path[:-3] + 'mtl')
+
+        buf += """
     shape_set_material_recursive(shape_{0}, material_{0});
     shape_set_transform(shape_{0}, transform_{0});
-""".format(name,
-           file_path,
-           material.c_repr(name),
-           transform.c_repr(name),
-           parent_name,
-           offset,
-           material.c_repr(name),
-           transform.c_repr(name))
-
+""".format(name)
 
         return buf
-
 
 def obj_to_group(parser):
     return obj_group

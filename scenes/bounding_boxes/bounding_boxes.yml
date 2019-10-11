@@ -10,17 +10,22 @@
       include-specular: true
       include-specular-highlight: true
     global-illumination:
-      include-caustics: false
+      include-caustics: true 
       include-final-gather: false
       usteps: 8
       vsteps: 8
       irradiance-estimate-num: 200
       irradiance-estimate-radius: 0.1
+      irradiance-estimate-cone-filter-k: 1.0
       photon-count: 0
   threading:
     thread-count: 4
   scene:
     divide-threshold: 1
+  output:
+    file: '/tmp/out_file'
+    # see src/renderer/config.h for the enum
+    color-space: 'SRGB'
 
 # ======================================================
 # bounding-boxes.yml
@@ -45,8 +50,8 @@
   to: [0, 1, 0]
   up: [0, 1, 0]
   focal-length: 1
-  usteps: 4
-  vsteps: 4
+  usteps: 2
+  vsteps: 2
   aperture:
     jitter: false
     size: 0

@@ -26,6 +26,12 @@ material(Material m)
 }
 
 Material
+array_of_materials(size_t num)
+{
+    return (Material) malloc(num * sizeof(struct material));
+}
+
+Material
 material_alloc()
 {
     Material m = (Material) malloc(sizeof(struct material));

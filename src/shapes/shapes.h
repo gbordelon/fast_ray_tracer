@@ -148,8 +148,10 @@ void shape_set_transform(Shape obj, const Matrix transform);
 void shape_set_material(Shape obj, Material m);
 void shape_set_material_recursive(Shape obj, Material m);
 
-void material();
+void material(Material m);
 Material material_alloc();
+Material array_of_materials(size_t num);
+
 void material_set_pattern(Material m, Pattern p);
 void material_free(Material m);
 

@@ -14,9 +14,8 @@ open /tmp/srgb_render.png
 TODO
 * Refactor yaml parser logic to not load a file multiple times but use shape_copy on the parent group for object files.
 * Refactor canvas/texture maps to only keep one image in memory even if multiple patterns try to load the file.
+* Add parameters to the config parser
     * obj_loader default vertex num, default group num
-    * ~~light source cache size~~
-    * ~~Add the ability to configure color space in a yaml config file~~
 * Refactor patterns into multiple source files
 * Refactor materials out of shapes.{c,h}
 * Add a circular area light
@@ -36,6 +35,9 @@ TODO
 * Implement MTL file parsing.
 * Add parameters to the config parser
     * epsilon
+* ~~Add parameters to the config parser~~
+    * ~~light source cache size~~
+    * ~~Add the ability to configure color space in a yaml config file~~
 * ~~Implement photon tracing~~
 * ~~Implement photon mapping for caustics~~
     * Balance radiance estimate
