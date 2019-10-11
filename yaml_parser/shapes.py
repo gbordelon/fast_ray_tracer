@@ -1,6 +1,5 @@
 from transform import Transform
 from material import Material
-from pattern import Pattern
 
 from copy import deepcopy
 
@@ -186,7 +185,7 @@ class Sphere(Shape):
     shape_set_transform(shape_{0}, transform_{0});
 """.format(name,
            parent_name,
-           material.c_repr(name),
+           material.c_repr(name, resources),
            transform.c_repr(name),
            offset)
 
@@ -218,7 +217,7 @@ class Toroid(Shape):
     shape_set_transform(shape_{0}, transform_{0});
 """.format(name,
            parent_name,
-           material.c_repr(name),
+           material.c_repr(name, resources),
            transform.c_repr(name),
            offset,
            self.yaml_obj['r1'],
@@ -246,7 +245,7 @@ class Plane(Shape):
     shape_set_transform(shape_{0}, transform_{0});
 """.format(name,
            parent_name,
-           material.c_repr(name),
+           material.c_repr(name, resources),
            transform.c_repr(name),
            offset)
 
@@ -273,7 +272,7 @@ class Cube(Shape):
     shape_set_transform(shape_{0}, transform_{0});
 """.format(name,
            parent_name,
-           material.c_repr(name),
+           material.c_repr(name, resources),
            transform.c_repr(name),
            offset)
 
@@ -300,7 +299,7 @@ class Cone(Shape):
     shape_set_transform(shape_{0}, transform_{0});
 """.format(name,
            parent_name,
-           material.c_repr(name),
+           material.c_repr(name, resources),
            transform.c_repr(name),
            offset)
 
@@ -340,7 +339,7 @@ class Cylinder(Shape):
     shape_set_transform(shape_{0}, transform_{0});
 """.format(name,
            parent_name,
-           material.c_repr(name),
+           material.c_repr(name, resources),
            transform.c_repr(name),
            offset)
 
@@ -388,7 +387,7 @@ class Triangle(Shape):
     point_free(shape_{0}_p2);
     point_free(shape_{0}_p1);
 """.format(name,
-          material.c_repr(name),
+          material.c_repr(name, resources),
           transform.c_repr(name),
           self.yaml_obj['p1'][0], self.yaml_obj['p1'][1], self.yaml_obj['p1'][2],
           self.yaml_obj['p2'][0], self.yaml_obj['p2'][1], self.yaml_obj['p2'][2],
@@ -435,7 +434,7 @@ class SmoothTriangle(Shape):
     point_free(shape_{0}_p1);
     
 """.format(name,
-          material.c_repr(name),
+          material.c_repr(name, resources),
           transform.c_repr(name),
           self.yaml_obj['p1'][0], self.yaml_obj['p1'][1], self.yaml_obj['p1'][2],
           self.yaml_obj['p2'][0], self.yaml_obj['p2'][1], self.yaml_obj['p2'][2],
@@ -459,9 +458,9 @@ def allocate_shapes(list_of_shapes):
     /* shape {0} */
 {1}
     /* end shape {0} */""".format(i, shape.c_repr(i, "all_shapes", i, resources))
-    file_name = shape.get_file_name()
-    if file_name is not None:
-        resources[file_name] = 'shape_{0}'.format(i)
+        file_name = shape.get_file_name()
+        if file_name is not None:
+            resources[file_name] = 'shape_{0}'.format(i)
 
     buf += """
     /* end shapes */

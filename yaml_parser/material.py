@@ -50,7 +50,7 @@ class Material(object):
 
         return Material(yaml_obj=obj)
 
-    def c_repr(self, name):
+    def c_repr(self, name, resources):
         shadow_str = 'false'
         if self.yaml_obj['shadow']:
             shadow_str = 'true'
@@ -75,7 +75,7 @@ class Material(object):
     material_{0}->casts_shadow = {12};
     material_{0}->pattern = pattern_{0};
 """.format(name,
-           pat.c_repr(name),
+           pat.c_repr(name, resources),
            self.yaml_obj['color'][0], self.yaml_obj['color'][1], self.yaml_obj['color'][2],
            self.yaml_obj['ambient'],
            self.yaml_obj['diffuse'],
