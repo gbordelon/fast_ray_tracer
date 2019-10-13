@@ -30,7 +30,7 @@ power_at(enum photon_map_type map_type, const World w, const Ray r, Color power,
 // prepare_computations assumes the ray direction is from the camera but should be resusable
 
 int
-reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comps, bool had_specular, size_t remaining, struct container *container)
+reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comps, bool had_specular, double average_diffuse_reflectance, size_t remaining, struct container *container)
 {
     Vector nt, nb, random_diffuse, sample;
     create_coordinate_system(comps->normalv, nt, nb);
@@ -45,18 +45,18 @@ reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comp
     struct ray reflect_ray;
     Color diffuse_color;
 
-    if (comps->obj->material->pattern != NULL) {
-        comps->obj->material->pattern->pattern_at_shape(
-                comps->obj->material->pattern,
+    if (comps->obj->material->map_Kd != NULL) {
+        comps->obj->material->map_Kd->pattern_at_shape(
+                comps->obj->material->map_Kd,
                 comps->obj,
                 comps->p,
                 diffuse_color);
     } else {
-        color_copy(diffuse_color, comps->obj->material->color);
+        color_copy(diffuse_color, comps->obj->material->Kd);
     }
-    diffuse_color[0] *= comps->photon_power[0];
-    diffuse_color[1] *= comps->photon_power[1];
-    diffuse_color[2] *= comps->photon_power[2];
+    diffuse_color[0] *= comps->photon_power[0] / average_diffuse_reflectance;
+    diffuse_color[1] *= comps->photon_power[1] / average_diffuse_reflectance;
+    diffuse_color[2] *= comps->photon_power[2] / average_diffuse_reflectance;
     // debug
     //color_copy(diffuse_color, comps->photon_power);
 
@@ -65,21 +65,24 @@ reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comp
 }
 
 int
-reflect_photon_specular(enum photon_map_type map_type, World w, Computations comps, bool had_diffuse, size_t remaining, struct container *container)
+reflect_photon_specular(enum photon_map_type map_type, World w, Computations comps, bool had_diffuse, double average_specular_reflectance, size_t remaining, struct container *container)
 {
-    if (equal(comps->obj->material->reflective, 0)) {
+    if (!comps->obj->material->reflective) {
         return 0;
     }
+
+    color_scale(comps->photon_power, 1.0 / average_specular_reflectance);
 
     struct ray reflect_ray;
     ray_array(comps->over_point, comps->reflectv, &reflect_ray);
     return power_at(map_type, w, &reflect_ray, comps->photon_power, had_diffuse, true, remaining - 1, container);
 }
 
+// TODO scale photon by average specular reflectance? I don't think so
 int
 refract_photon(enum photon_map_type map_type, World w, Computations comps, bool had_diffuse, size_t remaining, struct container *container)
 {
-    if (equal(comps->obj->material->transparency, 0)) {
+    if (equal(comps->obj->material->Tr, 0)) {
         return 0;
     }
 
@@ -104,7 +107,6 @@ refract_photon(enum photon_map_type map_type, World w, Computations comps, bool 
     vector_scale(t2, n_ratio);
     vector(t1[0] - t2[0], t1[1] - t2[1], t1[2] - t2[2], direction);
 
-    ray_array(comps->under_point, direction, &refracted_ray);
     return power_at(map_type, w, &refracted_ray, comps->photon_power, had_diffuse, true, remaining - 1, container);
 }
 
@@ -123,8 +125,30 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, bool had_
         return 0;
     }
 
+    Color diffuse_color;
+    if (comps->obj->material->map_Kd != NULL) {
+        comps->obj->material->map_Kd->pattern_at_shape(
+                comps->obj->material->map_Kd,
+                comps->obj,
+                comps->p,
+                diffuse_color);
+    } else {
+        color_copy(diffuse_color, comps->obj->material->Kd);
+    }
+
+    Color specular_color;
+    if (comps->obj->material->map_Ks != NULL) {
+        comps->obj->material->map_Ks->pattern_at_shape(
+                comps->obj->material->map_Ks,
+                comps->obj,
+                comps->p,
+                specular_color);
+    } else {
+        color_copy(specular_color, comps->obj->material->Ks);
+    }
+
     // only store photons if the struck material is diffuse
-    if (comps->obj->material->diffuse > 0) {
+    if (diffuse_color[0] > 0 || diffuse_color[1] > 0 || diffuse_color[2] > 0) {
         // only store photons with at least one specular reflection in the caustics map
         if (map_type == CAUSTIC) {
             if (had_specular) {
@@ -144,23 +168,25 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, bool had_
     // russian roulette
     double r = drand48();
     double total_refract_reflect;
+    double average_specular_reflectance = (specular_color[0] + specular_color[1] + specular_color[2]) / 3.0;
     if (map_type == GLOBAL) {
-        total_refract_reflect = comps->obj->material->diffuse +
-                                comps->obj->material->reflective +
-                                comps->obj->material->transparency;
-        if (r * total_refract_reflect < comps->obj->material->diffuse) {
-            hit += reflect_photon_diffuse(map_type, w, comps, had_specular, remaining, container);
-        } else if (r * total_refract_reflect < comps->obj->material->diffuse + comps->obj->material->reflective) {
-            hit += reflect_photon_specular(map_type, w, comps, had_diffuse, remaining, container);
-        } else if (r * total_refract_reflect < comps->obj->material->diffuse + comps->obj->material->reflective + comps->obj->material->transparency) {
+        double average_diffuse_reflectance = (diffuse_color[0] + diffuse_color[1] + diffuse_color[2]) / 3.0;
+        total_refract_reflect = average_diffuse_reflectance +
+                                average_specular_reflectance +
+                                comps->obj->material->Tr;
+        if (r * total_refract_reflect < average_diffuse_reflectance) {
+            hit += reflect_photon_diffuse(map_type, w, comps, had_specular, average_diffuse_reflectance, remaining, container);
+        } else if (r * total_refract_reflect < average_diffuse_reflectance + average_specular_reflectance) {
+            hit += reflect_photon_specular(map_type, w, comps, had_diffuse, average_specular_reflectance, remaining, container);
+        } else if (r * total_refract_reflect < average_diffuse_reflectance + average_specular_reflectance + comps->obj->material->Tr) {
             hit += refract_photon(map_type, w, comps, had_diffuse, remaining, container);
         }
     } else if (map_type == CAUSTIC) {
-        total_refract_reflect = comps->obj->material->reflective +
-                                comps->obj->material->transparency;
-        if (r * total_refract_reflect < comps->obj->material->reflective) {
-            hit += reflect_photon_specular(map_type, w, comps, had_diffuse, remaining, container);
-        } else if (r * total_refract_reflect < comps->obj->material->reflective + comps->obj->material->transparency) {
+        total_refract_reflect = average_specular_reflectance +
+                                comps->obj->material->Tr;
+        if (r * total_refract_reflect < average_specular_reflectance) {
+            hit += reflect_photon_specular(map_type, w, comps, had_diffuse, average_specular_reflectance, remaining, container);
+        } else if (r * total_refract_reflect < average_specular_reflectance + comps->obj->material->Tr) {
             hit += refract_photon(map_type, w, comps, had_diffuse, remaining, container);
         }
     }

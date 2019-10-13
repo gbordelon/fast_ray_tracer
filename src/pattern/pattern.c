@@ -29,9 +29,7 @@ blended_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
     p->fields.blended.pattern1->pattern_at_shape(p->fields.blended.pattern1, s, pt, c1);
     p->fields.blended.pattern2->pattern_at_shape(p->fields.blended.pattern2, s, pt, c2);
 
-    res[0] = (c1[0] + c2[0]) / 2.0;
-    res[1] = (c1[1] + c2[1]) / 2.0;
-    res[2] = (c1[2] + c2[2]) / 2.0;
+    color_average(c1, c2, res);
 }
 
 // TODO not threadsafe

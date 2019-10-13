@@ -456,7 +456,7 @@ def allocate_shapes(list_of_shapes):
     for i, shape in enumerate(list_of_shapes):
         buf += """
     /* shape {0} */
-{1}
+    {1}
     /* end shape {0} */""".format(i, shape.c_repr(i, "all_shapes", i, resources))
         file_name = shape.get_file_name()
         if file_name is not None:

@@ -132,9 +132,9 @@ typedef struct pattern {
         struct uv_map_pattern_fields uv_map;
     } fields;
 
-    void (*pattern_at_shape)(struct pattern *, Shape, Point, Color);
-    void (*pattern_at)(struct pattern *, Shape, Point, Color);
-    void (*uv_pattern_at)(struct pattern *, double, double, Color);
+    void (*pattern_at_shape)(struct pattern *, Shape, Point, ColorTriple);
+    void (*pattern_at)(struct pattern *, Shape, Point, ColorTriple);
+    void (*uv_pattern_at)(struct pattern *, double, double, ColorTriple);
     uv_map_fn uv_map;
 } *Pattern;
 

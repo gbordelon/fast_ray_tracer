@@ -123,13 +123,17 @@ default_world()
     toroid(s1);
     sphere(s2);
 
-    s1->material->color[0] = 0.8;
-    s1->material->color[1] = 1.0;
-    s1->material->color[2] = 0.6;
-    s1->material->diffuse = 0.7;
-    s1->material->specular = 0.2;
+    s1->material->Ka[0] = 0.8;
+    s1->material->Ka[1] = 1.0;
+    s1->material->Ka[2] = 0.6;
+    s1->material->Kd[0] = 0.8;
+    s1->material->Kd[1] = 1.0;
+    s1->material->Kd[2] = 0.6;
+    s1->material->Ks[0] = 0.0;
+    s1->material->Ks[1] = 0.0;
+    s1->material->Ks[2] = 0.0;
     s1->material->casts_shadow = true;
-    s1->material->transparency = 0.0;
+    s1->material->Tr = 0.0;
     s1->fields.toroid.r1 = 1.0;
     s1->fields.toroid.r2 = 0.5;
 

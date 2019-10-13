@@ -63,17 +63,21 @@ class Material(object):
     Color material_{0}_color_raw = color({2:.10f}, {3:.10f}, {4:.10f});
 
     Material material_{0} = material_alloc();
-    color_space_fn(material_{0}_color_raw, material_{0}->color);
-
-    material_{0}->ambient = {5:.10f};
-    material_{0}->diffuse = {6:.10f};
-    material_{0}->specular = {7:.10f};
-    material_{0}->shininess = {8:.10f};
+    color_space_fn(material_{0}_color_raw, material_{0}->Ka);
+    color_space_fn(material_{0}_color_raw, material_{0}->Kd);
+    color_space_fn(material_{0}_color_raw, material_{0}->Ks);
+    color_scale(material_{0}->Ka, {5:.10f});
+    color_scale(material_{0}->Kd, {6:.10f});
+    color_scale(material_{0}->Ks, {7:.10f});
     material_{0}->reflective = {9:.10f};
-    material_{0}->transparency = {10:.10f};
-    material_{0}->refractive_index = {11:.10f};
+
+    material_{0}->Ns = {8:.10f};
+    material_{0}->Tr = {10:.10f};
+    material_{0}->Ni = {11:.10f};
     material_{0}->casts_shadow = {12};
-    material_{0}->pattern = pattern_{0};
+    material_set_pattern(material_{0}, map_Ka, pattern_{0});
+    material_set_pattern(material_{0}, map_Kd, pattern_{0});
+    //material_set_pattern(material_{0}, map_Ks, pattern_{0});
 """.format(name,
            pat.c_repr(name, resources),
            self.yaml_obj['color'][0], self.yaml_obj['color'][1], self.yaml_obj['color'][2],

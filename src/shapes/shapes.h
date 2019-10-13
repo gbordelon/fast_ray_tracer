@@ -5,9 +5,11 @@
 
 #include "../libs/linalg/linalg.h"
 #include "../libs/canvas/canvas.h"
+
 #include "../renderer/renderer.h"
 #include "../renderer/ray.h"
 #include "../intersection/intersection.h"
+#include "../material/material.h"
 
 #include "bounding_box.h"
 
@@ -29,23 +31,6 @@ enum csg_ops_enum {
     CSG_INTERSECT,
     CSG_DIFFERENCE
 };
-
-typedef struct pattern *Pattern;
-
-typedef struct material {
-    Color color;
-    double ambient;
-    double diffuse;
-    double specular;
-    double shininess;
-    double reflective;
-    double transparency;
-    double refractive_index;
-    bool casts_shadow;
-    Pattern pattern;
-    Pattern normal_pattern;
-    size_t ref_count;
-} *Material;
 
 struct bounding_box_fields {
     Point min; // Point
@@ -146,14 +131,9 @@ Intersections shape_intersect(Shape sh, Ray r);
 void shape_set_transform(Shape obj, const Matrix transform);
 
 void shape_set_material(Shape obj, Material m);
+//void shape_set_material_old(Shape obj, Material_old m);
 void shape_set_material_recursive(Shape obj, Material m);
-
-void material(Material m);
-Material material_alloc();
-Material array_of_materials(size_t num);
-
-void material_set_pattern(Material m, Pattern p);
-void material_free(Material m);
+//void shape_set_material_old_recursive(Shape obj, Material_old m);
 
 Bounding_box shape_bounds(Shape sh);
 Bounding_box shape_parent_space_bounds(Shape sh);

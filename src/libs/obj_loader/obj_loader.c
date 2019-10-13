@@ -2,11 +2,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "obj_loader.h"
+#include "../uthash/uthash.h"
 
 #include "../../shapes/shapes.h"
 #include "../../shapes/group.h"
 #include "../../shapes/triangle.h"
+
+#include "obj_loader.h"
 
 struct shape_num_tuple {
     Shape shapes;
@@ -17,6 +19,18 @@ typedef struct group_with_name {
     Shape group;
     char *name;
 } group_with_name;
+
+#define MAX_MATERIAL_NAME_LEN 32
+typedef struct material_name_hash_table {
+    char name[MAX_MATERIAL_NAME_LEN];
+    int id;
+    Material material;
+
+    UT_hash_handle hh;
+} *Named_material;
+
+Named_material materials_ht = NULL;
+    
 
 /*
 f 3209/835/3210 3219/1227/3220 3220/1229/3221 3210/1219/3211 
@@ -111,7 +125,7 @@ fan_triangulation(char *line, double *vertexes, double *textures, double *normal
 }
 
 char *
-parse_group(char *line)
+parse_group(const char *line)
 {
     char *rv = (char *)malloc(256 * sizeof(char));
     sscanf(line, "%*s %255s", rv);
@@ -130,6 +144,9 @@ obj_parse_line(char *line, group_with_name *first_group, size_t *current_group_i
 {
     char *new_group_name;
     struct shape_num_tuple children;
+    char material_name[MAX_MATERIAL_NAME_LEN];
+    Named_material s;
+
     if (strlen(line) > 0) { // ignore empty lines
         if (strncmp(line, "v ", 2) == 0) {
             // parse vertex line
@@ -153,6 +170,8 @@ obj_parse_line(char *line, group_with_name *first_group, size_t *current_group_i
                 group_add_children((first_group + *current_group_index)->group,
                                    children.shapes,
                                    children.num);
+                // recursive material apply
+                shape_set_material_recursive((first_group + *current_group_index)->group, (first_group + *current_group_index)->group->material);
             }
             free(children.shapes);//shape_free(children.shapes);
             return 3;
@@ -178,6 +197,15 @@ obj_parse_line(char *line, group_with_name *first_group, size_t *current_group_i
                 *current_group_index = i;
             }
             return 4;
+        } else if (strncmp(line, "usemtl", 6) == 0) {
+            sscanf(line, "%*s %31s", material_name);
+            // lookup material by material_name in the ht
+            HASH_FIND_STR(materials_ht, material_name, s);
+            if (s != NULL) {
+                // apply material to group
+                shape_set_material((first_group + *current_group_index)->group, s->material);
+            } else {
+            }
         }
     }
     return -1;
@@ -186,31 +214,100 @@ obj_parse_line(char *line, group_with_name *first_group, size_t *current_group_i
 #define DEFAULT_VERTEX_NUM 32768
 #define DEFAULT_GROUP_NUM 1024
 
-struct materials {
-    Material arr;
-    size_t size;
-    size_t num;
-};
+Material
+parse_new_material(const char *line, int cur_id)
+{
+    Named_material s;
+
+    s = (Named_material)malloc(sizeof(*s));
+    sscanf(line, "%*s %31s", s->name);
+    s->id = cur_id;
+    s->material = material_alloc();
+    HASH_ADD_STR(materials_ht, name, s);
+
+    return s->material;
+}
 
 void
-parse_mtl(FILE *mtl_file)
+parse_size_t(char *line, size_t *res)
 {
-    char line[1024];
+    sscanf(line, "%*s %lu", res);
+}
 
-    // I need a mechanism to map material name to the material object
-    // djb2 hash function from http://www.cse.yorku.ca/~oz/hash.html
+void
+parse_double(char *line, double *res)
+{
+    sscanf(line, "%*s %lf", res);
+}
+
+void
+parse_three_doubles(char *line, double *res)
+{
+    sscanf(line, "%*s %lf %lf %lf", res, res + 1, res + 2);
+}
+
+void
+parse_mtl(FILE *mtl_file, void (*color_space_fn)(const Color, Color))
+{
+    char line[1024], *ptr;
+    int ids = 0;
+    Color tmp;
+    Material current_material = NULL;
+
     while(fgets(line, sizeof(line), mtl_file)) {
         if (strlen(line) > 0) { // ignore empty lines
-            if (strncmp(line, "newmtl", 6) == 0) { // line starts with "newmtl"
-                // new material starting
-                
+            ptr = line;
+            while ((*ptr == ' ' || *ptr == '\t') && *ptr != '\0') ptr++; // ignore leading spaces
+            if (*ptr == '#' || *ptr == '\r' || *ptr == '\n' || *ptr == '\0') { // skip comments and empty lines
+                continue;
+            }
+            if (strncmp(ptr, "newmtl", 6) == 0) {
+                current_material = parse_new_material(ptr, ids++);
+            } else if (strncmp(ptr, "illum", 5) == 0) {
+                parse_size_t(ptr, &(current_material->illum));
+            } else if (strncmp(ptr, "d", 1) == 0) {
+                parse_double(ptr, &(current_material->Tr));
+                current_material->Tr = 1.0 - current_material->Tr;
+            } else if (strncmp(ptr, "Tr", 2) == 0) {
+                parse_double(ptr, &(current_material->Tr));
+            } else if (strncmp(ptr, "Ni", 2) == 0) {
+                parse_double(ptr, &(current_material->Ni));
+            } else if (strncmp(ptr, "Ns", 2) == 0) {
+                parse_double(ptr, &(current_material->Ns));
+            } else if (strncmp(ptr, "Ka", 2) == 0) {
+                parse_three_doubles(ptr, tmp);
+                color_space_fn(tmp, current_material->Ka);
+            } else if (strncmp(ptr, "Kd", 2) == 0) {
+                parse_three_doubles(ptr, tmp);
+                color_space_fn(tmp, current_material->Kd);
+            } else if (strncmp(ptr, "Ks", 2) == 0) {
+                parse_three_doubles(ptr, tmp);
+                color_space_fn(tmp, current_material->Ks);
+            } else if (strncmp(ptr, "Tf", 2) == 0) {
+                parse_three_doubles(ptr, tmp);
+                color_space_fn(tmp, current_material->Ka);
+            } else if (strncmp(ptr, "Ke", 2) == 0) {
+                parse_three_doubles(ptr, current_material->Ke); // Ke is intensity, so no color_space transform
+/*
+            } else if (strncmp(ptr, "map_Ka", 6) == 0) {
+            } else if (strncmp(ptr, "map_Kd", 6) == 0) {
+            } else if (strncmp(ptr, "map_Ks", 6) == 0) {
+            } else if (strncmp(ptr, "map_Ns", 6) == 0) {
+            } else if (strncmp(ptr, "map_d", 5) == 0) {
+            } else if (strncmp(ptr, "map_bump", 8) == 0) {
+            } else if (strncmp(ptr, "bump", 4) == 0) {
+            } else if (strncmp(ptr, "disp", 4) == 0) {
+            } else if (strncmp(ptr, "decal", 5) == 0) {
+*/
+            } else {
+                printf("Line \"%s\" not recognized while parsing .mtl file\n", line);
             }
         }
     }
 }
 
 void
-construct_group_from_obj_file(const char *file_path, bool use_mtl, Shape result_group)
+construct_group_from_obj_file(const char *file_path, bool use_mtl, void (*color_space_fn)(const Color, Color), Shape result_group)
 {
     char line[1024];
     int line_type;
@@ -238,7 +335,8 @@ construct_group_from_obj_file(const char *file_path, bool use_mtl, Shape result_
         printf("Error opening file %s", mtl_file_path);
         return;
     }
-    parse_mtl(mtl_file);
+
+    parse_mtl(mtl_file, color_space_fn);
 
     fclose(mtl_file);
 
@@ -336,4 +434,10 @@ construct_group_from_obj_file(const char *file_path, bool use_mtl, Shape result_
     free(textures);
     free(normals);
     free(mtl_file_path);
+
+    Named_material s, tmp;
+    HASH_ITER(hh, materials_ht, s, tmp) {
+        HASH_DEL(materials_ht, s);
+        free(s); // s->material is not freed because the shapes are still using them!
+    }
 }

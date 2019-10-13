@@ -4,68 +4,10 @@
 
 #include "../libs/linalg/linalg.h"
 #include "../pattern/pattern.h"
+#include "../material/material.h"
 #include "../renderer/ray.h"
 
 #include "shapes.h"
-
-void
-material(Material m)
-{
-    color_copy(m->color, WHITE);
-    m->ambient = 0.1;
-    m->diffuse = 0.9;
-    m->specular = 0.9;
-    m->shininess = 200.0;
-    m->reflective = 0.0;
-    m->transparency = 0.0;
-    m->refractive_index = 1.0;
-    m->casts_shadow = true;
-    m->pattern = NULL;
-    m->normal_pattern = NULL;
-    m->ref_count = 0;
-}
-
-Material
-array_of_materials(size_t num)
-{
-    return (Material) malloc(num * sizeof(struct material));
-}
-
-Material
-material_alloc()
-{
-    Material m = (Material) malloc(sizeof(struct material));
-    material(m);
-    return m;
-}
-
-void
-material_free(Material m)
-{
-    if (m != NULL) {
-        m->ref_count--;
-        if (m->ref_count == 0) {
-            if (m->pattern != NULL) {
-                pattern_free(m->pattern);
-            }
-            free(m);
-        }
-    }
-}
-
-void
-material_set_pattern(Material m, Pattern p)
-{
-    if (m != NULL) {
-        if (m->pattern != NULL) {
-            pattern_free(m->pattern);
-        }
-        m->pattern = p;
-        if (p != NULL) {
-            p->ref_count++;
-        }
-    }
-}
 
 Shape
 array_of_shapes(size_t num)
@@ -105,8 +47,8 @@ shape_normal_at(Shape sh, Point world_point, Intersection hit, Vector res)
 
     sh->local_normal_at(sh, local_point, hit, local_normal);
 
-    if (sh->material->normal_pattern != NULL) {
-        sh->material->normal_pattern->pattern_at_shape(sh->material->normal_pattern, sh, local_normal, perturbed);
+    if (sh->material->map_bump != NULL) {
+        sh->material->map_bump->pattern_at_shape(sh->material->map_bump, sh, local_normal, perturbed);
         color_accumulate(local_normal, perturbed);
     }
 
@@ -174,6 +116,9 @@ void
 shape_set_material(Shape obj, Material m)
 {
     if (obj != NULL) {
+        if (obj->material == m) {
+            return;
+        }
         if (obj->material != NULL) {
             material_free(obj->material);
         }
@@ -188,7 +133,8 @@ void
 shape_set_material_recursive(Shape obj, Material m)
 {
     if (obj != NULL) {
-        obj->material = m; // i may want to only do this if the material is already null...
+        //obj->material = m; // i may want to only do this if the material is already null...
+        shape_set_material(obj, m);
         if (obj->type == SHAPE_GROUP) {
             int i;
             for (i = 0; i< obj->fields.group.num_children; i++) {

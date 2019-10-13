@@ -1,3 +1,32 @@
+- add: config
+  illumination:
+    include-direct: true
+    include-global: false
+    visualize-photon-map: false
+    visualize-soft-indirect: false
+    direct-illumination:
+      include-ambient: true
+      include-diffuse: true
+      include-specular: true
+      include-specular-highlight: true
+    global-illumination:
+      include-caustics: false
+      include-final-gather: false
+      usteps: 8
+      vsteps: 8
+      irradiance-estimate-num: 200
+      irradiance-estimate-radius: 0.1
+      irradiance-estimate-cone-filter-k: 1.0
+      photon-count: 0
+  threading:
+    thread-count: 4
+  scene:
+    divide-threshold: 1
+  output:
+    file: '/tmp/out_file'
+    # see src/renderer/config.h for the enum
+    color-space: 'SRGB'
+
 - add: camera
   width: 400
   height: 400

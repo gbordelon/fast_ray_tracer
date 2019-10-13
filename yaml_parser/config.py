@@ -64,7 +64,7 @@ class OutputConfig(object):
     @classmethod
     def from_yaml(cls, obj):
         if 'file' not in obj:
-            obj['file'] = '/tmp/ray_tracer_out.ppm'
+            obj['file'] = '/tmp/ray_tracer_out'
         if 'color-space' not in obj:
             obj['color-space'] = 'SRGB'
         return cls(yaml_obj=obj)
