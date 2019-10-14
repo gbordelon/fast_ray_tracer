@@ -9,11 +9,12 @@ material(Material m)
     color_copy(m->Ka, WHITE);
     color_copy(m->Kd, WHITE);
     color_copy(m->Ks, WHITE);
-    color_copy(m->Tf, WHITE);
+    color_copy(m->Tf, BLACK);
     color_copy(m->Ke, BLACK);
     m->Ns = 200.0;
     m->Ni = 1.0;
     m->Tr = 0.0;
+    m->reflective = false;
     m->illum = 0;
     m->casts_shadow = true;
     m->map_Ka = NULL;

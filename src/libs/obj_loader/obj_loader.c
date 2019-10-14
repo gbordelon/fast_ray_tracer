@@ -214,7 +214,23 @@ obj_parse_line(char *line, group_with_name *first_group, size_t *current_group_i
 #define DEFAULT_VERTEX_NUM 32768
 #define DEFAULT_GROUP_NUM 1024
 
-Material
+void
+set_material_flags(Material m)
+{
+    if (m != NULL) {
+        m->reflective = m->Ks[0] > 0 || m->Ks[1] > 0 || m->Ks[2] > 0 || m->map_Ks != NULL;
+        // for now link m->Tr and m->Tf
+        if (m->Tr > 0 && (equal(m->Tf[0], 0) && equal(m->Tf[1], 0) && equal(m->Tf[1], 0))) {
+            m->Tf[0] = m->Tr;
+            m->Tf[1] = m->Tr;
+            m->Tf[2] = m->Tr;
+        } else if (equal(m->Tr, 0) && (m->Tf[0] > 0 || m->Tf[1] > 0 || m->Tf[2] > 0)) {
+            m->Tr = (m->Tf[0] + m->Tf[1] + m->Tf[2]) / 3.0;
+        }
+    }
+}
+
+Named_material
 parse_new_material(const char *line, int cur_id)
 {
     Named_material s;
@@ -223,9 +239,16 @@ parse_new_material(const char *line, int cur_id)
     sscanf(line, "%*s %31s", s->name);
     s->id = cur_id;
     s->material = material_alloc();
-    HASH_ADD_STR(materials_ht, name, s);
 
-    return s->material;
+    return s;
+}
+
+void
+store_material(Named_material s)
+{
+    if (s != NULL) {
+        HASH_ADD_STR(materials_ht, name, s);
+    }
 }
 
 void
@@ -252,6 +275,7 @@ parse_mtl(FILE *mtl_file, void (*color_space_fn)(const Color, Color))
     char line[1024], *ptr;
     int ids = 0;
     Color tmp;
+    Named_material s = NULL;
     Material current_material = NULL;
 
     while(fgets(line, sizeof(line), mtl_file)) {
@@ -262,7 +286,10 @@ parse_mtl(FILE *mtl_file, void (*color_space_fn)(const Color, Color))
                 continue;
             }
             if (strncmp(ptr, "newmtl", 6) == 0) {
-                current_material = parse_new_material(ptr, ids++);
+                set_material_flags(current_material);
+                store_material(s);
+                s = parse_new_material(ptr, ids++);
+                current_material = s->material;
             } else if (strncmp(ptr, "illum", 5) == 0) {
                 parse_size_t(ptr, &(current_material->illum));
             } else if (strncmp(ptr, "d", 1) == 0) {
@@ -281,13 +308,16 @@ parse_mtl(FILE *mtl_file, void (*color_space_fn)(const Color, Color))
                 parse_three_doubles(ptr, tmp);
                 color_space_fn(tmp, current_material->Kd);
             } else if (strncmp(ptr, "Ks", 2) == 0) {
-                parse_three_doubles(ptr, tmp);
-                color_space_fn(tmp, current_material->Ks);
+                parse_three_doubles(ptr, current_material->Ks);
             } else if (strncmp(ptr, "Tf", 2) == 0) {
-                parse_three_doubles(ptr, tmp);
-                color_space_fn(tmp, current_material->Ka);
+                parse_three_doubles(ptr, current_material->Tf);
+                current_material->Tf[0] = 1.0 - current_material->Tf[0];
+                current_material->Tf[1] = 1.0 - current_material->Tf[1];
+                current_material->Tf[2] = 1.0 - current_material->Tf[2];
             } else if (strncmp(ptr, "Ke", 2) == 0) {
                 parse_three_doubles(ptr, current_material->Ke); // Ke is intensity, so no color_space transform
+            } else if (strncmp(ptr, "noshadow", 8) == 0) {
+                current_material->casts_shadow = false;
 /*
             } else if (strncmp(ptr, "map_Ka", 6) == 0) {
             } else if (strncmp(ptr, "map_Kd", 6) == 0) {
@@ -304,6 +334,8 @@ parse_mtl(FILE *mtl_file, void (*color_space_fn)(const Color, Color))
             }
         }
     }
+    set_material_flags(current_material);
+    store_material(s);
 }
 
 void

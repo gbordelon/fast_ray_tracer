@@ -198,7 +198,7 @@ main()
     w->shapes_num = 1;
     w->global_config = &global_config;
 
-    if (global_config.illumination.gi.photon_count > 0) {{
+    if (global_config.illumination.gi.photon_count > 0 && global_config.illumination.include_global ) {{
         w->photon_maps = array_of_photon_maps(3);
         printf("Tracing photons...");
         fflush(stdout);

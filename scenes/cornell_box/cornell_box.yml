@@ -10,7 +10,7 @@
       include-specular: true
       include-specular-highlight: true
     global-illumination:
-      include-caustics: true 
+      include-caustics: true
       include-final-gather: false
       usteps: 8
       vsteps: 8
@@ -22,6 +22,10 @@
     thread-count: 4
   scene:
     divide-threshold: 1
+  output:
+    file: /tmp/out_file
+    # see src/renderer/config.h for the enum
+    color-space: SRGB
 
 
 # ======================================================
@@ -47,21 +51,21 @@
 # test light sources
 # ======================================================
 
-#- add: light
-#  at: [ 0, 1.4, 0 ]
-#  to: [ 0, -1, 0 ]
-##  at: [ 0, 0, 0 ]
-#  intensity: [ 1, 1, 1 ]
-
 - add: light
-  corner: [-0.5, 1.4, -0.5]
-  uvec: [1, 0, 0]
-  vvec: [0, 0, 1]
-  usteps: 10
-  vsteps: 10
-  jitter: true
-  intensity: [1.0, 1.0, 1.0]
-  cache-size: 1
+  at: [ 0, 1.4, 0 ]
+  to: [ 0, -1, 0 ]
+#  at: [ 0, 0, 0 ]
+  intensity: [ 2, 2, 2 ]
+
+#- add: light
+#  corner: [-0.5, 1.4, -0.5]
+#  uvec: [1, 0, 0]
+#  vvec: [0, 0, 1]
+#  usteps: 10
+#  vsteps: 10
+#  jitter: true
+#  intensity: [1.0, 1.0, 1.0]
+#  cache-size: 1
 
 
 # ======================================================

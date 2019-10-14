@@ -73,6 +73,9 @@ class Material(object):
 
     material_{0}->Ns = {8:.10f};
     material_{0}->Tr = {10:.10f};
+    material_{0}->Tf[0] = {10:.10f};
+    material_{0}->Tf[1] = {10:.10f};
+    material_{0}->Tf[2] = {10:.10f};
     material_{0}->Ni = {11:.10f};
     material_{0}->casts_shadow = {12};
     material_set_pattern(material_{0}, map_Ka, pattern_{0});

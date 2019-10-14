@@ -28,9 +28,12 @@ typedef struct computations {
     Vector reflectv;
     struct ray photon_ray;
     Color photon_power;
-    Color Ka;
-    Color Kd;
-    Color Ks;
+    Color over_Ka;
+    Color over_Kd;
+    Color over_Ks;
+    Color under_Ka;
+    Color under_Kd;
+    Color under_Ks;
 } *Computations;
 
 struct container {

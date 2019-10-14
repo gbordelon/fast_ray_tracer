@@ -200,7 +200,7 @@ render_multi_helper(World w, void *args)
             color_default(ambient_from_triple(pixel_color));
             color_default(diffuse_from_triple(pixel_color));
             color_default(specular_from_triple(pixel_color));
-            //if (j == 355 && i == 200) { // debug
+            //if (i == 310 && j == 240) { // debug
                 pixel_multi_sample(cam, w, i, j, usteps, vsteps, &sampler, c, &container);
                 // aggregate colors
                 color_accumulate(pixel_color, ambient_from_triple(c));
@@ -242,10 +242,10 @@ render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
     visualize_photon_map = w->global_config->illumination.debug_visualize_photon_map;
     visualize_soft_indirect = w->global_config->illumination.debug_visualize_soft_indirect;
     include_direct = w->global_config->illumination.include_direct || visualize_soft_indirect;
-    include_ambient = w->global_config->illumination.di.include_ambient || visualize_soft_indirect;
+    include_ambient = w->global_config->illumination.di.include_ambient && !visualize_soft_indirect;
     include_diffuse = w->global_config->illumination.di.include_diffuse || visualize_soft_indirect;
     include_spec_highlight = w->global_config->illumination.di.include_specular_highlight && !visualize_soft_indirect;
-    include_specular = w->global_config->illumination.di.include_specular;
+    include_specular = w->global_config->illumination.di.include_specular && !visualize_soft_indirect;
     use_gi = w->global_config->illumination.include_global || visualize_soft_indirect || visualize_photon_map;
     use_caustics = w->global_config->illumination.gi.include_caustics && !visualize_soft_indirect;
     use_final_gather = w->global_config->illumination.gi.include_final_gather || visualize_soft_indirect;
@@ -331,33 +331,31 @@ render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
 }
 
 void
-color_at_gi(const World w, const Ray r, ColorTriple res, struct container *container)
+color_at_gi(const World w, const Ray r, Color res, struct container *container)
 {
     Intersections xs = intersect_world(w, r);
     Intersection i = hit(xs, false);
     struct computations comps;
-    ColorTriple c;
-    color_default(ambient_from_triple(c));
-    color_default(diffuse_from_triple(c));
-    color_default(specular_from_triple(c));
+    Color c;
+    color_default(c);
 
-    Color diffuse;
-    Point p;
-    ray_position(r, i->t, p);
-    if (i->object->material->map_Kd != NULL) {
-        i->object->material->map_Kd->pattern_at_shape(i->object->material->map_Kd, i->object, p, diffuse);
-    } else {
-        color_copy(diffuse, i->object->material->Kd);
+    if (i != NULL) {
+        Color diffuse;
+        Point p;
+        ray_position(r, i->t, p);
+        if (i->object->material->map_Kd != NULL) {
+            i->object->material->map_Kd->pattern_at_shape(i->object->material->map_Kd, i->object, p, diffuse);
+        } else {
+            color_copy(diffuse, i->object->material->Kd);
+        }
+
+        if (diffuse[0] > 0 || diffuse[1] > 0 || diffuse[2] > 0) {
+            prepare_computations(i, r, c, xs, &comps, container); // can probably do something simpler here
+            shade_hit_gi(w, &comps, c);
+        }
     }
 
-    if (i != NULL && (diffuse[0] > 0 || diffuse[1] > 0 || diffuse[2] > 0)) {
-        prepare_computations(i, r, c, xs, &comps, container); // can probably do something simpler here
-        shade_hit_gi(w, &comps, c);
-    }
-
-    color_copy(ambient_from_triple(res), ambient_from_triple(c));
-    color_copy(diffuse_from_triple(res), diffuse_from_triple(c));
-    color_copy(specular_from_triple(res), specular_from_triple(c));
+    color_copy(res, c);
 }
 
 void
@@ -392,35 +390,6 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
     res->obj = i->object;
 
     ray_position(r, i->t, res->p);
-
-    // TODO scale map color by the material base color
-    if (res->obj->material->map_Ka != NULL) {
-        res->obj->material->map_Ka->pattern_at_shape(res->obj->material->map_Ka, res->obj, res->p, res->Ka);
-        res->Ka[0] *= res->obj->material->Ka[0];
-        res->Ka[1] *= res->obj->material->Ka[1];
-        res->Ka[2] *= res->obj->material->Ka[2];
-    } else {
-        color_copy(res->Ka, res->obj->material->Ka);
-    }
-
-    if (res->obj->material->map_Kd != NULL) {
-        res->obj->material->map_Kd->pattern_at_shape(res->obj->material->map_Kd, res->obj, res->p, res->Kd);
-
-        res->Kd[0] *= res->obj->material->Kd[0];
-        res->Kd[1] *= res->obj->material->Kd[1];
-        res->Kd[2] *= res->obj->material->Kd[2];
-    } else {
-        color_copy(res->Kd, res->obj->material->Kd);
-    }
-
-    if (res->obj->material->map_Ks != NULL) {
-        res->obj->material->map_Ks->pattern_at_shape(res->obj->material->map_Ks, res->obj, res->p, res->Ks);
-        res->Ks[0] *= res->obj->material->Ks[0];
-        res->Ks[1] *= res->obj->material->Ks[1];
-        res->Ks[2] *= res->obj->material->Ks[2];
-    } else {
-        color_copy(res->Ks, res->obj->material->Ks);
-    }
 
     i->object->normal_at(i->object, res->p, i, res->normalv);
 
@@ -489,6 +458,65 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
             break;
         }
     }
+
+    if (res->obj->material->map_Ka != NULL) {
+        res->obj->material->map_Ka->pattern_at_shape(res->obj->material->map_Ka, res->obj, res->over_point, res->over_Ka);
+        res->over_Ka[0] *= res->obj->material->Ka[0];
+        res->over_Ka[1] *= res->obj->material->Ka[1];
+        res->over_Ka[2] *= res->obj->material->Ka[2];
+    } else {
+        color_copy(res->over_Ka, res->obj->material->Ka);
+    }
+
+    if (res->obj->material->map_Kd != NULL) {
+        res->obj->material->map_Kd->pattern_at_shape(res->obj->material->map_Kd, res->obj, res->over_point, res->over_Kd);
+
+        res->over_Kd[0] *= res->obj->material->Kd[0];
+        res->over_Kd[1] *= res->obj->material->Kd[1];
+        res->over_Kd[2] *= res->obj->material->Kd[2];
+    } else {
+        color_copy(res->over_Kd, res->obj->material->Kd);
+    }
+
+    if (res->obj->material->map_Ks != NULL) {
+        res->obj->material->map_Ks->pattern_at_shape(res->obj->material->map_Ks, res->obj, res->over_point, res->over_Ks);
+        res->over_Ks[0] *= res->obj->material->Ks[0];
+        res->over_Ks[1] *= res->obj->material->Ks[1];
+        res->over_Ks[2] *= res->obj->material->Ks[2];
+    } else {
+        color_copy(res->over_Ks, res->obj->material->Ks);
+    }
+/*
+ * I don't think anything is using these
+ *
+    if (res->obj->material->map_Ka != NULL) {
+        res->obj->material->map_Ka->pattern_at_shape(res->obj->material->map_Ka, res->obj, res->under_point, res->under_Ka);
+        res->under_Ka[0] *= res->obj->material->Ka[0];
+        res->under_Ka[1] *= res->obj->material->Ka[1];
+        res->under_Ka[2] *= res->obj->material->Ka[2];
+    } else {
+        color_copy(res->under_Ka, res->obj->material->Ka);
+    }
+
+    if (res->obj->material->map_Kd != NULL) {
+        res->obj->material->map_Kd->pattern_at_shape(res->obj->material->map_Kd, res->obj, res->under_point, res->under_Kd);
+
+        res->under_Kd[0] *= res->obj->material->Kd[0];
+        res->under_Kd[1] *= res->obj->material->Kd[1];
+        res->under_Kd[2] *= res->obj->material->Kd[2];
+    } else {
+        color_copy(res->under_Kd, res->obj->material->Kd);
+    }
+
+    if (res->obj->material->map_Ks != NULL) {
+        res->obj->material->map_Ks->pattern_at_shape(res->obj->material->map_Ks, res->obj, res->under_point, res->under_Ks);
+        res->under_Ks[0] *= res->obj->material->Ks[0];
+        res->under_Ks[1] *= res->obj->material->Ks[1];
+        res->under_Ks[2] *= res->obj->material->Ks[2];
+    } else {
+        color_copy(res->under_Ks, res->obj->material->Ks);
+    }
+*/
 }
 
 void
@@ -511,18 +539,6 @@ reflected_color(World w, Computations comps, size_t remaining, Color res, struct
 
     color_at(w, &reflect_ray, remaining - 1, c, container);
 
-    ambient_from_triple(c)[0] *= comps->Ks[0];
-    ambient_from_triple(c)[1] *= comps->Ks[1];
-    ambient_from_triple(c)[2] *= comps->Ks[2];
-
-    diffuse_from_triple(c)[0] *= comps->Ks[0];
-    diffuse_from_triple(c)[1] *= comps->Ks[1];
-    diffuse_from_triple(c)[2] *= comps->Ks[2];
-
-    specular_from_triple(c)[0] *= comps->Ks[0];
-    specular_from_triple(c)[1] *= comps->Ks[1];
-    specular_from_triple(c)[2] *= comps->Ks[2];
-
     color_accumulate(ambient_from_triple(res), ambient_from_triple(c));
     color_accumulate(diffuse_from_triple(res), diffuse_from_triple(c));
     color_accumulate(specular_from_triple(res), specular_from_triple(c));
@@ -531,7 +547,7 @@ reflected_color(World w, Computations comps, size_t remaining, Color res, struct
 void
 refracted_color(World w, Computations comps, size_t remaining, ColorTriple res, struct container *container)
 {
-    if (remaining == 0 || equal(comps->obj->material->Tr,0)) {
+    if (remaining == 0 || equal(comps->obj->material->Tr, 0.0)) {
         color_default(ambient_from_triple(res));
         color_default(diffuse_from_triple(res));
         color_default(specular_from_triple(res));
@@ -570,9 +586,9 @@ refracted_color(World w, Computations comps, size_t remaining, ColorTriple res, 
 
     color_at(w, &refracted_ray, remaining - 1, c, container);
 
-    color_scale(ambient_from_triple(c), comps->obj->material->Tr);
-    color_scale(diffuse_from_triple(c), comps->obj->material->Tr);
-    color_scale(specular_from_triple(c), comps->obj->material->Tr);
+    color_scale(ambient_from_triple(c), comps->obj->material->Tf[0]);
+    color_scale(diffuse_from_triple(c), comps->obj->material->Tf[1]);
+    color_scale(specular_from_triple(c), comps->obj->material->Tf[2]);
 
     color_accumulate(ambient_from_triple(res), ambient_from_triple(c));
     color_accumulate(diffuse_from_triple(res), diffuse_from_triple(c));
@@ -599,13 +615,11 @@ schlick(Computations comps)
 }
 
 void
-shade_hit_gi(World w, Computations comps, ColorTriple res)
+shade_hit_gi(World w, Computations comps, Color res)
 {
-    ColorTriple indirect;
+    Color indirect;
 
-    color_default(ambient_from_triple(indirect));
-    color_default(diffuse_from_triple(indirect));
-    color_default(specular_from_triple(indirect));
+    color_default(indirect);
 
     lighting_gi(comps,
                 comps->obj,
@@ -619,9 +633,9 @@ shade_hit_gi(World w, Computations comps, ColorTriple res)
 }
 
 void
-final_gather(World w, Computations comps, ColorTriple res, struct container *container)
+final_gather(World w, Computations comps, Color res, struct container *container)
 {
-    ColorTriple final_gather, total_power, c;
+    Color final_gather, total_power, c;
     Vector nt, nb, sample, direction;
     struct ray r;
     double pdf_inv = 2 * M_PI; // initialize to a uniform hemisphere prob. dist. func.
@@ -629,7 +643,7 @@ final_gather(World w, Computations comps, ColorTriple res, struct container *con
     size_t index[2];
     double rands[2];
     size_t num_samples = 0;
-    ColorTriple *cell_power = (ColorTriple *)malloc(num_rays * sizeof(ColorTriple));
+    Color *cell_power = (ColorTriple *)malloc(num_rays * sizeof(Color));
     struct sampler sampler;
 
     sampler_2d(true, final_gather_usteps, final_gather_vsteps, sampler_default_constraint, &sampler);
@@ -653,27 +667,18 @@ final_gather(World w, Computations comps, ColorTriple res, struct container *con
             direction[3] = 0;
             vector_normalize(direction, r.direction);
 
-            color_default(ambient_from_triple(c));
-            color_default(diffuse_from_triple(c));
-            color_default(specular_from_triple(c));
+            color_default(c);
 
             color_at_gi(w, &r, c, container);
-            color_scale(ambient_from_triple(c), rands[0]); // scale by theta
-            color_scale(diffuse_from_triple(c), rands[0]); // scale by theta
-            color_scale(specular_from_triple(c), rands[0]); // scale by theta
-            color_scale(ambient_from_triple(c), pdf_inv); // scale by hemisphere prob. dist. func.
-            color_scale(diffuse_from_triple(c), pdf_inv); // scale by hemisphere prob. dist. func.
-            color_scale(specular_from_triple(c), pdf_inv); // scale by hemisphere prob. dist. func.
+
+            color_scale(c, rands[0]); // scale by theta
+            color_scale(c, pdf_inv); // scale by hemisphere prob. dist. func.
 
             // initialize the power for each cell
-            color_copy(ambient_from_triple(cell_power[j * final_gather_usteps + i]), ambient_from_triple(c));
-            color_copy(diffuse_from_triple(cell_power[j * final_gather_usteps + i]), diffuse_from_triple(c));
-            color_copy(specular_from_triple(cell_power[j * final_gather_usteps + i]), specular_from_triple(c));
+            color_copy(cell_power[j * final_gather_usteps + i], c);
 
             // accumulate the total power
-            color_accumulate(ambient_from_triple(total_power), ambient_from_triple(c));
-            color_accumulate(diffuse_from_triple(total_power), diffuse_from_triple(c));
-            color_accumulate(specular_from_triple(total_power), specular_from_triple(c));
+            color_accumulate(total_power, c);
             ++num_samples;
         }
     }
@@ -697,38 +702,22 @@ final_gather(World w, Computations comps, ColorTriple res, struct container *con
                 direction[3] = 0;
                 vector_normalize(direction, r.direction);
 
-                color_default(ambient_from_triple(c));
-                color_default(diffuse_from_triple(c));
-                color_default(specular_from_triple(c));
+                color_default(c);
 
                 color_at_gi(w, &r, c, container);
-                color_scale(ambient_from_triple(c), rands[0]); // scale by theta
-                color_scale(diffuse_from_triple(c), rands[0]); // scale by theta
-                color_scale(specular_from_triple(c), rands[0]); // scale by theta
-                color_scale(ambient_from_triple(c), pdf_inv); // scale by hemisphere prob. dist. func.
-                color_scale(diffuse_from_triple(c), pdf_inv); // scale by hemisphere prob. dist. func.
-                color_scale(specular_from_triple(c), pdf_inv); // scale by hemisphere prob. dist. func.
+
+                color_scale(c, rands[0]); // scale by theta
+                color_scale(c, pdf_inv); // scale by hemisphere prob. dist. func.
+
                 // scale by the probability of choosing this cell
-                ambient_from_triple(c)[0] *= ambient_from_triple(cell_power[j * final_gather_usteps + i])[0] / ambient_from_triple(total_power)[0];
-                ambient_from_triple(c)[1] *= ambient_from_triple(cell_power[j * final_gather_usteps + i])[1] / ambient_from_triple(total_power)[1];
-                ambient_from_triple(c)[2] *= ambient_from_triple(cell_power[j * final_gather_usteps + i])[2] / ambient_from_triple(total_power)[2];
-
-                diffuse_from_triple(c)[0] *= diffuse_from_triple(cell_power[j * final_gather_usteps + i])[0] / diffuse_from_triple(total_power)[0];
-                diffuse_from_triple(c)[1] *= diffuse_from_triple(cell_power[j * final_gather_usteps + i])[1] / diffuse_from_triple(total_power)[1];
-                diffuse_from_triple(c)[2] *= diffuse_from_triple(cell_power[j * final_gather_usteps + i])[2] / diffuse_from_triple(total_power)[2];
-
-                specular_from_triple(c)[0] *= specular_from_triple(cell_power[j * final_gather_usteps + i])[0] / specular_from_triple(total_power)[0];
-                specular_from_triple(c)[1] *= specular_from_triple(cell_power[j * final_gather_usteps + i])[1] / specular_from_triple(total_power)[1];
-                specular_from_triple(c)[2] *= specular_from_triple(cell_power[j * final_gather_usteps + i])[2] / specular_from_triple(total_power)[2];
+                c[0] *= cell_power[j * final_gather_usteps + i][0] / total_power[0];
+                c[1] *= cell_power[j * final_gather_usteps + i][1] / total_power[1];
+                c[2] *= cell_power[j * final_gather_usteps + i][2] / total_power[2];
 
                 // accumulate
-                color_accumulate(ambient_from_triple(cell_power[j * final_gather_usteps + i]), ambient_from_triple(c));
-                color_accumulate(diffuse_from_triple(cell_power[j * final_gather_usteps + i]), diffuse_from_triple(c));
-                color_accumulate(specular_from_triple(cell_power[j * final_gather_usteps + i]), specular_from_triple(c));
+                color_accumulate(cell_power[j * final_gather_usteps + i], c);
 
-                color_accumulate(ambient_from_triple(total_power), ambient_from_triple(c));
-                color_accumulate(diffuse_from_triple(total_power), diffuse_from_triple(c));
-                color_accumulate(specular_from_triple(total_power), specular_from_triple(c));
+                color_accumulate(total_power, c);
 
                 ++num_samples;
             //}
@@ -737,17 +726,11 @@ final_gather(World w, Computations comps, ColorTriple res, struct container *con
 
     //printf("Final gather with %lu samples.\n", num_samples);
     for (i = 0; i < num_rays; ++i) {
-        color_accumulate(ambient_from_triple(final_gather), ambient_from_triple(cell_power[i]));
-        color_accumulate(diffuse_from_triple(final_gather), diffuse_from_triple(cell_power[i]));
-        color_accumulate(specular_from_triple(final_gather), specular_from_triple(cell_power[i]));
+        color_accumulate(final_gather, cell_power[i]);
     }
-    color_scale(ambient_from_triple(final_gather), 1.0 / (double)num_samples);
-    color_scale(diffuse_from_triple(final_gather), 1.0 / (double)num_samples);
-    color_scale(specular_from_triple(final_gather), 1.0 / (double)num_samples);
+    color_scale(final_gather, 1.0 / (double)num_samples);
 
-    color_copy(ambient_from_triple(res), ambient_from_triple(final_gather));
-    color_copy(diffuse_from_triple(res), diffuse_from_triple(final_gather));
-    color_copy(specular_from_triple(res), specular_from_triple(final_gather));
+    color_copy(res, final_gather);
 
     sampler_free(&sampler);
     free(cell_power);
@@ -760,7 +743,7 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res, struct
     size_t i;
     ColorTriple c;
     ColorTriple surface;
-    ColorTriple indirect;
+    Color indirect;
     double intensity = 0;
 
     color_default(ambient_from_triple(surface));
@@ -785,7 +768,9 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res, struct
                      include_diffuse,
                      include_spec_highlight,
                      c);
-
+            if (visualize_soft_indirect) {
+                color_scale(diffuse_from_triple(c), 0.2);
+            }
             color_accumulate(ambient_from_triple(surface), ambient_from_triple(c));
             color_accumulate(diffuse_from_triple(surface), diffuse_from_triple(c));
             color_accumulate(specular_from_triple(surface), specular_from_triple(c));
@@ -793,25 +778,15 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res, struct
     }
 
     // shade the hit with soft indirect diffuse an caustics
-    if (use_gi && (comps->Kd[0] > 0 || comps->Kd[1] > 0 || comps->Kd[2] > 0)) {
-        color_default(ambient_from_triple(c));
-        color_default(diffuse_from_triple(c));
-        color_default(specular_from_triple(c));
-
-        ColorTriple fgather;
-        ColorTriple caustics;
-        color_default(ambient_from_triple(fgather));
-        color_default(ambient_from_triple(caustics));
-        color_default(ambient_from_triple(indirect));
-        color_default(diffuse_from_triple(fgather));
-        color_default(diffuse_from_triple(caustics));
-        color_default(diffuse_from_triple(indirect));
-        color_default(specular_from_triple(fgather));
-        color_default(specular_from_triple(caustics));
-        color_default(specular_from_triple(indirect));
+    if (use_gi && (comps->over_Kd[0] > 0 || comps->over_Kd[1] > 0 || comps->over_Kd[2] > 0)) {
+        Color fgather;
+        Color caustics;
+        color_default(fgather);
+        color_default(caustics);
+        color_default(indirect);
 
         // approximate for the diffuse component, really only useful for visualizing the global pmap
-        if (w->global_config->illumination.debug_visualize_photon_map) {
+        if (visualize_photon_map) {
             lighting_gi(comps,
                         comps->obj,
                         comps->over_point,
@@ -819,7 +794,7 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res, struct
                         comps->normalv,
                         w->photon_maps,
                         indirect);
-        } else if (w->global_config->illumination.debug_visualize_soft_indirect) {
+        } else if (visualize_soft_indirect) {
             lighting_gi(comps,
                         comps->obj,
                         comps->over_point,
@@ -830,7 +805,7 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res, struct
             //surface[0] *= indirect[0];
             //surface[1] *= indirect[1];
             //surface[2] *= indirect[2];
-            color_default(diffuse_from_triple(indirect));
+            color_default(indirect);
         }
 
         // final gather for soft indirect diffuse component
@@ -852,9 +827,9 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res, struct
                         caustics);
         }
 
-        color_accumulate(diffuse_from_triple(surface), diffuse_from_triple(indirect));
-        color_accumulate(diffuse_from_triple(surface), diffuse_from_triple(fgather));
-        color_accumulate(diffuse_from_triple(surface), diffuse_from_triple(caustics));
+        color_accumulate(diffuse_from_triple(surface), indirect);
+        color_accumulate(diffuse_from_triple(surface), fgather);
+        color_accumulate(diffuse_from_triple(surface), caustics);
     }
 
     // shade the hit with specular reflections and refractions
@@ -873,11 +848,12 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res, struct
 
         refracted_color(w, comps, remaining, refracted, container);
 
-        if ((comps->Ks[0] > 0 || comps->Ks[1] > 0 || comps->Ks[2] > 0) && comps->obj->material->Tr > 0.0) {
+        if (comps->obj->material->reflective && comps->obj->material->Tr > 0.0) {
             double reflectance = schlick(comps);
             color_scale(ambient_from_triple(reflected), reflectance);
             color_scale(diffuse_from_triple(reflected), reflectance);
             color_scale(specular_from_triple(reflected), reflectance);
+
             color_scale(ambient_from_triple(refracted), 1.0 - reflectance);
             color_scale(diffuse_from_triple(refracted), 1.0 - reflectance);
             color_scale(specular_from_triple(refracted), 1.0 - reflectance);
@@ -898,12 +874,13 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res, struct
 }
 
 void
-lighting_caustics(Computations comps, Shape shape, Point point, Vector eyev, Vector normalv, PhotonMap *maps, ColorTriple res)
+lighting_caustics(Computations comps, Shape shape, Point point, Vector eyev, Vector normalv, PhotonMap *maps, Color res)
 {
     Color intensity_estimate = {0.0, 0.0, 0.0, 0.0};
     Color caustic;
 
-    color_copy(caustic, comps->Kd);
+    color_copy(caustic, comps->over_Kd);
+
 
     if (!(caustic[0] > 0.0) && !(caustic[1] > 0.0) && !(caustic[2] > 0.0)) {
         return;
@@ -913,7 +890,7 @@ lighting_caustics(Computations comps, Shape shape, Point point, Vector eyev, Vec
     color_scale(intensity_estimate, 1.0 / 10.0);
 
     if (visualize_photon_map) { // TODO investigate whether or not I should do this or always return the intensity_estimate
-        color_copy(diffuse_from_triple(res), intensity_estimate);
+        color_copy(res, intensity_estimate);
     } else {
         double eye_dot_normal = vector_dot(eyev, normalv);
 
@@ -922,48 +899,39 @@ lighting_caustics(Computations comps, Shape shape, Point point, Vector eyev, Vec
         caustic[2] *= intensity_estimate[2];
 
         color_scale(caustic, eye_dot_normal);
-        color_accumulate(diffuse_from_triple(res), caustic);
+        color_accumulate(res, caustic);
     }
 }
 
 void
-lighting_gi(Computations comps, Shape shape, Point point, Vector eyev, Vector normalv, PhotonMap *maps, ColorTriple res)
+lighting_gi(Computations comps, Shape shape, Point point, Vector eyev, Vector normalv, PhotonMap *maps, Color res)
 {
     Color intensity_estimate = {0.0, 0.0, 0.0, 0.0};
     Color diffuse;
 
-    color_copy(diffuse, comps->Kd);
+    color_copy(diffuse, comps->over_Kd);
 
     if (!(diffuse[0] > 0.0) && !(diffuse[1] > 0.0) && !(diffuse[2] > 0.0)) {
         return;
     }
 
     pm_irradiance_estimate(maps+1, intensity_estimate, point, eyev, irradiance_estimate_radius, irradiance_estimate_num, irradiance_estimate_cone_filter_k);
-    // TODO take irradiance_estimate_num into account
+    // TODO take irradiance_estimate_num into account when scaling
+    color_scale(intensity_estimate, 1.5 * M_PI * M_PI / (double)(maps+1)->max_photons);
 
-    if (visualize_photon_map || visualize_soft_indirect) {
-        color_scale(intensity_estimate, M_PI * M_PI * M_PI / (double)(maps+1)->max_photons);
+    double eye_dot_normal = vector_dot(eyev, normalv);
+    if (visualize_photon_map) {
         color_copy(res, intensity_estimate);
-/*
-    } else if (visualize_soft_indirect) {
-        diffuse[0] *= intensity_estimate[0];
-        diffuse[1] *= intensity_estimate[1];
-        diffuse[2] *= intensity_estimate[2];
-
-        // may want to do ambient instead
-        color_scale(diffuse, eye_dot_normal);
-        color_accumulate(diffuse_from_triple(res), diffuse);
-*/
     } else {
-        color_scale(intensity_estimate, M_PI * M_PI / (double)(maps+1)->max_photons);
-        double eye_dot_normal = vector_dot(eyev, normalv);
-
         diffuse[0] *= intensity_estimate[0];
         diffuse[1] *= intensity_estimate[1];
         diffuse[2] *= intensity_estimate[2];
 
         color_scale(diffuse, eye_dot_normal);
-        color_accumulate(diffuse_from_triple(res), diffuse);
+        //if (visualize_soft_indirect) {
+        //    color_scale(diffuse, 0.5);
+        //}
+        color_accumulate(res, diffuse);
     }
 }
 
@@ -971,13 +939,13 @@ void
 lighting(Computations comps, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity, bool use_ambient, bool use_diffuse, bool use_specular_highlights, ColorTriple res)
 {
     Color ambient;
-    color_copy(ambient, comps->Ka);
+    color_copy(ambient, comps->over_Ka);
 
     ambient[0] *= light->intensity[0];
     ambient[1] *= light->intensity[1];
     ambient[2] *= light->intensity[2];
 
-    if (equal(shade_intensity, 0.0)) {
+    if (equal(shade_intensity, 0.0) && !visualize_soft_indirect) {
         if (use_ambient) {
             color_accumulate(ambient_from_triple(res), ambient);
         }
@@ -996,10 +964,10 @@ lighting(Computations comps, Shape shape, Light light, Point point, Vector eyev,
 
     if (use_diffuse || use_specular_highlights) {
         if (use_diffuse) {
-            color_copy(diffuse, comps->Kd);
+            color_copy(diffuse, comps->over_Kd);
         }
         if (use_specular_highlights) {
-            color_copy(specular, comps->Ks);
+            color_copy(specular, comps->over_Ks);
         }
         for (i = 0; i < pts->points_num; i++) {
             vector_from_points(*(pts->points + i), point, diff);
@@ -1014,7 +982,6 @@ lighting(Computations comps, Shape shape, Light light, Point point, Vector eyev,
                     c[2] *= light->intensity[2];
 
                     color_scale(c, light_dot_normal);
-
                     color_accumulate(diffuse_acc, c);
                 }
                 if (use_specular_highlights) {
@@ -1025,11 +992,10 @@ lighting(Computations comps, Shape shape, Light light, Point point, Vector eyev,
 
                     double reflect_dot_eye = vector_dot(reflectv, eyev);
                     if (reflect_dot_eye > 0) {
-                        color_copy(c, specular);
                         double factor = pow(reflect_dot_eye, comps->obj->material->Ns);
-                        specular_acc[0] += light->intensity[0] * c[0] * factor;
-                        specular_acc[1] += light->intensity[1] * c[1] * factor;
-                        specular_acc[2] += light->intensity[2] * c[2] * factor;
+                        specular_acc[0] += light->intensity[0] * specular[0] * factor;
+                        specular_acc[1] += light->intensity[1] * specular[1] * factor;
+                        specular_acc[2] += light->intensity[2] * specular[2] * factor;
                     }
                 }
             }

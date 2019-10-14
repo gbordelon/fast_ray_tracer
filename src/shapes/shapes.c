@@ -133,11 +133,10 @@ void
 shape_set_material_recursive(Shape obj, Material m)
 {
     if (obj != NULL) {
-        //obj->material = m; // i may want to only do this if the material is already null...
         shape_set_material(obj, m);
         if (obj->type == SHAPE_GROUP) {
             int i;
-            for (i = 0; i< obj->fields.group.num_children; i++) {
+            for (i = 0; i< obj->fields.group.num_children; ++i) {
                 shape_set_material_recursive(obj->fields.group.children + i, m);
             }
         }

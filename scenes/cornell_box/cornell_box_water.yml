@@ -1,14 +1,14 @@
 - add: config
   illumination:
     include-direct: true
-    include-global: false
+    include-global: true
     visualize-photon-map: false
     visualize-soft-indirect: false
     direct-illumination:
       include-ambient: true
       include-diffuse: true
       include-specular: true
-      include-specular-highlight: true
+      include-specular-highlight: false
     global-illumination:
       include-caustics: true 
       include-final-gather: false
@@ -17,7 +17,7 @@
       irradiance-estimate-num: 200
       irradiance-estimate-radius: 0.1
       irradiance-estimate-cone-filter-k: 1.0
-      photon-count: 0
+      photon-count: 10000
   threading:
     thread-count: 4
   scene:
@@ -33,15 +33,15 @@
 # ======================================================
 
 - add: camera
-  width: 500
-  height: 400
+  width: 1000
+  height: 800
   field-of-view: 1.2
   from: [ 0, 0, -2.5 ]
   to: [ 0, 0, 0 ]
   up: [ 0, 1, 0 ]
   focal-length: 1
-  usteps: 1
-  vsteps: 1
+  usteps: 4
+  vsteps: 4
   aperture:
     jitter: false
     size: 0
@@ -52,10 +52,10 @@
 # ======================================================
 
 - add: light
-  at: [ 0, 0.6, 0 ]
+  at: [ 0, 0.4, 0 ]
   to: [ 0, -1, 0 ]
-#  at: [ 0, 0, 0 ]
-  intensity: [ 1, 1, 1 ]
+#  at: [ 0, 0, -1 ]
+  intensity: [ 3, 3, 3 ]
 
 #- add: light
 #  corner: [-0.5, 1.4, -0.5]
@@ -171,3 +171,20 @@
 
 
 - add: cbox
+
+#- add: cube
+#  material:
+#    color: [ 1, 1, 1 ]
+#    ambient: 0.5
+#    diffuse: 1
+#    specular: 0
+#    pattern:
+#      type: checker
+#      colors:
+#      - [ 0.1, 0.1, 0.1 ]
+#      - [ 0.0, 0.0, 0.0 ]
+#      transform:
+#      - [ scale, .1, .1, .1]
+#  transform:
+#  - [scale, 2, 0.01, 2]
+#  - [translate, 0,-1.2, 0]

@@ -12,12 +12,14 @@ open /tmp/srgb_render.png
 ```
 
 TODO
-* Refactor yaml parser logic to not load a file multiple times but use shape_copy on the parent group for object files.
-* Refactor canvas/texture maps to only keep one image in memory even if multiple patterns try to load the file.
+* Implement MTL file parsing.
+    * WIP
+    * Use a material's Tf triple to determine the casts_shadow flag. This includes changing the intensity_at function for each light type.
+    * Support illum directives
+    * Support the obj file mtllib directive to determine a material file to import.
 * Add parameters to the config parser
     * obj_loader default vertex num, default group num
 * Refactor patterns into multiple source files
-* Refactor materials out of shapes.{c,h}
 * Add a circular area light
 * Add a spot light
 * Use realloc instead of malloc when resizing arrays for intersections and group.children
@@ -32,9 +34,11 @@ TODO
 * Investigate BLAS/LAPACK
 * Add heirarchical yaml parsing so I can have a global config which is read first before a scene's yaml file.
 * Refactor shapes such that one only needs to include shapes.h
-* Implement MTL file parsing.
 * Add parameters to the config parser
     * epsilon
+* ~~Refactor materials out of shapes.{c,h}~~
+* ~~Refactor yaml parser logic to not load a file multiple times but use shape_copy on the parent group for object files.~~
+* ~~Refactor canvas/texture maps to only keep one image in memory even if multiple patterns try to load the file.~~
 * ~~Add parameters to the config parser~~
     * ~~light source cache size~~
     * ~~Add the ability to configure color space in a yaml config file~~

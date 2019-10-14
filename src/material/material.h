@@ -203,7 +203,7 @@ typedef struct material {
     double Ni; // refractive index
     double Tr; // transparency or 1.0 - d
     size_t illum; // illumination model
-    bool casts_shadow;
+    bool casts_shadow; // hack until Tf is fully supported
     bool reflective;
 
     Pattern map_Ka;
