@@ -90,6 +90,7 @@ typedef struct shape {
     Bounding_box bbox;
     Bounding_box bbox_inverse;
     Intersections xs;
+    Intersections *children_xs;
 
     enum shape_enum type;
     union {

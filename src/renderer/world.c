@@ -41,6 +41,7 @@ shape_copy(Shape s, Shape parent, Shape res)
     res->parent = parent;
     res->material = NULL;
     res->xs = NULL;
+    res->children_xs = NULL;
     res->bbox = NULL;
     res->bbox_inverse = NULL;
     shape_set_material(res, s->material);
@@ -72,6 +73,8 @@ shape_copy(Shape s, Shape parent, Shape res)
         res->xs = intersections_empty(64);
         res->fields.group.children_need_free = true;
         res->fields.group.children = array_of_shapes(s->fields.group.num_children);
+        res->children_xs = (Intersections *) malloc(s->fields.group.num_children * sizeof(Intersections));
+
         for (i = 0, to = res->fields.group.children, from = s->fields.group.children;
                 i < s->fields.group.num_children;
                 i++, to++, from++) {

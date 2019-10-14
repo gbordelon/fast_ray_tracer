@@ -50,8 +50,8 @@
   to: [0, 1, 0]
   up: [0, 1, 0]
   focal-length: 1
-  usteps: 2
-  vsteps: 2
+  usteps: 1
+  vsteps: 1
   aperture:
     jitter: false
     size: 0
@@ -142,7 +142,7 @@
         ambient: 0
         diffuse: 0.4
         specular: 0
-        transparency: 0.6
+        transparency: 0.9
         refractive-index: 1
 
 - add: group

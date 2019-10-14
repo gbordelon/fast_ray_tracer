@@ -363,14 +363,12 @@ construct_group_from_obj_file(const char *file_path, bool use_mtl, void (*color_
 
     FILE *mtl_file = fopen(mtl_file_path, "r");
     if (mtl_file == NULL) {
-        fclose(obj_file);
         printf("Error opening file %s", mtl_file_path);
-        return;
+    } else {
+        parse_mtl(mtl_file, color_space_fn);
+        fclose(mtl_file);
     }
 
-    parse_mtl(mtl_file, color_space_fn);
-
-    fclose(mtl_file);
 
     double *vertexes = (double *)malloc(4 * DEFAULT_VERTEX_NUM * sizeof(double));
     double *textures = (double *)malloc(4 * DEFAULT_VERTEX_NUM * sizeof(double));
