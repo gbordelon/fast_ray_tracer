@@ -21,6 +21,10 @@
     thread-count: 4
   scene:
     divide-threshold: 1
+  output:
+    file: '/tmp/out_file'
+    # see src/renderer/config.h for the enum
+    color-space: 'SRGB'
 
 
 # ======================================================
