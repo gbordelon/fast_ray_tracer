@@ -36,7 +36,8 @@ triangle_local_intersect(Shape triangle, Ray r)
     Intersections xs = triangle->xs;
     xs->num = 0;
 
-    intersection(t, triangle, xs->xs);
+    //intersection(t, triangle, xs->xs);
+    intersection_with_uv(t, u, v, triangle, xs->xs);
     xs->num = 1;
 
     return xs;
@@ -75,6 +76,7 @@ triangle(Shape s, double p1[4], double p2[4], double p3[4])
     s->bbox = NULL;
     s->bbox_inverse = NULL;
     s->xs = intersections_empty(1);
+    s->fields.triangle.use_textures = false;
 
     memcpy(s->fields.triangle.p1, p1, sizeof(Point));
     memcpy(s->fields.triangle.p2, p2, sizeof(Point));
@@ -116,8 +118,6 @@ triangle_point_alloc(Point p1, Point p2, Point p3)
 {
     return triangle_array_alloc(p1, p2, p3);
 }
-
-
 
 Intersections
 smooth_triangle_local_intersect(Shape triangle, Ray r)
@@ -187,6 +187,7 @@ smooth_triangle(Shape s,
     s->bbox = NULL;
     s->bbox_inverse = NULL;
     s->xs = intersections_empty(1);
+    s->fields.triangle.use_textures = false;
 
     memcpy(s->fields.triangle.p1, p1, sizeof(Point));
     memcpy(s->fields.triangle.p2, p2, sizeof(Point));

@@ -98,7 +98,8 @@ enum uv_map_type {
     CYLINDER_UV_MAP,
     PLANE_UV_MAP,
     SPHERE_UV_MAP,
-    TOROID_UV_MAP
+    TOROID_UV_MAP,
+    TRIANGLE_UV_MAP
 };
 
 struct uv_map_pattern_fields {

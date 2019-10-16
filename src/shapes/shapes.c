@@ -15,6 +15,12 @@ array_of_shapes(size_t num)
     return (Shape)malloc(num * sizeof(struct shape));
 }
 
+Shape
+array_of_shapes_realloc(Shape ptr, size_t num)
+{
+    return (Shape)realloc(ptr, num * sizeof(struct shape));
+}
+
 void
 shape_free(Shape s)
 {
@@ -42,14 +48,24 @@ shape_normal_at(Shape sh, Point world_point, Intersection hit, Vector res)
     Vector local_normal;
     Vector perturbed;
     Vector world_normal;
+    Vector tmp;
 
     sh->world_to_object(sh, world_point, local_point);
 
     sh->local_normal_at(sh, local_point, hit, local_normal);
 
+
     if (sh->material->map_bump != NULL) {
-        sh->material->map_bump->pattern_at_shape(sh->material->map_bump, sh, local_normal, perturbed);
+        vector_copy(tmp, world_point);
+        tmp[3] = 1.0;
+
+        sh->material->map_bump->pattern_at_shape(sh->material->map_bump, sh, tmp, perturbed);
+        perturbed[3] = 0.0;
+
         color_accumulate(local_normal, perturbed);
+        vector_normalize(local_normal, tmp);
+        //vector_copy(local_normal, tmp);
+        vector_copy(local_normal, perturbed);
     }
 
     sh->normal_to_world(sh, local_normal, world_normal);

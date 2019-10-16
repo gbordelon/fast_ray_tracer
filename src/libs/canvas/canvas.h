@@ -34,5 +34,6 @@ int write_ppm_file(Canvas c, const bool use_scaling, const char *file_name);
 int write_png(Canvas c, const char *file_name);
 
 Canvas construct_canvas_from_ppm_file(const char * file_path);
+int read_png(Canvas *c, const char *filename);
 
 #endif

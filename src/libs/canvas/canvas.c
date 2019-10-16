@@ -494,3 +494,147 @@ write_png(Canvas c, const char *file_name)
   return code;
 }
 
+int
+read_png (Canvas *c, const char *filename)
+{
+  int code = 0, i;
+  size_t width, height;
+  bool sRGB;
+  png_bytep *row_ptr = NULL;
+  png_structp png_ptr = NULL;
+  png_byte color_type;
+  png_byte bit_depth;
+  png_infop info_ptr = NULL;
+  uint8_t *buffer = NULL;
+  // NOTE: This code wraps around C code with setjmp.  I avoid C++
+  // exceptions at all costs except at the end
+  FILE *fp = fopen(filename, "rb");
+  if (fp == NULL) {
+    code = 1;
+    goto read_cleanup;
+  }
+
+  png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+  if (png_ptr == NULL) {
+    code = 2;
+    goto read_cleanup;
+  }
+
+  info_ptr = png_create_info_struct(png_ptr);
+  if (info_ptr == NULL) {
+    code = 2;
+    goto read_cleanup;
+  }
+
+  if (setjmp(png_jmpbuf(png_ptr))) {
+    code = 2;
+    goto read_cleanup;
+  }
+
+  png_init_io(png_ptr, fp);
+
+  png_read_info(png_ptr, info_ptr);
+
+  color_type = png_get_color_type(png_ptr, info_ptr);
+  bit_depth = png_get_bit_depth(png_ptr, info_ptr);
+  // set image dimensions
+  width = png_get_image_width(png_ptr, info_ptr);
+  height = png_get_image_height(png_ptr, info_ptr);
+
+  int intent;
+  sRGB = png_get_sRGB(png_ptr, info_ptr, &intent) == PNG_INFO_sRGB;
+
+  // we want to translate everything to 48-bit RGB color
+  // http://www.libpng.org/pub/png/libpng-1.2.5-manual.html
+  //if (bit_depth == 8) {
+  //  png_set_filler(png_ptr, 0x00, PNG_FILLER_BEFORE);
+  //}
+
+  if (color_type == PNG_COLOR_TYPE_PALETTE) {
+    png_set_palette_to_rgb(png_ptr);
+  }
+
+  if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) {
+    png_set_expand_gray_1_2_4_to_8(png_ptr);
+  }
+
+  if (color_type == PNG_COLOR_TYPE_GRAY ||
+      color_type == PNG_COLOR_TYPE_GRAY_ALPHA) {
+    png_set_gray_to_rgb(png_ptr);
+  }
+
+  if (color_type & PNG_COLOR_MASK_ALPHA) {
+    png_set_strip_alpha(png_ptr);
+  }
+
+  png_read_update_info(png_ptr, info_ptr);
+
+
+  // use png_read_image interface so it can handle weird cases like
+  // interlaced compression, etc
+  row_ptr = (png_bytep *)malloc(height * sizeof(png_bytep));
+  if (bit_depth == 8) {
+    buffer = (uint8_t *)malloc(width * height * 3 * sizeof(uint8_t));
+  } else if (bit_depth == 16) {
+    buffer = (uint8_t *)malloc(width * height * 3 * sizeof(uint16_t));
+  }
+  for (i = 0; i < height; i++) {
+    if (bit_depth == 8) {
+      row_ptr[i] = (png_bytep) (buffer + 3 * i * width * sizeof(uint8_t));
+    } else if (bit_depth == 16) {
+      row_ptr[i] = (png_bytep) (buffer + 3 * i * width * sizeof(uint16_t));
+    }
+  }
+  png_read_image(png_ptr, row_ptr);
+
+  // convert buffer to Canvas
+  *c = canvas_alloc(width, height);
+  if (*c == NULL) {
+    code = 3;
+    goto read_cleanup;
+  }
+
+  Color *out;
+  uint8_t *rgb;
+  size_t total_rgb_count = width * height;
+  for (i = 0, out = (*c)->arr, rgb = buffer; i < total_rgb_count; i++, out++, rgb += 3) {
+    (*out)[3] = 0.0;
+    if (bit_depth == 8) {
+        (*out)[0] = ((double)rgb[0]) / 255.0;
+        (*out)[1] = ((double)rgb[1]) / 255.0;
+        (*out)[2] = ((double)rgb[2]) / 255.0;
+    } else if (bit_depth == 16) {
+        uint16_t tmp = (rgb[0] & 0xff << 8);
+        tmp |= rgb[1] & 0xff;
+        (*out)[0] = ((double)tmp) / 65535.0;
+        tmp = (rgb[2] & 0xff << 8);
+        tmp |= rgb[3] & 0xff;
+        (*out)[1] = ((double)tmp) / 65535.0;
+        tmp = (rgb[4] & 0xff << 8);
+        tmp |= rgb[5] & 0xff;
+        (*out)[2] = ((double)tmp) / 65535.0;
+        rgb += 3;
+    }
+  }
+
+ read_cleanup:
+  if (fp != NULL) {
+    fclose(fp);
+  }
+  if (info_ptr != NULL) {
+    png_free_data(png_ptr, info_ptr, PNG_FREE_ALL, -1);
+  }
+  if (png_ptr != NULL) {
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+  }
+  if (row_ptr != NULL) {
+    free(row_ptr);
+  }
+  if (buffer != NULL) {
+    free(buffer);
+  }
+
+  return code;
+}
+
+

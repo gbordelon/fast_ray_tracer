@@ -1,4 +1,5 @@
 #include <math.h>
+#include <string.h>
 
 #include "../libs/perlin/perlin.h"
 #include "../color/color.h"
@@ -188,15 +189,19 @@ stripe_pattern_at(Pattern p, Shape s, Point pt, Color res)
     color_copy(res, arr);
 }
 
-
 void
 texture_map_pattern_at(Pattern p, Shape s, Point pt, Color res)
 {
     UVMapReturnType face_u_v;
+    Point uv_pattern_point;
+    Color c;
+    
     p->uv_map(s, pt, &face_u_v);
     Pattern face = p->fields.uv_map.uv_faces + face_u_v.face;
 
-    Color c;
+    matrix_point_multiply(face->transform_inverse, pt, uv_pattern_point);
+    p->uv_map(s, uv_pattern_point, &face_u_v);
+
     face->uv_pattern_at(face, face_u_v.u, face_u_v.v, c);
     color_copy(res, c);
 }
@@ -273,8 +278,8 @@ uv_texture_uv_pattern_at(Pattern p, double u, double v, Color res)
 {
     // remember v=0 at the bottom, v=1 at the top
     v = 1 - v;
-    int y = (int)round(u * (double)(p->fields.uv_texture.canvas->width - 1));
-    int x = (int)round(v * (double)(p->fields.uv_texture.canvas->height - 1));
+    size_t y = (size_t)round(u * (double)(p->fields.uv_texture.canvas->width - 1));
+    size_t x = (size_t)round(v * (double)(p->fields.uv_texture.canvas->height - 1));
 
     Color c;
     canvas_pixel_at(p->fields.uv_texture.canvas, y, x, c);
@@ -371,6 +376,50 @@ cylinder_uv_map(Shape s, Point pt, UVMapReturnType *retval)
         retval->u = fmod((pt[0] + 1.0), 2.0) / 2.0;
         retval->v = fmod((pt[2] + 1.0), 2.0) / 2.0;
         break;
+    }
+}
+
+void
+triangle_uv_map(Shape s, Point pt, UVMapReturnType *retval)
+{
+    retval->face = 0;
+
+    Vector v1, v2, v3;
+
+    // https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
+    // Compute barycentric coordinates (u, v, w) for point pt with respect to triangle (a, b, c)
+    vector_from_points(pt, s->fields.triangle.p1, v2);
+    
+    double d00 = vector_dot(s->fields.triangle.e1, s->fields.triangle.e1);
+    double d01 = vector_dot(s->fields.triangle.e1, s->fields.triangle.e2);
+    double d11 = vector_dot(s->fields.triangle.e2, s->fields.triangle.e2);
+    double d20 = vector_dot(v2, s->fields.triangle.e1);
+    double d21 = vector_dot(v2, s->fields.triangle.e2);
+    double denom = 1.0 / (d00 * d11 - d01 * d01);
+    double u, v, w;
+    v = fmod((d11 * d20 - d01 * d21) * denom, 1.0);
+    w = fmod((d00 * d21 - d01 * d20) * denom, 1.0);
+    u = 1.0 - v - w;
+
+    memcpy(v1, s->fields.triangle.t1, sizeof(Vector));
+    memcpy(v2, s->fields.triangle.t2, sizeof(Vector));
+    memcpy(v3, s->fields.triangle.t3, sizeof(Vector));
+
+    vector_scale(v1, u);
+    vector_scale(v2, v);
+    vector_scale(v3, 1.0 - u - v);
+
+    v1[0] += v2[0] + v3[0];
+    v1[1] += v2[1] + v3[1];
+    v1[2] += v2[2] + v3[2];
+    retval->u = fmod(v1[0], 1.0);
+    retval->v = fmod(v1[1], 1.0);
+
+    if (retval->u < 0) {
+        retval->u += 1.0;
+    }
+    if (retval->v < 0) {
+        retval->v += 1.0;
     }
 }
 
@@ -653,6 +702,9 @@ texture_map_pattern(Pattern faces, enum uv_map_type type, Pattern res)
         break;
     case TOROID_UV_MAP:
         res->uv_map = toroid_uv_map;
+        break;
+    case TRIANGLE_UV_MAP:
+        res->uv_map = triangle_uv_map;
         break;
     default:
         // already set res->uv_map to an error function in the default constructor

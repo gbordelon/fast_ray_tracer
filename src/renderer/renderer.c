@@ -643,7 +643,7 @@ final_gather(World w, Computations comps, Color res, struct container *container
     size_t index[2];
     double rands[2];
     size_t num_samples = 0;
-    Color *cell_power = (ColorTriple *)malloc(num_rays * sizeof(Color));
+    Color *cell_power = (Color *)malloc(num_rays * sizeof(Color));
     struct sampler sampler;
 
     sampler_2d(true, final_gather_usteps, final_gather_vsteps, sampler_default_constraint, &sampler);

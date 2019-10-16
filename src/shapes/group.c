@@ -62,7 +62,7 @@ recursive_invalidate_bounding_box(Shape sh)
 }
 
 void
-group_add_children(Shape group, Shape children, size_t num_children)
+group_add_children_stage(Shape group, Shape children, size_t num_children)
 {
     int from;
     for (from = 0; from < num_children; from++) {
@@ -72,25 +72,38 @@ group_add_children(Shape group, Shape children, size_t num_children)
             if (group->fields.group.num_children >= (group->fields.group.size_children_array - 1)) {
                 group->fields.group.children = (Shape) realloc(group->fields.group.children, group->fields.group.size_children_array * 2 * sizeof(struct shape));
 
-                //if (group->fields.group.children_need_free) {
-                //    free(group->fields.group.children); // shape_free
-                //}
-                group->fields.group.children_need_free = true;
                 group->fields.group.size_children_array *= 2;
             }
 
             // copy child_from to child_to
-            *(group->fields.group.children + group->fields.group.num_children) = *(children +from);
+            *(group->fields.group.children + group->fields.group.num_children) = *(children + from);
 
             // increment counts and pointers
-            recursive_invalidate_bounding_box(group);
             group->fields.group.num_children += 1;
-            group_recursive_parent_update(group->fields.group.children + group->fields.group.num_children, group);
         }
     }
     if (num_children > 0) {
         group->children_xs = (Intersections *) realloc(group->children_xs, (num_children + group->fields.group.num_children) * sizeof(Intersections));
     }
+}
+
+void
+group_add_children_finish(Shape group)
+{
+    if (group != NULL) {
+        int i;
+        recursive_invalidate_bounding_box(group);
+        for (i = 0; i < group->fields.group.num_children; ++i) {
+            group_recursive_parent_update(group->fields.group.children + i, group);
+        }
+    }
+}
+
+void
+group_add_children(Shape group, Shape children, size_t num_children)
+{
+    group_add_children_stage(group, children, num_children);
+    group_add_children_finish(group);
 }
 
 Intersections
@@ -338,11 +351,8 @@ group_divide(Shape g, size_t threshold)
             // copy from middle_start for middle_count into new array
             memcpy(new_group_pos, g->fields.group.children + map.middle_start, map.middle_count * sizeof(struct shape));
             
-            if (g->fields.group.children_need_free) {
-                free(g->fields.group.children);
-            }
+            free(g->fields.group.children);
             g->fields.group.children = new_children;
-            g->fields.group.children_need_free = true;
             g->fields.group.num_children = map.middle_count;
             if (map.left_count > 0) {
                 g->fields.group.num_children++;
@@ -404,7 +414,6 @@ group(Shape s, Shape children, size_t num_children)
     }
 
     s->fields.group.num_children = num_children;
-    s->fields.group.children_need_free = true;
     s->fields.group.size_children_array = array_len;
     s->bbox = NULL;
     s->bbox_inverse = NULL;

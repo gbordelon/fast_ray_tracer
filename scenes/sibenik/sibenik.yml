@@ -1,7 +1,7 @@
 - add: config
   illumination:
     include-direct: true
-    include-global: true
+    include-global: false
     visualize-photon-map: false
     visualize-soft-indirect: false
     direct-illumination:
@@ -17,7 +17,7 @@
       irradiance-estimate-num: 200
       irradiance-estimate-radius: 0.1
       irradiance-estimate-cone-filter-k: 1.0
-      photon-count: 100000
+      photon-count: 10000
   threading:
     thread-count: 4
   scene:
@@ -33,15 +33,15 @@
 # ======================================================
 
 - add: camera
-  width: 400
-  height: 400
+  width: 800
+  height: 1000
   field-of-view: 1.2
-  from: [ 0, 0, -30 ]
-  to: [ 0, 0, 0 ]
+  from: [ 0, 0, -15 ]
+  to: [ 0, 0, 1 ]
   up: [ 0, 1, 0 ]
   focal-length: 1
-  usteps: 1
-  vsteps: 1
+  usteps: 2
+  vsteps: 2
   aperture:
     jitter: false
     size: 0.4
@@ -59,7 +59,7 @@
 # ======================================================
 
 - add: light
-  at: [ 0, 30, -30 ]
+  at: [ 0, 2, 0 ]
 #  to: [ 0, -1, 0 ]
 #  at: [ 0, 0, 0 ]
   intensity: [ 1, 1, 1 ]
@@ -106,9 +106,28 @@
     add: obj
     file: scenes/sibenik/sibenik.obj
     transform:
-#    - [ rotate-y, 3.14159 ]
-    - [ translate, 0, -0.8, 0 ]
-#    - [ scale, 0.268, 0.268, 0.268 ]
+    - [ rotate-y, -1.57 ]
+    #- [ rotate-x, 1.57 ]
+    - [ translate, 0, 12, 0 ]
+    #- [ scale, 3, 3, 3 ]
 
 
 - add: sibenik
+#- add: cube
+#  transform:
+#  - [ scale, 5, 0.1, 5 ]
+#  - [ translate, 0, -4, 0 ]
+#  material:
+#    diffuse: 0.9
+#    ambient: 0.1
+#    specular: 0
+#    pattern:
+#      type: map
+#      mapping: planar
+#      uv_pattern:
+#        type: image
+#        file: scenes/sibenik/mramor6x6.png
+#      transform:
+#      - [ scale, 0.5, 0.5, 0.5 ]
+#
+

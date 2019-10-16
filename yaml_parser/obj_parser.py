@@ -36,10 +36,9 @@ class OBJParser(Shape):
         printf("file '{1}' does not exist.");
         return 1;
     }}
-    bool shape_{0}_use_mtl = access("{2}", F_OK ) >= 0;
     printf("Loading resource '{1}'... ");
     fflush(stdout);
-    construct_group_from_obj_file("{1}", shape_{0}_use_mtl, color_space_fn, shape_{0});
+    construct_group_from_obj_file("{1}", color_space_fn, shape_{0});
     printf("Done!\\n");
     fflush(stdout);
 """.format(name, file_path, file_path[:-3] + 'mtl')

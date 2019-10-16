@@ -47,7 +47,6 @@ struct group_fields {
     struct shape *children;
     size_t num_children;
     size_t size_children_array;
-    bool children_need_free;
 };
 
 struct cone_cylinder_fields {
@@ -70,6 +69,7 @@ struct triangle_fields {
     Vector t3;
     Vector e1;
     Vector e2;
+    bool use_textures;
     union {
         Vector normal; // triangle
         struct {
@@ -117,6 +117,7 @@ typedef struct shape {
 
 
 Shape array_of_shapes(size_t num);
+Shape array_of_shapes_realloc(Shape ptr, size_t num);
 void shape_free(Shape s);
 
 void shape_normal_at(Shape sh, Point world_point, Intersection hit, Vector res);

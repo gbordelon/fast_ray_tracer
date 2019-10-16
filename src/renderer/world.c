@@ -71,7 +71,6 @@ shape_copy(Shape s, Shape parent, Shape res)
         break;
     case SHAPE_GROUP:
         res->xs = intersections_empty(64);
-        res->fields.group.children_need_free = true;
         res->fields.group.children = array_of_shapes(s->fields.group.num_children);
         res->children_xs = (Intersections *) malloc(s->fields.group.num_children * sizeof(Intersections));
 
