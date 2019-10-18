@@ -36,14 +36,16 @@ shape_copy(Shape s, Shape parent, Shape res)
     int i;
     Shape to, from;
 
-    //memcpy(res, s, sizeof(struct shape));
+    if (s == res) {
+        printf("Trying to copy a shape to itself.\n");
+        return;
+    }
+
     *res = *s;
     res->parent = parent;
-    res->material = NULL;
-    res->xs = NULL;
-    res->children_xs = NULL;
     res->bbox = NULL;
     res->bbox_inverse = NULL;
+    res->material = NULL;
     shape_set_material(res, s->material);
 
     switch (s->type) {
@@ -72,7 +74,7 @@ shape_copy(Shape s, Shape parent, Shape res)
     case SHAPE_GROUP:
         res->xs = intersections_empty(64);
         res->fields.group.children = array_of_shapes(s->fields.group.num_children);
-        res->children_xs = (Intersections *) malloc(s->fields.group.num_children * sizeof(Intersections));
+        res->fields.group.children_xs = (Intersections *) malloc(s->fields.group.num_children * sizeof(Intersections));
 
         for (i = 0, to = res->fields.group.children, from = s->fields.group.children;
                 i < s->fields.group.num_children;
@@ -170,11 +172,10 @@ intersect_world(const World w, const Ray r)
 
         // realloc
         if (xs_1->num + w->xs->num >= w->xs->array_len) {
-            Intersections xs_2 = intersections_empty(2 * w->xs->array_len);
-            memcpy(xs_2->xs, w->xs->xs, w->xs->array_len * sizeof(struct intersection));
-            xs_2->num = w->xs->num;
-            intersections_free(w->xs);
-            w->xs = xs_2;
+            size_t new_array_size = (xs_1->num + w->xs->num) > (2 * w->xs->array_len)
+                                  ? (xs_1->num + w->xs->num)
+                                  : (2 * w->xs->array_len);
+            intersections_realloc(w->xs, new_array_size);
         }
 
         // copy from xs_1 into xs + xs->num

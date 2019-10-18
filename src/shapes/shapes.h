@@ -47,6 +47,7 @@ struct group_fields {
     struct shape *children;
     size_t num_children;
     size_t size_children_array;
+    Intersections *children_xs;
 };
 
 struct cone_cylinder_fields {
@@ -90,7 +91,6 @@ typedef struct shape {
     Bounding_box bbox;
     Bounding_box bbox_inverse;
     Intersections xs;
-    Intersections *children_xs;
 
     enum shape_enum type;
     union {

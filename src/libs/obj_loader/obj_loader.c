@@ -51,7 +51,7 @@ set_material_flags(Material m)
 }
 
 Pattern
-parse_map(const char *line)
+parse_map(const char *line, void (*color_space_fn)(const Color, Color))
 {
     char file_name[MAX_MATERIAL_NAME_LEN];
     size_t name_len;
@@ -71,9 +71,9 @@ parse_map(const char *line)
 
     // decide on ppm or png file parser
     if (strcmp(file_name + name_len - 3, "ppm") == 0) {
-        image = construct_canvas_from_ppm_file(file_name);
+        construct_canvas_from_ppm_file(&image, file_name, color_space_fn);
     } else if (strcmp(file_name + name_len - 3, "png") == 0) {
-        read_png(&image, file_name);
+        read_png(&image, file_name, color_space_fn);
     } else {
         printf("unrecognized file format for file %s\n", file_name);
         return NULL;
@@ -175,14 +175,14 @@ parse_mtl(FILE *mtl_file, void (*color_space_fn)(const Color, Color))
             } else if (strncmp(ptr, "noshadow", 8) == 0) {
                 current_material->casts_shadow = false;
             } else if (strncmp(ptr, "map_Ka", 6) == 0) {
-                p = parse_map(ptr);
+                p = parse_map(ptr, color_space_fn);
                 material_set_pattern(current_material, map_Ka, p);
             } else if (strncmp(ptr, "map_Kd", 6) == 0) {
-                p = parse_map(ptr);
+                p = parse_map(ptr, color_space_fn);
                 material_set_pattern(current_material, map_Kd, p);
             } else if (strncmp(ptr, "map_bump", 8) == 0) {
-                //p = parse_map(ptr);
-                //material_set_pattern(current_material, map_bump, p);
+                p = parse_map(ptr, color_space_fn);
+                material_set_pattern(current_material, map_bump, p);
 /*
             } else if (strncmp(ptr, "map_Ks", 6) == 0) {
             } else if (strncmp(ptr, "map_Ns", 6) == 0) {
@@ -248,7 +248,7 @@ fan_triangulation(char *line, double *vertexes, double *textures, double *normal
 
     pch2 = strtok(NULL, " \t");
     pch3 = strtok(NULL, " \t");
-    while (pch2 != NULL && pch3 != NULL) {
+    while (pch2 != NULL && pch3 != NULL && *pch3 != '\n') {
         if (strchr(pch2, '/') == NULL) {
             sscanf(pch2, "%lu", &v11);
         } else {
@@ -272,8 +272,9 @@ fan_triangulation(char *line, double *vertexes, double *textures, double *normal
 
         // realloc if no room
         if (rv.num >= (shape_capacity - 1)) {
-            rv.shapes = array_of_shapes_realloc(rv.shapes, 2 * shape_capacity);
-            shape_capacity *= 2;
+            size_t new_array_len = rv.num > (2 * shape_capacity) ? rv.num : (2 * shape_capacity);
+            rv.shapes = array_of_shapes_realloc(rv.shapes, new_array_len);
+            shape_capacity = new_array_len;
             shape = rv.shapes + rv.num;
         }
 
@@ -288,14 +289,12 @@ fan_triangulation(char *line, double *vertexes, double *textures, double *normal
         }
 
         if (use_textures) {
-            memcpy(shape->fields.triangle.t1, textures + (t10-1) * 4, 3 * sizeof(double));
-            memcpy(shape->fields.triangle.t2, textures + (t11-1) * 4, 3 * sizeof(double));
-            memcpy(shape->fields.triangle.t3, textures + (t12-1) * 4, 3 * sizeof(double));
-            shape->fields.triangle.t1[3] = 0.0;
-            shape->fields.triangle.t2[3] = 0.0;
-            shape->fields.triangle.t3[3] = 0.0;
+            vector_copy(shape->fields.triangle.t1, textures + (t10-1) * 4);
+            vector_copy(shape->fields.triangle.t2, textures + (t11-1) * 4);
+            vector_copy(shape->fields.triangle.t3, textures + (t12-1) * 4);
             shape->fields.triangle.use_textures = true;
         }
+
         shape++;
         rv.num++;
 
@@ -318,14 +317,11 @@ void
 parse_vertex(char *line, double *arr, size_t offset)
 {
     sscanf(line, "%*s %lf %lf %lf", arr + 4 * offset, (arr + 4 * offset + 1), (arr + 4 * offset + 2));
-    *(arr + 4 * offset + 3) = 1.0;
 }
 
 int
-obj_parse_line(char *line, group_with_name *first_group, size_t *current_group_index, size_t *number_of_groups, double *head_vertexes, double *head_textures, double *head_normals, size_t *number_of_vertexes, size_t *number_of_textures, size_t *number_of_normals, void (*color_space_fn)(const Color, Color))
+obj_parse_line(char *line, group_with_name *first_group, size_t *current_group_index, size_t *number_of_groups, double *head_vertexes, double *head_textures, double *head_normals, size_t *number_of_vertexes, size_t *number_of_textures, size_t *number_of_normals, void (*color_space_fn)(const Color, Color), Material *current_material, bool *started_a_group)
 {
-    static Material current_material = NULL;
-    static bool started_a_group = false;
     char *new_group_name;
     struct shape_num_tuple children;
     char material_name[MAX_MATERIAL_NAME_LEN];
@@ -337,33 +333,39 @@ obj_parse_line(char *line, group_with_name *first_group, size_t *current_group_i
         if (strncmp(line, "v ", 2) == 0) {
             // parse vertex line
             parse_vertex(line, head_vertexes, *number_of_vertexes);
+            *(head_vertexes + 4 * *number_of_vertexes + 3) = 1.0;
             (*number_of_vertexes)++;
             return 0;
         } else if (strncmp(line, "vt ", 3) == 0) {
             // parse texture line
             parse_vertex(line, head_textures, *number_of_textures);
+            *(head_textures + 4 * *number_of_textures + 3) = 0.0;
             (*number_of_textures)++;
             return 1;
         } else if (strncmp(line, "vn ", 3) == 0) {
             // parse normal line
             parse_vertex(line, head_normals, *number_of_normals);
+            *(head_normals + 4 * *number_of_normals + 3) = 0.0;
             (*number_of_normals)++;
             return 2;
         } else if (strncmp(line, "f ", 2) == 0) {
             // fan triangulate line and put triangles into the current group
             children = fan_triangulation(line+2, head_vertexes, head_textures, head_normals);
             if (children.num > 0) {
-                if (current_material != NULL) {
+                if (*current_material != NULL) {
                     for (i = 0; i < children.num; i++) {
-                        shape_set_material(children.shapes + i, current_material);
+                        shape_set_material(children.shapes + i, *current_material);
                     }
                 }
-                started_a_group = true;
+                *started_a_group = true;
                 group_add_children_stage((first_group + *current_group_index)->group,
                                    children.shapes,
                                    children.num);
             }
-            free(children.shapes);//shape_free(children.shapes);
+            for (i = 0; i < children.num; i++) {
+                shape_free(children.shapes + i);
+            }
+            free(children.shapes);
             return 3;
         } else if (strncmp(line, "g ", 2) == 0) {
             // change group context and create a new group if necessary
@@ -374,9 +376,9 @@ obj_parse_line(char *line, group_with_name *first_group, size_t *current_group_i
                     break;
                 }
             }
-            if (started_a_group) {
+            if (*started_a_group) {
                 group_add_children_finish((first_group + *number_of_groups)->group);
-                started_a_group = false;
+                *started_a_group = false;
             }
             if (i == *number_of_groups) {
                 // need to allocate a new group
@@ -396,13 +398,14 @@ obj_parse_line(char *line, group_with_name *first_group, size_t *current_group_i
             // lookup material by material_name in the ht
             HASH_FIND_STR(materials_ht, material_name, s);
             if (s != NULL) {
-                current_material = s->material;
+                *current_material = s->material;
             } else {
                 printf("Material %s not found.\n", material_name);
             }
+            return 5;
         } else if (strncmp(line, "mtllib", 6) == 0) {
             sscanf(line, "%*s %255s", mtl_file_name);
-            if (access("scenes/sibenik/sibenik.mtl", F_OK ) < 0) {
+            if (access(mtl_file_name, F_OK ) < 0) {
                 printf("file %s not found.\n", mtl_file_name);
             } else {
                 FILE *mtl_file = fopen(mtl_file_name, "r");
@@ -413,6 +416,7 @@ obj_parse_line(char *line, group_with_name *first_group, size_t *current_group_i
                     fclose(mtl_file);
                 }
             }
+            return 6;
         }
     }
     return -1;
@@ -438,10 +442,6 @@ construct_group_from_obj_file(const char *file_path, void (*color_space_fn)(cons
     double *textures = (double *)malloc(4 * DEFAULT_VERTEX_NUM * sizeof(double));
     double *normals = (double *)malloc(4 * DEFAULT_VERTEX_NUM * sizeof(double));
 
-    double *vertexes_itr = vertexes;
-    double *textures_itr = textures;
-    double *normals_itr = normals;
-
     size_t vertexes_size = DEFAULT_VERTEX_NUM;
     size_t textures_size = DEFAULT_VERTEX_NUM;
     size_t normals_size = DEFAULT_VERTEX_NUM;
@@ -457,6 +457,9 @@ construct_group_from_obj_file(const char *file_path, void (*color_space_fn)(cons
     group(groups->group, NULL, 0);
     groups_count++;
 
+    Material current_material = NULL;
+    bool started_a_group = false;
+
     while(fgets(line, sizeof(line), obj_file)) {
         line_type = obj_parse_line(line,
                                 groups,
@@ -468,61 +471,50 @@ construct_group_from_obj_file(const char *file_path, void (*color_space_fn)(cons
                                 &vertex_count,
                                 &texture_count,
                                 &normal_count,
-                                color_space_fn);
+                                color_space_fn,
+                                &current_material,
+                                &started_a_group);
 
         if (vertexes_size <= (vertex_count + 4)) {
-            printf("allocating a new array\n");
-            double *new_arr = (double *)malloc(4 * vertexes_size * 2 * sizeof(double));
-            memcpy(new_arr, vertexes, vertex_count * 4 * sizeof(double));
-            free(vertexes);
-            vertexes = new_arr;
-            vertexes_itr = new_arr + vertex_count * 4;
+            printf("allocating a new v  array\n");
+            vertexes = (double *)realloc(vertexes, 4 * vertexes_size * 2 * sizeof(double));
             vertexes_size *= 2;
         }
         if (textures_size <= (texture_count + 4)) {
-            printf("allocating a new array\n");
-            double *new_arr = (double *)malloc(4 * textures_size * 2 * sizeof(double));
-            memcpy(new_arr, textures, texture_count * 4 * sizeof(double));
-            free(textures);
-            textures = new_arr;
-            textures_itr = new_arr + texture_count * 4;
+            printf("allocating a new vt array\n");
+            textures = (double *)realloc(textures, 4 * textures_size * 2 * sizeof(double));
             textures_size *= 2;
         }
         if (normals_size <= (normal_count + 4)) {
-            printf("allocating a new array\n");
-            double *new_arr = (double *)malloc(4 * normals_size * 2 * sizeof(double));
-            memcpy(new_arr, normals, normal_count * 4 * sizeof(double));
-            free(normals);
-            normals = new_arr;
-            normals_itr = new_arr + normal_count * 4;
+            printf("allocating a new vn array\n");
+            normals = (double *)realloc(normals, 4 * normals_size * 2 * sizeof(double));
             normals_size *= 2;
         }
         if (groups_count >= (groups_size - 1)) {
-            group_with_name *new_groups = (group_with_name *)malloc(2 * groups_size * sizeof(group_with_name));
-            memcpy(new_groups, groups, groups_count * sizeof(group_with_name));
-            free(groups);
-            groups = new_groups;
+            groups = (group_with_name *)realloc(groups, 2 * groups_size * sizeof(group_with_name));
             groups_size = 2 * groups_size;
         }
     }
-
     fclose(obj_file);
 
-    // add other groups to default_group
-    Shape all_groups = groups->group;
+    if (started_a_group) {
+        group_add_children_finish((groups + current_group_index)->group);
+    }
+
+    group(result_group, NULL, 0);
+
+    // add all groups to result_group
     int i;
-    if (groups_count > 1) {
-        all_groups = array_of_shapes(groups_count);
-        for (i = 0; i < groups_count; i++) {
-            memcpy(all_groups + i, (groups + i)->group, sizeof(struct shape));
+    for (i = 0; i < groups_count; i++) {
+        if ((groups + i)->group->fields.group.num_children > 0) {
+            group_add_children(result_group, (groups + i)->group, 1);
         }
     }
 
-    group(result_group, all_groups, groups_count);
     for (i = 0; i < groups_count; i++) {
         free((groups + i)->name);
+        shape_free((groups + i)->group);
     }
-    free(all_groups); //shape_free
 
     free(groups);
     free(vertexes);

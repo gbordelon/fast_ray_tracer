@@ -1,5 +1,7 @@
 # fast_ray_tracer
 
+I've tried to keep the yaml file scenes/template/template.yml up to date with all the global configuration parameters.
+
 Example usage:
 
 ```
@@ -7,16 +9,20 @@ python3 yaml_parser/yaml_parser.py scenes/bounding_boxes/bounding_boxes.yml >./m
 make
 date
 time ./ray_tracer
-open /tmp/srgb_render.ppm
-open /tmp/srgb_render.png
+open /tmp/out_file.ppm
+open /tmp/out_file.png
 ```
 
 TODO
+* Get rid of bounding box alloc'ing and freeing.
+* Rework container so it hangs off the world object.
+* Fix canvas so it takes a color space function at construction. Right now maps are always converting to sRGB.
 * Implement MTL file parsing.
+    * bump maps.
     * WIP
     * Use a material's Tf triple to determine the casts_shadow flag. This includes changing the intensity_at function for each light type.
     * Support illum directives
-    * Support the obj file mtllib directive to determine a material file to import.
+    * ~~Support the obj file mtllib directive to determine a material file to import.~~
 * Add parameters to the config parser
     * obj_loader default vertex num, default group num
 * Refactor patterns into multiple source files

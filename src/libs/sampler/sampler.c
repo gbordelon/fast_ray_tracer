@@ -425,12 +425,8 @@ void
 sampler_free(Sampler sampler)
 {
     if (sampler != NULL) {
-        if (sampler->steps_by_dimension != NULL) {
-            free(sampler->steps_by_dimension);
-        }
-        if (sampler->arr != NULL) {
-            free(sampler->arr);
-        }
+        free(sampler->steps_by_dimension);
+        free(sampler->arr);
     }
 }
 

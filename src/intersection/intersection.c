@@ -53,19 +53,24 @@ hit(const Intersections xs, const bool filter_shadow_casters)
     return NULL;
 }
 
+void
+intersections_realloc(Intersections xs, const size_t num)
+{
+    if (num > 0) {
+        xs->xs = (Intersection) realloc(xs->xs, num * sizeof(struct intersection));
+    }
+
+    xs->array_len = num;
+}
+
 Intersections
 intersections_empty(const size_t num)
 {
     Intersections xs = (Intersections) malloc(sizeof(struct intersections));
-    if (num > 0) {
-        xs->xs = (Intersection) malloc(num * sizeof(struct intersection));
-    } else {
-        xs->xs = NULL;
-    }
+    xs->xs = NULL;
+    intersections_realloc(xs, num);
 
-    xs->array_len = num;
     xs->num = 0;
-
     return xs;
 }
 

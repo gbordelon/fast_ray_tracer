@@ -27,6 +27,7 @@ Intersection intersection_with_uv_alloc(const double t, const double u, const do
 
 Intersection hit(const Intersections xs, const bool filter_shadow_casters);
 Intersections intersections_empty(const size_t num);
+void intersections_realloc(Intersections xs, const size_t num);
 
 void intersections_free(Intersections xs);
 

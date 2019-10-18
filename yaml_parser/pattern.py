@@ -13,7 +13,7 @@ class Pattern(object):
 
     def c_repr(self, name, resources):
         if len(self.yaml_obj) == 0:
-            return "Pattern pattern_{0} = NULL;\n".format(name)
+            return "    Pattern pattern_{0} = NULL;\n".format(name)
 
         if 'transform' not in self.yaml_obj:
             self.yaml_obj['transform'] = []
@@ -110,7 +110,7 @@ class Pattern(object):
 {5}
 {6}
 
-    texture_map_pattern(pattern_{0} + 1, CUBE_UV_MAP, pattern_{0});
+    texture_map_pattern(pattern_{0}_right, CUBE_UV_MAP, pattern_{0});
 """.format(name,
            uv_right.c_repr('pattern_{0}_right'.format(name), resources),
            uv_left.c_repr('pattern_{0}_left'.format(name), resources),
@@ -125,19 +125,12 @@ class Pattern(object):
                     uv_top = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
                     uv_bottom = uv_top
                     uv_body = uv_top
-
-                    buf += """    Pattern pattern_{0} = array_of_patterns(2);
-    Pattern pattern_{0}_body = pattern_{0} + 1;
-    Pattern pattern_{0}_top = pattern_{0} + 1;
-    Pattern pattern_{0}_bottom = pattern_{0} + 1;
-""".format(name)
-
                 else:
                     uv_top = UVPattern.uv_from_yaml(self.yaml_obj['top'])
                     uv_bottom = UVPattern.uv_from_yaml(self.yaml_obj['bottom'])
                     uv_body = UVPattern.uv_from_yaml(self.yaml_obj['front'])
 
-                    buf += """    Pattern pattern_{0} = array_of_patterns(4);
+                buf += """    Pattern pattern_{0} = array_of_patterns(4);
     Pattern pattern_{0}_body = pattern_{0} + 1;
     Pattern pattern_{0}_top = pattern_{0} + 2;
     Pattern pattern_{0}_bottom = pattern_{0} + 3;
@@ -147,7 +140,7 @@ class Pattern(object):
 {2}
 {3}
 
-    texture_map_pattern(pattern_{0} + 1, CYLINDER_UV_MAP, pattern_{0});
+    texture_map_pattern(pattern_{0}_body, CYLINDER_UV_MAP, pattern_{0});
 """.format(name,
            uv_body.c_repr('pattern_{0}_body'.format(name), resources),
            uv_top.c_repr('pattern_{0}_top'.format(name), resources),
@@ -158,21 +151,21 @@ class Pattern(object):
                 buf += """    Pattern pattern_{0} = array_of_patterns(2);
     Pattern pattern_{0}_body = pattern_{0} + 1;
 {1}
-    texture_map_pattern(pattern_{0} + 1, PLANE_UV_MAP, pattern_{0});
+    texture_map_pattern(pattern_{0}_body, PLANE_UV_MAP, pattern_{0});
 """.format(name, uv_pattern.c_repr('pattern_{0}_body'.format(name), resources))
             elif mapping in ['spherical', 'sphere']:
                 uv_pattern = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
                 buf += """    Pattern pattern_{0} = array_of_patterns(2);
     Pattern pattern_{0}_body = pattern_{0} + 1;
 {1}
-    texture_map_pattern(pattern_{0} + 1, SPHERE_UV_MAP, pattern_{0});
+    texture_map_pattern(pattern_{0}_body, SPHERE_UV_MAP, pattern_{0});
 """.format(name, uv_pattern.c_repr('pattern_{0}_body'.format(name), resources))
             elif mapping in ['toroidal', 'toroid', 'torus']:
                 uv_pattern = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
                 buf += """    Pattern pattern_{0} = array_of_patterns(2);
     Pattern pattern_{0}_body = pattern_{0} + 1;
 {1}
-    texture_map_pattern(pattern_{0} + 1, TOROID_UV_MAP, pattern_{0});
+    texture_map_pattern(pattern_{0}_body, TOROID_UV_MAP, pattern_{0});
 """.format(name, uv_pattern.c_repr('pattern_{0}_body'.format(name), resources))
         else:
             raise ValueError('Unable to parse pattern type: {}'.format(typ))
@@ -267,7 +260,8 @@ class UVPattern(object):
     }}
     printf("Loading resource '{1}'... ");
     fflush(stdout);
-    Canvas {2} = construct_canvas_from_ppm_file("{1}");
+    Canvas {2};
+    construct_canvas_from_ppm_file(&{2}, "{1}", color_space_fn);
     uv_texture_pattern({2}, {0});
     printf("Done!\\n");
     fflush(stdout);

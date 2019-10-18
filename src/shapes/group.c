@@ -5,9 +5,44 @@
 
 #include "../libs/linalg/linalg.h"
 #include "../renderer/renderer.h"
+#include "../renderer/world.h"
 
 #include "shapes.h"
 #include "group.h"
+
+void
+recursive_print(Shape sh, size_t indent)
+{
+    Shape child;
+    int i;
+
+    char *spaces = (char *)malloc((indent + 1) * sizeof(char));
+    for (i = 0; i < indent; ++i) {
+        *(spaces + i) = ' ';
+    }
+    *(spaces+i) = '\0';
+
+    printf("%s", spaces);
+    if (sh->type == SHAPE_GROUP) {
+        printf("%lu\n", sh->fields.group.num_children);
+    } else if (sh->type != SHAPE_TRIANGLE) {
+        printf("type: %d\n", sh->type);
+    }
+
+    if (sh->type == SHAPE_GROUP) {
+        for (i = 0, child = sh->fields.group.children;
+                i < sh->fields.group.num_children;
+                i++, child++) {
+            if (child->type == SHAPE_GROUP) {
+                recursive_print(child, indent + 2);
+            }        }
+    } else if (sh->type == SHAPE_CSG) {
+        recursive_print(sh->fields.csg.left, indent + 2);
+        recursive_print(sh->fields.csg.right, indent + 2);
+    }
+
+    free(spaces);
+}
 
 
 void
@@ -58,7 +93,6 @@ recursive_invalidate_bounding_box(Shape sh)
         recursive_invalidate_bounding_box(sh->fields.csg.left);
         recursive_invalidate_bounding_box(sh->fields.csg.right);
     }
-    
 }
 
 void
@@ -76,14 +110,11 @@ group_add_children_stage(Shape group, Shape children, size_t num_children)
             }
 
             // copy child_from to child_to
-            *(group->fields.group.children + group->fields.group.num_children) = *(children + from);
+            shape_copy(children + from, group, group->fields.group.children + group->fields.group.num_children);
 
             // increment counts and pointers
             group->fields.group.num_children += 1;
         }
-    }
-    if (num_children > 0) {
-        group->children_xs = (Intersections *) realloc(group->children_xs, (num_children + group->fields.group.num_children) * sizeof(Intersections));
     }
 }
 
@@ -91,10 +122,10 @@ void
 group_add_children_finish(Shape group)
 {
     if (group != NULL) {
-        int i;
         recursive_invalidate_bounding_box(group);
-        for (i = 0; i < group->fields.group.num_children; ++i) {
-            group_recursive_parent_update(group->fields.group.children + i, group);
+        group_recursive_parent_update(group, group->parent);
+        if (group->fields.group.num_children > 0) {
+            group->fields.group.children_xs = (Intersections *) realloc(group->fields.group.children_xs, group->fields.group.num_children * sizeof(Intersections));
         }
     }
 }
@@ -114,7 +145,7 @@ group_local_intersect(Shape group, Ray r)
         return NULL;
     }
 
-    Intersections *children_xs = group->children_xs;
+    Intersections *children_xs = group->fields.group.children_xs;
 
     int i;
     Shape child;
@@ -132,12 +163,11 @@ group_local_intersect(Shape group, Ray r)
         return NULL;
     }
 
-    if (group->xs->array_len <= total_xs_num) {
-        intersections_free(group->xs);
-        group->xs = intersections_empty(total_xs_num);
-    }
     Intersections all_xs = group->xs;
     all_xs->num = 0;
+    if (all_xs->array_len <= total_xs_num) {
+        intersections_realloc(all_xs, total_xs_num);
+    }
 
     for (i = 0; i < group->fields.group.num_children; i++) {
         if (*(children_xs + i) != NULL) {
@@ -329,13 +359,16 @@ group_divide(Shape g, size_t threshold)
             if (new_array_size < g->fields.group.size_children_array) {
                 new_array_size = g->fields.group.size_children_array;
             }
-            new_children = (Shape) malloc(new_array_size * sizeof(struct shape));
+            new_children = array_of_shapes(new_array_size);
             new_group_pos = new_children;
         }
 
         if (map.left_count > 0) {
             // make a sub group from left_start using left_count as num_children
             group(new_group_pos, g->fields.group.children + map.left_start, map.left_count);
+            for (i = map.left_start; i < map.left_start + map.left_count; ++i) {
+                shape_free(g->fields.group.children + i);
+            }
             // recursive parent update on children
             group_recursive_parent_update(new_group_pos, g);
             new_group_pos++;
@@ -343,6 +376,9 @@ group_divide(Shape g, size_t threshold)
         if (map.right_count > 0) {
             // make a sub group from right_start using right_count as num_children
             group(new_group_pos, g->fields.group.children + map.right_start, map.right_count);
+            for (i = map.right_start; i < map.right_start + map.right_count; ++i) {
+                shape_free(g->fields.group.children + i);
+            }
             // recursive parent update on children
             group_recursive_parent_update(new_group_pos, g);
             new_group_pos++;
@@ -360,7 +396,7 @@ group_divide(Shape g, size_t threshold)
             if (map.right_count > 0) {
                 g->fields.group.num_children++;
             }
-            g->children_xs = (Intersections *) realloc(g->children_xs, g->fields.group.num_children * sizeof(Intersections));
+            g->fields.group.children_xs = (Intersections *) realloc(g->fields.group.children_xs, g->fields.group.num_children * sizeof(Intersections));
             g->fields.group.size_children_array = new_array_size;
             group_recursive_parent_update(g, g->parent);
         }
@@ -407,10 +443,13 @@ group(Shape s, Shape children, size_t num_children)
     size_t array_len = DEFAULT_MIN_CHILD_LEN > num_children ? DEFAULT_MIN_CHILD_LEN : num_children;
     s->fields.group.children = (Shape) malloc(array_len * sizeof(struct shape));
     if (num_children > 0) {
-        memcpy(s->fields.group.children, children, num_children * sizeof(struct shape));
-        s->children_xs = (Intersections *) malloc(num_children * sizeof(Intersections));
+        int i;
+        for (i = 0; i < num_children; ++i) {
+            shape_copy(children + i, s, s->fields.group.children + i);
+        }
+        s->fields.group.children_xs = (Intersections *) malloc(num_children * sizeof(Intersections));
     } else {
-        s->children_xs = NULL;
+        s->fields.group.children_xs = NULL;
     }
 
     s->fields.group.num_children = num_children;
@@ -418,12 +457,8 @@ group(Shape s, Shape children, size_t num_children)
     s->bbox = NULL;
     s->bbox_inverse = NULL;
 
-    Shape child;
-    int i;
-    for (i = 0, child = s->fields.group.children; i < num_children; i++, child++) {
-        group_recursive_parent_update(child, s);
-        recursive_invalidate_bounding_box(child);
-    }
+    group_recursive_parent_update(s, s->parent);
+    recursive_invalidate_bounding_box(s);
 
     s->intersect = shape_intersect;
     s->local_intersect = group_local_intersect;
@@ -444,4 +479,15 @@ group_alloc(Shape children, size_t num_children)
     Shape s = (Shape) malloc(sizeof(struct shape));
     group(s, children, num_children);
     return s;
+}
+
+void
+group_free(Shape group)
+{
+    int i;
+    for (i = 0; i < group->fields.group.num_children; ++i) {
+        shape_free(group->fields.group.children + i);
+    }
+    free(group->fields.group.children);
+    free(group->fields.group.children_xs);
 }

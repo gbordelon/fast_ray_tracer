@@ -20,6 +20,7 @@ base_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
     p->pattern_at(p, s, pattern_point, c);
 
     color_copy(res, c);
+    res[3] = 0.0;
 }
 
 void
@@ -195,7 +196,8 @@ texture_map_pattern_at(Pattern p, Shape s, Point pt, Color res)
     UVMapReturnType face_u_v;
     Point uv_pattern_point;
     Color c;
-    
+
+    // call this twice. First to get the face, second with the face's transform applied
     p->uv_map(s, pt, &face_u_v);
     Pattern face = p->fields.uv_map.uv_faces + face_u_v.face;
 
@@ -401,19 +403,25 @@ triangle_uv_map(Shape s, Point pt, UVMapReturnType *retval)
     w = fmod((d00 * d21 - d01 * d20) * denom, 1.0);
     u = 1.0 - v - w;
 
-    memcpy(v1, s->fields.triangle.t1, sizeof(Vector));
-    memcpy(v2, s->fields.triangle.t2, sizeof(Vector));
-    memcpy(v3, s->fields.triangle.t3, sizeof(Vector));
+    if (s->fields.triangle.use_textures) {
+        vector_copy(v1, s->fields.triangle.t1);
+        vector_copy(v2, s->fields.triangle.t2);
+        vector_copy(v3, s->fields.triangle.t3);
 
-    vector_scale(v1, u);
-    vector_scale(v2, v);
-    vector_scale(v3, 1.0 - u - v);
+        vector_scale(v1, u);
+        vector_scale(v2, v);
+        vector_scale(v3, 1.0 - u - v);
 
-    v1[0] += v2[0] + v3[0];
-    v1[1] += v2[1] + v3[1];
-    v1[2] += v2[2] + v3[2];
-    retval->u = fmod(v1[0], 1.0);
-    retval->v = fmod(v1[1], 1.0);
+        v1[0] += v2[0] + v3[0];
+        v1[1] += v2[1] + v3[1];
+        v1[2] += v2[2] + v3[2];
+
+        retval->u = fmod(v1[0], 1.0);
+        retval->v = fmod(v1[1], 1.0);
+    } else {
+        retval->u = u;
+        retval->v = v;
+    }
 
     if (retval->u < 0) {
         retval->u += 1.0;
@@ -668,7 +676,67 @@ array_of_patterns(size_t num)
 void
 pattern_free(Pattern p)
 {
+    enum uv_map_type type;
+    Pattern faces;
+    int i;
+
     if (p != NULL) {
+        switch (p->type) {
+        case TEXTURE_MAP_PATTERN:
+            type = p->fields.uv_map.type;
+            faces = p->fields.uv_map.uv_faces;
+
+            switch (type) {
+            case CUBE_UV_MAP:
+                for (i = 0; i < 6; ++i) {
+                    pattern_free(faces + i);
+                }
+                break;
+            case CYLINDER_UV_MAP:
+                for (i = 0; i < 3; ++i) {
+                    pattern_free(faces + i);
+                }
+                break;
+            case PLANE_UV_MAP:
+                for (i = 0; i < 1; ++i) {
+                    pattern_free(faces + i);
+                }
+                break;
+            case SPHERE_UV_MAP:
+                for (i = 0; i < 1; ++i) {
+                    pattern_free(faces + i);
+                }
+                break;
+            case TOROID_UV_MAP:
+                for (i = 0; i < 1; ++i) {
+                    pattern_free(faces + i);
+                }
+                break;
+            case TRIANGLE_UV_MAP:
+                for (i = 0; i < 1; ++i) {
+                    pattern_free(faces + i);
+                }
+                break;
+            default:
+                break;
+            }
+            break;
+        case NESTED_PATTERN:
+            pattern_free(p->fields.nested.pattern1);
+            pattern_free(p->fields.nested.pattern2);
+            pattern_free(p->fields.nested.pattern3);
+            break;
+        case BLENDED_PATTERN:
+            pattern_free(p->fields.blended.pattern1);
+            pattern_free(p->fields.blended.pattern2);
+            break;
+        case PERTURBED_PATTERN:
+            pattern_free(p->fields.perturbed.pattern1);
+            break;
+        default:
+            break;
+        }
+
         p->ref_count--;
         if (p->ref_count == 0) {
             free(p);
@@ -687,24 +755,44 @@ texture_map_pattern(Pattern faces, enum uv_map_type type, Pattern res)
     res->fields.uv_map.uv_faces = faces;
     res->pattern_at = texture_map_pattern_at;
 
+    int i;
+
     switch (type) {
     case CUBE_UV_MAP:
         res->uv_map = cube_uv_map;
+        for (i = 0; i < 6; ++i) {
+            (faces + i)->ref_count += 1;
+        }
         break;
     case CYLINDER_UV_MAP:
         res->uv_map = cylinder_uv_map;
+        for (i = 0; i < 3; ++i) {
+            (faces + i)->ref_count += 1;
+        }
         break;
     case PLANE_UV_MAP:
         res->uv_map = plane_uv_map;
+        for (i = 0; i < 1; ++i) {
+            (faces + i)->ref_count += 1;
+        }
         break;
     case SPHERE_UV_MAP:
         res->uv_map = sphere_uv_map;
+        for (i = 0; i < 1; ++i) {
+            (faces + i)->ref_count += 1;
+        }
         break;
     case TOROID_UV_MAP:
         res->uv_map = toroid_uv_map;
+        for (i = 0; i < 1; ++i) {
+            (faces + i)->ref_count += 1;
+        }
         break;
     case TRIANGLE_UV_MAP:
         res->uv_map = triangle_uv_map;
+        for (i = 0; i < 1; ++i) {
+            (faces + i)->ref_count += 1;
+        }
         break;
     default:
         // already set res->uv_map to an error function in the default constructor

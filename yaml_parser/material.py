@@ -1,5 +1,7 @@
 from pattern import Pattern
 
+map_types = ['Ka', 'Kd', 'Ks', 'Ns', 'bump', 'disp']
+
 class Material(object):
     def __init__(self, yaml_obj):
         self.yaml_obj = yaml_obj
@@ -55,12 +57,24 @@ class Material(object):
         if self.yaml_obj['shadow']:
             shadow_str = 'true'
 
-        if 'pattern' not in self.yaml_obj:
-            pat = Pattern.from_yaml({})
-        else:
-            pat = Pattern.from_yaml(self.yaml_obj['pattern'])
-        return """{1}
-    Color material_{0}_color_raw = color({2:.10f}, {3:.10f}, {4:.10f});
+        if 'pattern' not in self.yaml_obj and 'patterns' not in self.yaml_obj:
+            pats = {x : Pattern.from_yaml({}) for x in map_types}
+        elif 'pattern' in self.yaml_obj:
+            pats = {}
+            pats = {x : Pattern.from_yaml({}) for x in map_types}
+            pats['Ka'] = Pattern.from_yaml(self.yaml_obj['pattern'])
+            pats['Kd'] = pats['Ka']
+        elif 'patterns' in self.yaml_obj:
+            pats = {}
+            pats = {x : Pattern.from_yaml({}) for x in map_types}
+            for k in map_types:
+                if k in self.yaml_obj['patterns']:
+                    pats[k] = Pattern.from_yaml(self.yaml_obj['patterns'][k])
+                
+        buf = ""
+        for pat in pats:
+            buf += """{}""".format(pats[pat].c_repr("{0}_{1}".format(name, pat), resources))
+        return buf + """    Color material_{0}_color_raw = color({2:.10f}, {3:.10f}, {4:.10f});
 
     Material material_{0} = material_alloc();
     color_space_fn(material_{0}_color_raw, material_{0}->Ka);
@@ -78,11 +92,14 @@ class Material(object):
     material_{0}->Tf[2] = {10:.10f};
     material_{0}->Ni = {11:.10f};
     material_{0}->casts_shadow = {12};
-    material_set_pattern(material_{0}, map_Ka, pattern_{0});
-    material_set_pattern(material_{0}, map_Kd, pattern_{0});
-    //material_set_pattern(material_{0}, map_Ks, pattern_{0});
+    material_set_pattern(material_{0}, map_Ka, pattern_{0}_Ka);
+    material_set_pattern(material_{0}, map_Kd, pattern_{0}_Kd);
+    material_set_pattern(material_{0}, map_Ks, pattern_{0}_Ks);
+    material_set_pattern(material_{0}, map_Ns, pattern_{0}_Ns);
+    material_set_pattern(material_{0}, map_bump, pattern_{0}_bump);
+    material_set_pattern(material_{0}, map_disp, pattern_{0}_disp);
 """.format(name,
-           pat.c_repr(name, resources),
+           "",
            self.yaml_obj['color'][0], self.yaml_obj['color'][1], self.yaml_obj['color'][2],
            self.yaml_obj['ambient'],
            self.yaml_obj['diffuse'],

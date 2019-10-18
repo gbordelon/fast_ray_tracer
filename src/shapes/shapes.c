@@ -7,12 +7,13 @@
 #include "../material/material.h"
 #include "../renderer/ray.h"
 
+#include "group.h"
 #include "shapes.h"
 
 Shape
 array_of_shapes(size_t num)
 {
-    return (Shape)malloc(num * sizeof(struct shape));
+    return array_of_shapes_realloc(NULL, num);
 }
 
 Shape
@@ -25,10 +26,20 @@ void
 shape_free(Shape s)
 {
     if (s != NULL) {
-        free(s);
+        intersections_free(s->xs);
+        s->xs = NULL;
+        material_free(s->material);
+        s->material = NULL;
+        bounding_box_free(s->bbox);
+        s->bbox = NULL;
+        bounding_box_free(s->bbox_inverse);
+        s->bbox_inverse = NULL;
+        if (s->type == SHAPE_GROUP) {
+            group_free(s);
+        }
+        // TODO CSG free
     }
 }
-
 
 Intersections
 shape_intersect(Shape sh, Ray r)
@@ -54,21 +65,15 @@ shape_normal_at(Shape sh, Point world_point, Intersection hit, Vector res)
 
     sh->local_normal_at(sh, local_point, hit, local_normal);
 
+    sh->normal_to_world(sh, local_normal, world_normal);
 
     if (sh->material->map_bump != NULL) {
-        vector_copy(tmp, world_point);
-        tmp[3] = 1.0;
-
-        sh->material->map_bump->pattern_at_shape(sh->material->map_bump, sh, tmp, perturbed);
-        perturbed[3] = 0.0;
-
-        color_accumulate(local_normal, perturbed);
-        vector_normalize(local_normal, tmp);
-        //vector_copy(local_normal, tmp);
-        vector_copy(local_normal, perturbed);
+        sh->material->map_bump->pattern_at_shape(sh->material->map_bump, sh, world_point, tmp);
+        vector_normalize(tmp, perturbed);
+        vector_scale(perturbed, 0.5);
+        vector_scale(world_normal, 0.5);
+        color_accumulate(world_normal, perturbed);
     }
-
-    sh->normal_to_world(sh, local_normal, world_normal);
 
     vector_normalize(world_normal, res);
 }

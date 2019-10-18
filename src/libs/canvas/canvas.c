@@ -18,7 +18,7 @@
 #define header_len 32
 
 Canvas
-canvas_alloc(size_t width, size_t height)
+canvas_alloc(size_t width, size_t height, void (*color_space_fn)(const Color, Color))
 {
     Canvas c = (Canvas) malloc(sizeof(struct canvas));
     // null check c
@@ -27,6 +27,7 @@ canvas_alloc(size_t width, size_t height)
 
     c->width = width;
     c->height = height;
+    c->color_space_fn = color_space_fn;
 
     pthread_mutex_init(&(c->write_lock), NULL);
 
@@ -114,7 +115,7 @@ canvas_write_pixel(Canvas c, int col, int row, Color color)
 void
 canvas_pixel_at(Canvas c, int col, int row, Color res)
 {
-    srgb_to_rgb(*(c->arr + row * c->width + col), res);
+    c->color_space_fn(*(c->arr + row * c->width + col), res);
 }
 
 Ppm
@@ -263,7 +264,6 @@ construct_ppm(Canvas c, bool use_scaling)
     return ppm;
 }
 
-// TODO add error checking and return codes
 int
 write_ppm_file(Canvas c, const bool use_scaling, const char *file_path)
 {
@@ -290,8 +290,8 @@ write_ppm_file(Canvas c, const bool use_scaling, const char *file_path)
     return 0;
 }
 
-Canvas
-construct_canvas_from_ppm_file(const char * file_path)
+void
+construct_canvas_from_ppm_file(Canvas *c, const char * file_path, void (*color_space_fn)(const Color, Color))
 {
     char buf[32];
     size_t width, height, max_val;
@@ -302,21 +302,21 @@ construct_canvas_from_ppm_file(const char * file_path)
     FILE *file = fopen(file_path, "r");
     if (file == NULL) {
         printf("Error opening file %s", file_path);
-        return NULL;
+        return;
     }
     fscanf(file, "%s", buf); // P6
     fscanf(file, "%zu", &width); // width
     fscanf(file, "%zu", &height); // height
     fscanf(file, "%zu", &max_val); // max val
 
-    Canvas c = canvas_alloc(width, height);
-    if (c == NULL) {
+    *c = canvas_alloc(width, height, color_space_fn);
+    if (*c == NULL) {
         fclose(file);
-        return NULL;
+        return;
     }
 
     total_rgb_count = width * height;
-    for (i = 0, out = c->arr; i < total_rgb_count; i++, out++) {
+    for (i = 0, out = (*c)->arr; i < total_rgb_count; i++, out++) {
         fscanf(file, "%u", &tmp);
         (*out)[0] = ((double) tmp) / (double)max_val;
         fscanf(file, "%u", &tmp);
@@ -327,8 +327,6 @@ construct_canvas_from_ppm_file(const char * file_path)
     }
 
     fclose(file);
-
-    return c;
 }
 
 
@@ -495,7 +493,7 @@ write_png(Canvas c, const char *file_name)
 }
 
 int
-read_png (Canvas *c, const char *filename)
+read_png (Canvas *c, const char *filename, void (*color_space_fn)(const Color, Color))
 {
   int code = 0, i;
   size_t width, height;
@@ -588,7 +586,7 @@ read_png (Canvas *c, const char *filename)
   png_read_image(png_ptr, row_ptr);
 
   // convert buffer to Canvas
-  *c = canvas_alloc(width, height);
+  *c = canvas_alloc(width, height, color_space_fn);
   if (*c == NULL) {
     code = 3;
     goto read_cleanup;

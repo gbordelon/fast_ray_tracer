@@ -83,6 +83,7 @@ material_alloc()
 {
     Material m = (Material) malloc(sizeof(struct material));
     material(m);
+    m->ref_count++;
     return m;
 }
 

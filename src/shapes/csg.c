@@ -101,9 +101,7 @@ csg_local_intersect(Shape s, Ray r)
         }
 
         if (s->xs->array_len <= left_xs->num + right_xs->num) {
-            Intersections new_xs = intersections_empty(left_xs->num + right_xs->num);
-            intersections_free(s->xs);
-            s->xs = new_xs;
+            intersections_realloc(s->xs, left_xs->num + right_xs->num);
         }
 
         // both arrays together

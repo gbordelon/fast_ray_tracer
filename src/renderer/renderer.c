@@ -215,6 +215,7 @@ render_multi_helper(World w, void *args)
         canvas_write_pixels(image, 0, j, buf, cam->hsize);
     }
 
+    sampler_free(&sampler);
     free(container.shapes);
     free(buf);
 }
@@ -236,8 +237,8 @@ static size_t irradiance_estimate_num;
 static double irradiance_estimate_radius;
 static double irradiance_estimate_cone_filter_k;
 
-Canvas
-render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
+void
+setup_config(World w)
 {
     visualize_photon_map = w->global_config->illumination.debug_visualize_photon_map;
     visualize_soft_indirect = w->global_config->illumination.debug_visualize_soft_indirect;
@@ -254,13 +255,19 @@ render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
     irradiance_estimate_num = w->global_config->illumination.gi.irradiance_estimate_num;
     irradiance_estimate_radius = w->global_config->illumination.gi.irradiance_estimate_radius;
     irradiance_estimate_cone_filter_k =  w->global_config->illumination.gi.irradiance_estimate_cone_filter_k;
+}
+
+Canvas
+render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
+{
+    setup_config(w);
 
     int i;
     size_t num_threads = w->global_config->threading.num_threads;
-    Canvas image = canvas_alloc(cam->hsize, cam->vsize);
+    Canvas image = canvas_alloc(cam->hsize, cam->vsize, NULL);
     World worlds = (World) malloc(num_threads * sizeof(struct world));
     struct render_args *args_array = (struct render_args *)malloc(cam->vsize * sizeof(struct render_args));
-struct render_args *debug = args_array;
+    struct render_args *debug = args_array;
     for (i = 0; i < num_threads; ++i) {
         world_copy(w, worlds + i);
     }
@@ -293,17 +300,18 @@ struct render_args *debug = args_array;
 Canvas
 render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
 {
+    setup_config(w);
+
     int i,j,k;
     ColorTriple c;
     Color pixel_color;
 
-    Canvas image = canvas_alloc(cam->hsize, cam->vsize);
+    Canvas image = canvas_alloc(cam->hsize, cam->vsize, NULL);
     struct container container;
     container.shapes = NULL;
     container.size = 0;
     struct sampler sampler;
     sampler_2d(jitter, usteps, vsteps, sampler_default_constraint, &sampler);
-
 
     k = 0;
     for (j = 0; j < cam->vsize; ++j) {
@@ -391,7 +399,7 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
 
     ray_position(r, i->t, res->p);
 
-    i->object->normal_at(i->object, res->p, i, res->normalv);
+    res->obj->normal_at(res->obj, res->p, i, res->normalv);
 
     vector_copy(res->eyev, r->direction);
     vector_scale(res->eyev, -1.0);
@@ -423,8 +431,9 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
 
     // check size of container array
     if (xs->num >= container->size) {
-        container->shapes = realloc(container->shapes, xs->num * sizeof(Shape *));
-        container->size = xs->num;
+        size_t new_container_size = xs->num > (2 * container->size) ? xs->num : (2 * container->size);
+        container->shapes = realloc(container->shapes, new_container_size * sizeof(Shape *));
+        container->size = new_container_size;
     }
 
     for (j = 0, x = xs->xs; j < xs->num; x++, j++) {
@@ -461,9 +470,9 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
 
     if (res->obj->material->map_Ka != NULL) {
         res->obj->material->map_Ka->pattern_at_shape(res->obj->material->map_Ka, res->obj, res->over_point, res->over_Ka);
-        res->over_Ka[0] *= res->obj->material->Ka[0];
-        res->over_Ka[1] *= res->obj->material->Ka[1];
-        res->over_Ka[2] *= res->obj->material->Ka[2];
+        //res->over_Ka[0] *= res->obj->material->Ka[0];
+        //res->over_Ka[1] *= res->obj->material->Ka[1];
+        //res->over_Ka[2] *= res->obj->material->Ka[2];
     } else {
         color_copy(res->over_Ka, res->obj->material->Ka);
     }
@@ -471,18 +480,18 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
     if (res->obj->material->map_Kd != NULL) {
         res->obj->material->map_Kd->pattern_at_shape(res->obj->material->map_Kd, res->obj, res->over_point, res->over_Kd);
 
-        res->over_Kd[0] *= res->obj->material->Kd[0];
-        res->over_Kd[1] *= res->obj->material->Kd[1];
-        res->over_Kd[2] *= res->obj->material->Kd[2];
+        //res->over_Kd[0] *= res->obj->material->Kd[0];
+        //res->over_Kd[1] *= res->obj->material->Kd[1];
+        //res->over_Kd[2] *= res->obj->material->Kd[2];
     } else {
         color_copy(res->over_Kd, res->obj->material->Kd);
     }
 
     if (res->obj->material->map_Ks != NULL) {
         res->obj->material->map_Ks->pattern_at_shape(res->obj->material->map_Ks, res->obj, res->over_point, res->over_Ks);
-        res->over_Ks[0] *= res->obj->material->Ks[0];
-        res->over_Ks[1] *= res->obj->material->Ks[1];
-        res->over_Ks[2] *= res->obj->material->Ks[2];
+        //res->over_Ks[0] *= res->obj->material->Ks[0];
+        //res->over_Ks[1] *= res->obj->material->Ks[1];
+        //res->over_Ks[2] *= res->obj->material->Ks[2];
     } else {
         color_copy(res->over_Ks, res->obj->material->Ks);
     }
