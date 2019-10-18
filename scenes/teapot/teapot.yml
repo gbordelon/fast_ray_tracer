@@ -1,0 +1,115 @@
+- add: config
+  illumination:
+    include-direct: true
+    include-global: false
+    visualize-photon-map: false
+    visualize-soft-indirect: false
+    direct-illumination:
+      include-ambient: true
+      include-diffuse: true
+      include-specular: true
+      include-specular-highlight: true
+    global-illumination:
+      include-caustics: true
+      include-final-gather: false
+      usteps: 8
+      vsteps: 8
+      irradiance-estimate-num: 200
+      irradiance-estimate-radius: 0.1
+      irradiance-estimate-cone-filter-k: 1.0
+      photon-count: 10000
+  threading:
+    thread-count: 4
+  scene:
+    divide-threshold: 1
+  output:
+    file: '/tmp/out_file'
+    # see src/renderer/config.h for the enum
+    color-space: 'SRGB'
+
+
+# ======================================================
+# the test camera
+# ======================================================
+
+- add: camera
+  width: 100
+  height: 100
+  field-of-view: 1.2
+  from: [ 0, 0, -30 ]
+  to: [ 0, 0, 0 ]
+  up: [ 0, 1, 0 ]
+  focal-length: 1
+  usteps: 1
+  vsteps: 1
+  aperture:
+    jitter: false
+    size: 0.4
+#    type: [ CIRCULAR_APERTURE, 1.0 ]
+#    type: [ CROSS_APERTURE, -0.1, 0.1, -0.1, 0.1 ]
+#    type: [ DIAMOND_APERTURE, -1, 1, -1, 1 ]
+#    type: [ DOUGHNUT_APERTURE, 1.0, 0.5 ]
+    type: [ POINT_APERTURE ]
+#    type: [ SQUARE_APERTURE ]
+
+
+
+# ======================================================
+# test light sources
+# ======================================================
+
+- add: light
+  at: [ 0, 30, -30 ]
+#  to: [ 0, -1, 0 ]
+#  at: [ 0, 0, 0 ]
+  intensity: [ 1, 1, 1 ]
+
+
+# ======================================================
+# finish camera
+# ======================================================
+
+#- add: camera
+#  width: 800
+#  height: 800
+#  field-of-view: 1.2
+#  from: [ 0, 0, -2.75 ]
+#  to: [ 0, 0, 0 ]
+#  up: [ 0, 1, 0 ]
+#  focal-length: 1.5
+#  usteps: 4
+#  vsteps: 4
+#  aperture:
+#    jitter: true
+#    size: 0
+#    type: [ POINT_APERTURE ]
+
+# ======================================================
+# finish light sources
+# ======================================================
+
+#- add: light
+#  corner: [-0.4, 1.44, -0.5]
+#  uvec: [0.8, 0, 0]
+#  vvec: [0, 0, 0.4]
+#  usteps: 10
+#  vsteps: 10
+#  jitter: true
+#  intensity: [1.0, 1.0, 1.0]
+
+# ======================================================
+# define some constants to avoid duplication
+# ======================================================
+
+- define: teapot
+  value:
+    add: obj
+    file: scenes/teapot/teapot.obj
+    transform:
+    - [ rotate-x, -2.2 ]
+    #- [ rotate-x, 1.57 ]
+    - [ translate, 0, -2, 0 ]
+    #- [ scale, 3, 3, 3 ]
+
+
+- add: teapot
