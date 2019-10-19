@@ -16,19 +16,19 @@ open /tmp/out_file.png
 TODO
 * Get rid of bounding box alloc'ing and freeing.
 * Rework container so it hangs off the world object.
-* Fix canvas so it takes a color space function at construction. Right now maps are always converting to sRGB.
+* ~~Fix canvas so it takes a color space function at construction. Right now maps are always converting to sRGB.~~
 * Implement MTL file parsing.
-    * bump maps.
+    * ~~bump maps.~~
     * WIP
-    * Use a material's Tf triple to determine the casts_shadow flag. This includes changing the intensity_at function for each light type.
-    * Support illum directives
+    * Use a material's Tf triple to determine the casts_shadow flag. This includes changing the intensity_at function for each light type. This also requires changing the way the hit function works.
+    * ~~Support illum directives~~ I decided not to bother.
     * ~~Support the obj file mtllib directive to determine a material file to import.~~
 * Add parameters to the config parser
     * obj_loader default vertex num, default group num
 * Refactor patterns into multiple source files
 * Add a circular area light
 * Add a spot light
-* Use realloc instead of malloc when resizing arrays for intersections and group.children
+* ~~Use realloc instead of malloc when resizing arrays for intersections and group.children~~
 * Implement triangle mesh support
 * Refactor photon mapping code in light.c to use CMJ instead of random sampling for photon emission
 * Finish adding HSL color support

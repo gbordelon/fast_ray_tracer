@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+#
+# Based on the algorith shown at
+# https://www.gamedev.net/forums/topic/475213-generate-normal-map-from-heightmap-algorithm/
+#
+
+usage () {
+    echo "Usage:"
+    echo "    $0 <path to greyscale image>" >&2
+}
+
+[[ "$#" -le 0 ]] && { usage $@; exit 1; }
+
+heightmappath="$1"
+heightmapname=$(basename $heightmappath)
+
+
+convert $heightmappath -define convolve:scale='50%!' -bias 50% -morphology Convolve Sobel:0 -compress none /tmp/${heightmapname}.r.tmp.png
+convert $heightmappath -define convolve:scale='50%!' -bias 50% -morphology Convolve Sobel:90 -compress none /tmp/${heightmapname}.g.tmp.png
+
+convert /tmp/${heightmapname}.r.tmp.png /tmp/${heightmapname}.g.tmp.png null: -poly '-1.0,2 -1.0,2 1.0,0' -evaluate Pow 0.5 /tmp/${heightmapname}.b.tmp.png
+
+convert /tmp/${heightmapname}.r.tmp.png -evaluate Multiply 0.5 -evaluate Add 0.5 -compress none /tmp/${heightmapname}.r.png
+convert /tmp/${heightmapname}.g.tmp.png -evaluate Multiply 0.5 -evaluate Add 0.5 -compress none /tmp/${heightmapname}.g.png
+convert /tmp/${heightmapname}.b.tmp.png -evaluate Multiply 0.5 -evaluate Add 0.5 -compress none /tmp/${heightmapname}.b.png
+
+convert /tmp/${heightmapname}.r.tmp.png /tmp/${heightmapname}.g.tmp.png /tmp/${heightmapname}.b.tmp.png -colorspace RGB -combine /tmp/${heightmapname}.normal.png
+
+rm /tmp/${heightmapname}.r.tmp.png
+rm /tmp/${heightmapname}.g.tmp.png
+rm /tmp/${heightmapname}.b.tmp.png
+
+rm /tmp/${heightmapname}.r.png
+rm /tmp/${heightmapname}.g.png
+rm /tmp/${heightmapname}.b.png
+
+echo "/tmp/${heightmapname}.normal.png generated from $heightmappath"
+

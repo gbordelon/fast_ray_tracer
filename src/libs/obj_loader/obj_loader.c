@@ -10,6 +10,8 @@
 #include "../../shapes/group.h"
 #include "../../shapes/triangle.h"
 
+#include "../../color/rgb.h"
+
 #include "obj_loader.h"
 
 struct shape_num_tuple {
@@ -181,7 +183,7 @@ parse_mtl(FILE *mtl_file, void (*color_space_fn)(const Color, Color))
                 p = parse_map(ptr, color_space_fn);
                 material_set_pattern(current_material, map_Kd, p);
             } else if (strncmp(ptr, "map_bump", 8) == 0) {
-                p = parse_map(ptr, color_space_fn);
+                p = parse_map(ptr, rgb_to_rgb);
                 material_set_pattern(current_material, map_bump, p);
 /*
             } else if (strncmp(ptr, "map_Ks", 6) == 0) {

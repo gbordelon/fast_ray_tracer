@@ -206,13 +206,13 @@ typedef struct material {
     bool casts_shadow; // hack until Tf is fully supported
     bool reflective;
 
-    Pattern map_Ka;
-    Pattern map_Kd;
+    Pattern map_Ka; // also called occlusion map?
+    Pattern map_Kd; // called albedo map?
     Pattern map_Ks;
-    Pattern map_Ns;
+    Pattern map_Ns; // probably use a greyscale map
     Pattern map_d;
-    Pattern map_bump;
-    Pattern map_disp;
+    Pattern map_bump; // expects normal map, not height map
+    Pattern map_disp; // probably greyscale. I don't know how to implement this one
     Pattern map_refl;
 
     size_t ref_count;

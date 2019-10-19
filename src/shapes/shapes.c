@@ -52,6 +52,10 @@ shape_intersect(Shape sh, Ray r)
     return xs;
 }
 
+/*
+ * https://docs.unity3d.com/Manual/StandardShaderMaterialParameterNormalMap.html
+ * explains how to apply a normal map stored as an RGB image.
+ */
 void
 shape_normal_at(Shape sh, Point world_point, Intersection hit, Vector res)
 {
@@ -62,17 +66,21 @@ shape_normal_at(Shape sh, Point world_point, Intersection hit, Vector res)
     Vector tmp;
 
     sh->world_to_object(sh, world_point, local_point);
-
     sh->local_normal_at(sh, local_point, hit, local_normal);
-
     sh->normal_to_world(sh, local_normal, world_normal);
 
     if (sh->material->map_bump != NULL) {
         sh->material->map_bump->pattern_at_shape(sh->material->map_bump, sh, world_point, tmp);
-        vector_normalize(tmp, perturbed);
-        vector_scale(perturbed, 0.5);
-        vector_scale(world_normal, 0.5);
+
+        vector_scale(tmp, 2.0);
+        perturbed[0] = tmp[0] - 1.0;
+        perturbed[1] = tmp[1] - 1.0;
+        perturbed[2] = tmp[2] - 1.0;
+        perturbed[3] = 0.0;
+
+        //vector_scale(world_normal, 0.5);
         color_accumulate(world_normal, perturbed);
+    } else {
     }
 
     vector_normalize(world_normal, res);

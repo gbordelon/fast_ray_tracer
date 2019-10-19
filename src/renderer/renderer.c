@@ -470,9 +470,9 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
 
     if (res->obj->material->map_Ka != NULL) {
         res->obj->material->map_Ka->pattern_at_shape(res->obj->material->map_Ka, res->obj, res->over_point, res->over_Ka);
-        //res->over_Ka[0] *= res->obj->material->Ka[0];
-        //res->over_Ka[1] *= res->obj->material->Ka[1];
-        //res->over_Ka[2] *= res->obj->material->Ka[2];
+        res->over_Ka[0] *= res->obj->material->Ka[0];
+        res->over_Ka[1] *= res->obj->material->Ka[1];
+        res->over_Ka[2] *= res->obj->material->Ka[2];
     } else {
         color_copy(res->over_Ka, res->obj->material->Ka);
     }
@@ -480,9 +480,9 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
     if (res->obj->material->map_Kd != NULL) {
         res->obj->material->map_Kd->pattern_at_shape(res->obj->material->map_Kd, res->obj, res->over_point, res->over_Kd);
 
-        //res->over_Kd[0] *= res->obj->material->Kd[0];
-        //res->over_Kd[1] *= res->obj->material->Kd[1];
-        //res->over_Kd[2] *= res->obj->material->Kd[2];
+        res->over_Kd[0] *= res->obj->material->Kd[0];
+        res->over_Kd[1] *= res->obj->material->Kd[1];
+        res->over_Kd[2] *= res->obj->material->Kd[2];
     } else {
         color_copy(res->over_Kd, res->obj->material->Kd);
     }
