@@ -43,8 +43,6 @@ shape_copy(Shape s, Shape parent, Shape res)
 
     *res = *s;
     res->parent = parent;
-    res->bbox = NULL;
-    res->bbox_inverse = NULL;
     res->material = NULL;
     shape_set_material(res, s->material);
 

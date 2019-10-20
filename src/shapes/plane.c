@@ -32,24 +32,22 @@ plane_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
     res[3] = 0.0;
 }
 
-Bounding_box
-plane_bounds(Shape plane)
+void
+plane_bounds(Shape plane, Bounding_box *res)
 {
-    if (plane->bbox == NULL) {
+    if (!plane->bbox_valid) {
+        plane->bbox_valid = true;
         Point arr = {-INFINITY, 0.0, -INFINITY, 1.0};
 
-        Bounding_box box = bounding_box_alloc();
-
-        bounding_box_add_array(box, arr);
+        bounding_box_add_array(&(plane->bbox), arr);
         arr[0] = INFINITY;
         arr[1] = 0.0;
         arr[2] = INFINITY;
-        bounding_box_add_array(box, arr);
-        plane->bbox = box;
-        plane->bbox_inverse = bounding_box_transform(box, plane->transform);
+        bounding_box_add_array(&(plane->bbox), arr);
+        bounding_box_transform(&(plane->bbox), plane->transform, &(plane->bbox_inverse));
     }
 
-    return plane->bbox;
+    *res = plane->bbox;
 }
 
 void
@@ -60,8 +58,8 @@ plane(Shape s)
     s->material = material_alloc();
     s->parent = NULL;
     s->type = SHAPE_PLANE;
-    s->bbox = NULL;
-    s->bbox_inverse = NULL;
+    bounding_box(&(s->bbox));
+    s->bbox_valid = false;
     s->xs = intersections_empty(1);
 
     s->intersect = shape_intersect;

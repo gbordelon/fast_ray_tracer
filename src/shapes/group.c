@@ -35,7 +35,8 @@ recursive_print(Shape sh, size_t indent)
                 i++, child++) {
             if (child->type == SHAPE_GROUP) {
                 recursive_print(child, indent + 2);
-            }        }
+            }
+        }
     } else if (sh->type == SHAPE_CSG) {
         recursive_print(sh->fields.csg.left, indent + 2);
         recursive_print(sh->fields.csg.right, indent + 2);
@@ -66,13 +67,10 @@ group_recursive_parent_update(Shape sh, Shape parent)
 }
 
 void
-invalidate_bounding_box(Shape group)
+invalidate_bounding_box(Shape sh)
 {
-    bounding_box_free(group->bbox);
-    bounding_box_free(group->bbox_inverse);
-
-    group->bbox = NULL;
-    group->bbox_inverse = NULL;
+    sh->bbox_valid = false;
+    bounding_box(&(sh->bbox));
 }
 
 void
@@ -140,8 +138,9 @@ group_add_children(Shape group, Shape children, size_t num_children)
 Intersections
 group_local_intersect(Shape group, Ray r)
 {
-    Bounding_box box = group->bounds(group);
-    if (!bounding_box_intersects(box, r)) {
+    Bounding_box box;
+    group->bounds(group, &box);
+    if (!bounding_box_intersects(&box, r)) {
         return NULL;
     }
 
@@ -220,11 +219,9 @@ struct partition_children_return_value {
 struct partition_children_return_value
 partition_children(Shape group)
 {
-    Bounding_box box = group->bounds(group);
-    Bounding_box boxes = bounding_box_split_bounds(box);
-    Bounding_box left = boxes;
-    Bounding_box right = boxes+1;
-    Bounding_box child_box;
+    Bounding_box box, left, right, child_box;
+    group->bounds(group, &box);
+    bounding_box_split_bounds(&box, &left, &right);
 
     bool *left_map = (bool*)malloc(group->fields.group.num_children * sizeof(bool));
     bool *right_map = (bool*)malloc(group->fields.group.num_children * sizeof(bool));
@@ -237,14 +234,14 @@ partition_children(Shape group)
             i < group->fields.group.num_children;
             i++, from++) {
 
-        child_box = from->parent_space_bounds(from);
+        from->parent_space_bounds(from, &child_box);
 
         left_map[i] = false;
         right_map[i] = false;
-        if (bounding_box_contains_box(left, child_box)) {
+        if (bounding_box_contains_box(&left, &child_box)) {
             left_map[i] = true;
             left_count++;
-        } else if (bounding_box_contains_box(right, child_box)) {
+        } else if (bounding_box_contains_box(&right, &child_box)) {
             right_map[i] = true;
             right_count++;
         } else {
@@ -331,7 +328,6 @@ partition_children(Shape group)
 
     free(right_map);
     free(left_map);
-    bounding_box_free(boxes);
 
     return rv;
 }
@@ -409,24 +405,24 @@ group_divide(Shape g, size_t threshold)
     }
 }
 
-Bounding_box
-group_bounds(Shape group)
+void
+group_bounds(Shape group, Bounding_box *res)
 {
-    if (group->bbox == NULL) {
-        Bounding_box box = bounding_box_alloc();
+    if (!group->bbox_valid) {
+        group->bbox_valid = true;
         Shape child;
         Bounding_box bbox;
         int i;
         for (i = 0, child = group->fields.group.children;
                 i < group->fields.group.num_children;
                 i++, child++) {
-            bbox = child->parent_space_bounds(child);
-            bounding_box_add_box(box, bbox);
+            child->parent_space_bounds(child, &bbox);
+            bounding_box_add_box(&(group->bbox), &bbox);
         }
-        group->bbox = box;
-        group->bbox_inverse = bounding_box_transform(box, group->transform);
+        bounding_box_transform(&(group->bbox), group->transform, &(group->bbox_inverse));
     }
-    return group->bbox;
+
+    *res = group->bbox;
 }
 
 #define DEFAULT_MIN_CHILD_LEN 16
@@ -439,6 +435,8 @@ group(Shape s, Shape children, size_t num_children)
     s->parent = NULL;
     s->type = SHAPE_GROUP;
     s->xs = intersections_empty(64);
+    bounding_box(&(s->bbox));
+    s->bbox_valid = false;
 
     size_t array_len = DEFAULT_MIN_CHILD_LEN > num_children ? DEFAULT_MIN_CHILD_LEN : num_children;
     s->fields.group.children = (Shape) malloc(array_len * sizeof(struct shape));
@@ -454,8 +452,6 @@ group(Shape s, Shape children, size_t num_children)
 
     s->fields.group.num_children = num_children;
     s->fields.group.size_children_array = array_len;
-    s->bbox = NULL;
-    s->bbox_inverse = NULL;
 
     group_recursive_parent_update(s, s->parent);
     recursive_invalidate_bounding_box(s);

@@ -1,6 +1,6 @@
 from pattern import Pattern
 
-map_types = ['Ka', 'Kd', 'Ks', 'Ns', 'bump', 'disp']
+map_types = ['Ka', 'Kd', 'Ks', 'Ns', 'bump', 'disp', 'refl']
 
 class Material(object):
     def __init__(self, yaml_obj):
@@ -75,15 +75,17 @@ class Material(object):
         for pat in pats:
             buf += """{}""".format(pats[pat].c_repr("{0}_{1}".format(name, pat), resources))
         return buf + """    Color material_{0}_color_raw = color({2:.10f}, {3:.10f}, {4:.10f});
+    Color material_{0}_reflective = color({9:.10f}, {9:.10f}, {9:.10f});
 
     Material material_{0} = material_alloc();
     color_space_fn(material_{0}_color_raw, material_{0}->Ka);
     color_space_fn(material_{0}_color_raw, material_{0}->Kd);
     color_space_fn(material_{0}_color_raw, material_{0}->Ks);
+    rgb_to_rgb(material_{0}_reflective, material_{0}->refl);
     color_scale(material_{0}->Ka, {5:.10f});
     color_scale(material_{0}->Kd, {6:.10f});
     color_scale(material_{0}->Ks, {7:.10f});
-    material_{0}->reflective = {9:.10f};
+    material_{0}->reflective = material_{0}_reflective[0] > 0.0 || material_{0}_reflective[1] > 0.0 || material_{0}_reflective[2] > 0.0;
 
     material_{0}->Ns = {8:.10f};
     material_{0}->Tr = {10:.10f};
@@ -98,6 +100,7 @@ class Material(object):
     material_set_pattern(material_{0}, map_Ns, pattern_{0}_Ns);
     material_set_pattern(material_{0}, map_bump, pattern_{0}_bump);
     material_set_pattern(material_{0}, map_disp, pattern_{0}_disp);
+    material_set_pattern(material_{0}, map_refl, pattern_{0}_refl);
 """.format(name,
            "",
            self.yaml_obj['color'][0], self.yaml_obj['color'][1], self.yaml_obj['color'][2],

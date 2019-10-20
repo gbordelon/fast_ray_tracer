@@ -470,62 +470,37 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
 
     if (res->obj->material->map_Ka != NULL) {
         res->obj->material->map_Ka->pattern_at_shape(res->obj->material->map_Ka, res->obj, res->over_point, res->over_Ka);
+/*
         res->over_Ka[0] *= res->obj->material->Ka[0];
         res->over_Ka[1] *= res->obj->material->Ka[1];
         res->over_Ka[2] *= res->obj->material->Ka[2];
+*/
     } else {
         color_copy(res->over_Ka, res->obj->material->Ka);
     }
 
     if (res->obj->material->map_Kd != NULL) {
         res->obj->material->map_Kd->pattern_at_shape(res->obj->material->map_Kd, res->obj, res->over_point, res->over_Kd);
-
+/*
         res->over_Kd[0] *= res->obj->material->Kd[0];
         res->over_Kd[1] *= res->obj->material->Kd[1];
         res->over_Kd[2] *= res->obj->material->Kd[2];
+*/
     } else {
         color_copy(res->over_Kd, res->obj->material->Kd);
     }
 
     if (res->obj->material->map_Ks != NULL) {
         res->obj->material->map_Ks->pattern_at_shape(res->obj->material->map_Ks, res->obj, res->over_point, res->over_Ks);
-        //res->over_Ks[0] *= res->obj->material->Ks[0];
-        //res->over_Ks[1] *= res->obj->material->Ks[1];
-        //res->over_Ks[2] *= res->obj->material->Ks[2];
     } else {
         color_copy(res->over_Ks, res->obj->material->Ks);
     }
-/*
- * I don't think anything is using these
- *
-    if (res->obj->material->map_Ka != NULL) {
-        res->obj->material->map_Ka->pattern_at_shape(res->obj->material->map_Ka, res->obj, res->under_point, res->under_Ka);
-        res->under_Ka[0] *= res->obj->material->Ka[0];
-        res->under_Ka[1] *= res->obj->material->Ka[1];
-        res->under_Ka[2] *= res->obj->material->Ka[2];
-    } else {
-        color_copy(res->under_Ka, res->obj->material->Ka);
-    }
 
-    if (res->obj->material->map_Kd != NULL) {
-        res->obj->material->map_Kd->pattern_at_shape(res->obj->material->map_Kd, res->obj, res->under_point, res->under_Kd);
-
-        res->under_Kd[0] *= res->obj->material->Kd[0];
-        res->under_Kd[1] *= res->obj->material->Kd[1];
-        res->under_Kd[2] *= res->obj->material->Kd[2];
+    if (res->obj->material->map_refl != NULL) {
+        res->obj->material->map_refl->pattern_at_shape(res->obj->material->map_refl, res->obj, res->over_point, res->over_refl);
     } else {
-        color_copy(res->under_Kd, res->obj->material->Kd);
+        color_copy(res->over_refl, res->obj->material->refl);
     }
-
-    if (res->obj->material->map_Ks != NULL) {
-        res->obj->material->map_Ks->pattern_at_shape(res->obj->material->map_Ks, res->obj, res->under_point, res->under_Ks);
-        res->under_Ks[0] *= res->obj->material->Ks[0];
-        res->under_Ks[1] *= res->obj->material->Ks[1];
-        res->under_Ks[2] *= res->obj->material->Ks[2];
-    } else {
-        color_copy(res->under_Ks, res->obj->material->Ks);
-    }
-*/
 }
 
 void
@@ -547,6 +522,18 @@ reflected_color(World w, Computations comps, size_t remaining, Color res, struct
     ray_array(comps->over_point, comps->reflectv, &reflect_ray);
 
     color_at(w, &reflect_ray, remaining - 1, c, container);
+
+    ambient_from_triple(c)[0] *= comps->over_refl[0];
+    ambient_from_triple(c)[1] *= comps->over_refl[1];
+    ambient_from_triple(c)[2] *= comps->over_refl[2];
+
+    diffuse_from_triple(c)[0] *= comps->over_refl[0];
+    diffuse_from_triple(c)[1] *= comps->over_refl[1];
+    diffuse_from_triple(c)[2] *= comps->over_refl[2];
+
+    specular_from_triple(c)[0] *= comps->over_refl[0];
+    specular_from_triple(c)[1] *= comps->over_refl[1];
+    specular_from_triple(c)[2] *= comps->over_refl[2];
 
     color_accumulate(ambient_from_triple(res), ambient_from_triple(c));
     color_accumulate(diffuse_from_triple(res), diffuse_from_triple(c));
@@ -595,9 +582,17 @@ refracted_color(World w, Computations comps, size_t remaining, ColorTriple res, 
 
     color_at(w, &refracted_ray, remaining - 1, c, container);
 
-    color_scale(ambient_from_triple(c), comps->obj->material->Tf[0]);
-    color_scale(diffuse_from_triple(c), comps->obj->material->Tf[1]);
-    color_scale(specular_from_triple(c), comps->obj->material->Tf[2]);
+    ambient_from_triple(c)[0] *= comps->obj->material->Tf[0];
+    ambient_from_triple(c)[1] *= comps->obj->material->Tf[1];
+    ambient_from_triple(c)[2] *= comps->obj->material->Tf[2];
+
+    diffuse_from_triple(c)[0] *= comps->obj->material->Tf[0];
+    diffuse_from_triple(c)[1] *= comps->obj->material->Tf[1];
+    diffuse_from_triple(c)[2] *= comps->obj->material->Tf[2];
+
+    specular_from_triple(c)[0] *= comps->obj->material->Tf[0];
+    specular_from_triple(c)[1] *= comps->obj->material->Tf[1];
+    specular_from_triple(c)[2] *= comps->obj->material->Tf[2];
 
     color_accumulate(ambient_from_triple(res), ambient_from_triple(c));
     color_accumulate(diffuse_from_triple(res), diffuse_from_triple(c));

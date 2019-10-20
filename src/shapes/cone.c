@@ -117,28 +117,27 @@ cone_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res)
     }
 }
 
-Bounding_box
-cone_bounds(Shape cone)
+void
+cone_bounds(Shape cone, Bounding_box *res)
 {
-    if (cone->bbox == NULL) {
+    if (!cone->bbox_valid) {
+        cone->bbox_valid = true;
         double a = fabs(cone->fields.cone.minimum);
         double b = fabs(cone->fields.cone.maximum);
         double limit = fmax(a,b);
         double arr[4] = {-limit, cone->fields.cone.minimum, -limit, 1.0};
-        Bounding_box box = bounding_box_alloc();
 
-        bounding_box_add_array(box, arr);
+        bounding_box_add_array(&(cone->bbox), arr);
 
         arr[0] = limit;
         arr[1] = cone->fields.cone.maximum;
         arr[2] = limit;
-        bounding_box_add_array(box, arr);
+        bounding_box_add_array(&(cone->bbox), arr);
 
-        cone->bbox = box;
-        cone->bbox_inverse = bounding_box_transform(box, cone->transform);
+        bounding_box_transform(&(cone->bbox), cone->transform, &(cone->bbox_inverse));
     }
 
-    return cone->bbox;
+    *res = cone->bbox;
 }
 
 void
@@ -149,8 +148,8 @@ cone(Shape s)
     s->material = material_alloc();
     s->parent = NULL;
     s->type = SHAPE_CONE;
-    s->bbox = NULL;
-    s->bbox_inverse = NULL;
+    bounding_box(&(s->bbox));
+    s->bbox_valid = false;
     s->xs = intersections_empty(4);
 
     s->fields.cone.minimum = -DBL_MAX;

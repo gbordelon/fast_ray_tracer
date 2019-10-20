@@ -104,24 +104,23 @@ cylinder_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector r
     }
 }
 
-Bounding_box
-cylinder_bounds(Shape cylinder)
+void
+cylinder_bounds(Shape cylinder, Bounding_box *res)
 {
-    if (cylinder->bbox == NULL) {
+    if (!cylinder->bbox_valid) {
+        cylinder->bbox_valid = true;
         double arr[4] = {-1.0, cylinder->fields.cylinder.minimum, -1.0, 1.0};
-        Bounding_box box = bounding_box_alloc();
 
-        bounding_box_add_array(box, arr);
+        bounding_box_add_array(&(cylinder->bbox), arr);
 
         arr[0] = 1;
         arr[1] = cylinder->fields.cylinder.maximum;
         arr[2] = 1;
-        bounding_box_add_array(box, arr);
-        cylinder->bbox = box;
-        cylinder->bbox_inverse = bounding_box_transform(box, cylinder->transform);
+        bounding_box_add_array(&(cylinder->bbox), arr);
+        bounding_box_transform(&(cylinder->bbox), cylinder->transform, &(cylinder->bbox_inverse));
     }
 
-    return cylinder->bbox;
+    *res = cylinder->bbox;
 }
 
 
@@ -133,8 +132,8 @@ cylinder(Shape s)
     s->material = material_alloc();
     s->parent = NULL;
     s->type = SHAPE_CYLINDER;
-    s->bbox = NULL;
-    s->bbox_inverse = NULL;
+    bounding_box(&(s->bbox));
+    s->bbox_valid = false;
     s->xs = intersections_empty(4);
 
     s->fields.cylinder.minimum = -INFINITY;

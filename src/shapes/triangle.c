@@ -49,20 +49,19 @@ triangle_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector r
     memcpy(res, sh->fields.triangle.u_normals.normal, sizeof(Vector));
 }
 
-Bounding_box
-triangle_bounds(Shape triangle)
+void
+triangle_bounds(Shape triangle, Bounding_box *res)
 {
-    if (triangle->bbox == NULL) {
-        Bounding_box box = bounding_box_alloc();
+    if (!triangle->bbox_valid) {
+        triangle->bbox_valid = true;
 
-        bounding_box_add_array(box, triangle->fields.triangle.p1);
-        bounding_box_add_array(box, triangle->fields.triangle.p2);
-        bounding_box_add_array(box, triangle->fields.triangle.p3);
-        triangle->bbox = box;
-        triangle->bbox_inverse = bounding_box_transform(box, triangle->transform);
+        bounding_box_add_array(&(triangle->bbox), triangle->fields.triangle.p1);
+        bounding_box_add_array(&(triangle->bbox), triangle->fields.triangle.p2);
+        bounding_box_add_array(&(triangle->bbox), triangle->fields.triangle.p3);
+        bounding_box_transform(&(triangle->bbox), triangle->transform, &(triangle->bbox_inverse));
     }
 
-    return triangle->bbox;
+    *res = triangle->bbox;
 }
 
 void
@@ -73,8 +72,8 @@ triangle(Shape s, double p1[4], double p2[4], double p3[4])
     s->material = material_alloc();
     s->parent = NULL;
     s->type = SHAPE_TRIANGLE;
-    s->bbox = NULL;
-    s->bbox_inverse = NULL;
+    bounding_box(&(s->bbox));
+    s->bbox_valid = false;
     s->xs = intersections_empty(1);
     s->fields.triangle.use_textures = false;
 
@@ -184,8 +183,8 @@ smooth_triangle(Shape s,
     s->material = material_alloc();
     s->parent = NULL;
     s->type = SHAPE_SMOOTH_TRIANGLE;
-    s->bbox = NULL;
-    s->bbox_inverse = NULL;
+    bounding_box(&(s->bbox));
+    s->bbox_valid = false;
     s->xs = intersections_empty(1);
     s->fields.triangle.use_textures = false;
 

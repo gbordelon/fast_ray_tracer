@@ -73,8 +73,9 @@ csg_filter_intersections(Shape s, Intersections xs)
 Intersections
 csg_local_intersect(Shape s, Ray r)
 {
-    Bounding_box box = s->bounds(s);
-    if (!bounding_box_intersects(box, r)) {
+    Bounding_box box;
+    s->bounds(s, &box);
+    if (!bounding_box_intersects(&box, r)) {
         return NULL;
     }
 
@@ -143,21 +144,23 @@ csg_divide(Shape csg, size_t threshold)
     csg->fields.csg.right->divide(csg->fields.csg.right, threshold);
 }
 
-Bounding_box
-csg_bounds(Shape csg)
+void
+csg_bounds(Shape csg, Bounding_box *res)
 {
-    if (csg->bbox == NULL) {
-        Bounding_box box = bounding_box_alloc();
+    if (!csg->bbox_valid) {
+        csg->bbox_valid = true;
 
-        Bounding_box lbox = csg->fields.csg.left->parent_space_bounds(csg->fields.csg.left);
-        Bounding_box rbox = csg->fields.csg.right->parent_space_bounds(csg->fields.csg.right);
+        Bounding_box lbox, rbox;
+        csg->fields.csg.left->parent_space_bounds(csg->fields.csg.left, &lbox);
+        csg->fields.csg.right->parent_space_bounds(csg->fields.csg.right, &rbox);
 
-        bounding_box_add_box(box, lbox);
-        bounding_box_add_box(box, rbox);
-        csg->bbox = box;
-        csg->bbox_inverse =  bounding_box_transform(box, csg->transform);
+        bounding_box_add_box(&(csg->bbox), &lbox);
+        bounding_box_add_box(&(csg->bbox), &rbox);
+
+        bounding_box_transform(&(csg->bbox), csg->transform, &(csg->bbox_inverse));
     }
-    return csg->bbox;
+
+    *res = csg->bbox;
 }
 
 void
@@ -168,8 +171,8 @@ csg(Shape s, enum csg_ops_enum op, Shape left_child, Shape right_child)
     s->material = material_alloc();
     s->parent = NULL;
     s->type = SHAPE_CSG;
-    s->bbox = NULL;
-    s->bbox_inverse = NULL;
+    bounding_box(&(s->bbox));
+    s->bbox_valid = false;
     s->xs = intersections_empty(64);
 
     s->fields.csg.op = op;

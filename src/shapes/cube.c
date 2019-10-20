@@ -3,8 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "cube.h"
 #include "shapes.h"
+#include "bounding_box.h"
+
+#include "cube.h"
 
 struct two_doubles {
     double a[2];
@@ -101,8 +103,8 @@ cube(Shape s)
     s->material = material_alloc();
     s->parent = NULL;
     s->type = SHAPE_CUBE;
-    s->bbox = NULL;
-    s->bbox_inverse = NULL;
+    bounding_box(&(s->bbox));
+    s->bbox_valid = false;
     s->xs = intersections_empty(2);
 
     s->intersect = shape_intersect;

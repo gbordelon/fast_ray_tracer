@@ -40,7 +40,7 @@ void
 set_material_flags(Material m)
 {
     if (m != NULL) {
-        m->reflective = m->Ks[0] > 0 || m->Ks[1] > 0 || m->Ks[2] > 0 || m->map_Ks != NULL;
+        m->reflective = m->refl[0] > 0 || m->refl[1] > 0 || m->refl[2] > 0 || m->map_refl != NULL;
         // for now link m->Tr and m->Tf
         if (m->Tr > 0 && (equal(m->Tf[0], 0) && equal(m->Tf[1], 0) && equal(m->Tf[1], 0))) {
             m->Tf[0] = m->Tr;

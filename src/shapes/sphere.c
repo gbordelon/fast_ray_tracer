@@ -4,8 +4,11 @@
 
 #include "../libs/linalg/linalg.h"
 #include "../intersection/intersection.h"
-#include "sphere.h"
+
 #include "shapes.h"
+#include "bounding_box.h"
+
+#include "sphere.h"
 
 Intersections
 sphere_local_intersect(Shape sphere, Ray r)
@@ -50,8 +53,8 @@ sphere(Shape s)
     s->material = material_alloc();
     s->parent = NULL;
     s->type = SHAPE_SPHERE;
-    s->bbox = NULL;
-    s->bbox_inverse = NULL;
+    bounding_box(&(s->bbox));
+    s->bbox_valid = false;
     s->xs = intersections_empty(2);
 
     s->intersect = shape_intersect;

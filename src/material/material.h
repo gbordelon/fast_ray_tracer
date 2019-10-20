@@ -199,6 +199,7 @@ typedef struct material {
     Color Ks; // specular reflectivity
     Color Tf; // transmission filter
     Color Ke; // emissive coefficient (use for light intensity)
+    Color refl; // for scaling reflection
     double Ns; // shininess
     double Ni; // refractive index
     double Tr; // transparency or 1.0 - d

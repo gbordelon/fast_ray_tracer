@@ -31,9 +31,7 @@ typedef struct computations {
     Color over_Ka;
     Color over_Kd;
     Color over_Ks;
-    Color under_Ka;
-    Color under_Kd;
-    Color under_Ks;
+    Color over_refl;
 } *Computations;
 
 struct container {

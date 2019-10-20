@@ -81,7 +81,6 @@ struct triangle_fields {
     } u_normals;
 };
 
-typedef struct bbox *Bounding_box; 
 
 typedef struct shape {
     Matrix transform;
@@ -90,6 +89,7 @@ typedef struct shape {
     struct shape *parent;
     Bounding_box bbox;
     Bounding_box bbox_inverse;
+    bool bbox_valid;
     Intersections xs;
 
     enum shape_enum type;
@@ -109,8 +109,8 @@ typedef struct shape {
     void (*normal_to_world)(struct shape *sh, Vector local_normal, Vector res);
     void (*world_to_object)(struct shape *sh, Point pt, Point res);
 
-    Bounding_box (*bounds)(struct shape *sh);
-    Bounding_box (*parent_space_bounds)(struct shape *sh);
+    void (*bounds)(struct shape *sh, Bounding_box *res);
+    void (*parent_space_bounds)(struct shape *sh, Bounding_box *res);
     void (*divide)(struct shape *sh, size_t threshold);
     bool (*includes)(struct shape *a, struct shape *b);
 } *Shape;
@@ -133,11 +133,9 @@ Intersections shape_intersect(Shape sh, Ray r);
 void shape_set_transform(Shape obj, const Matrix transform);
 
 void shape_set_material(Shape obj, Material m);
-//void shape_set_material_old(Shape obj, Material_old m);
 void shape_set_material_recursive(Shape obj, Material m);
-//void shape_set_material_old_recursive(Shape obj, Material_old m);
 
-Bounding_box shape_bounds(Shape sh);
-Bounding_box shape_parent_space_bounds(Shape sh);
+void shape_bounds(Shape sh, Bounding_box *res);
+void shape_parent_space_bounds(Shape sh, Bounding_box *res);
 
 #endif

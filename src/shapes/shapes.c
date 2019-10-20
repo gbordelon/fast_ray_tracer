@@ -30,10 +30,7 @@ shape_free(Shape s)
         s->xs = NULL;
         material_free(s->material);
         s->material = NULL;
-        bounding_box_free(s->bbox);
-        s->bbox = NULL;
-        bounding_box_free(s->bbox_inverse);
-        s->bbox_inverse = NULL;
+        s->bbox_valid = false;
         if (s->type == SHAPE_GROUP) {
             group_free(s);
         }
@@ -173,35 +170,33 @@ shape_set_material_recursive(Shape obj, Material m)
 }
 
 // bounding boxes
-Bounding_box
-shape_bounds(Shape sh)
+void
+shape_bounds(Shape sh, Bounding_box *res)
 {
-    if (sh->bbox == NULL) {
+    if (!sh->bbox_valid) {
+        sh->bbox_valid = true;
         double arr[4] = {-1.0, -1.0, -1.0, 1.0};
+        bounding_box_add_array(&(sh->bbox), arr);
 
-        Bounding_box box = bounding_box_alloc();
-
-        bounding_box_add_array(box, arr);
         arr[0] = 1.0;
         arr[1] = 1.0;
         arr[2] = 1.0;
-        bounding_box_add_array(box, arr);
+        bounding_box_add_array(&(sh->bbox), arr);
 
-        sh->bbox = box;
-        sh->bbox_inverse = bounding_box_transform(box, sh->transform);
+        bounding_box_transform(&(sh->bbox), sh->transform, &(sh->bbox_inverse));
     }
 
-    return sh->bbox;
+    *res = sh->bbox;
 }
 
-Bounding_box
-shape_parent_space_bounds(Shape sh)
+void
+shape_parent_space_bounds(Shape sh, Bounding_box *res)
 {
-    if (sh->bbox_inverse == NULL) {
-        sh->bounds(sh);
+    if (!sh->bbox_valid) {
+        sh->bounds(sh, res); // instead of declaring a stack variable
     }
 
-    return sh->bbox_inverse;
+    *res = sh->bbox_inverse;
 }
 
 int

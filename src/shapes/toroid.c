@@ -5,8 +5,10 @@
 #include "../libs/linalg/linalg.h"
 #include "../libs/quartic/Roots3And4.h"
 
-#include "toroid.h"
 #include "shapes.h"
+#include "bounding_box.h"
+
+#include "toroid.h"
 
 
 Intersections
@@ -62,25 +64,24 @@ toroid_local_normal_at(Shape sh, Point local_point, Intersection hit, Vector res
     vector_normalize(rv, res);
 }
 
-Bounding_box
-toroid_bounds(Shape toroid)
+void
+toroid_bounds(Shape toroid, Bounding_box *res)
 {
-    if (toroid->bbox == NULL) {
+    if (!toroid->bbox_valid) {
+        toroid->bbox_valid = true;
         double arr[4] = {-toroid->fields.toroid.r1 - toroid->fields.toroid.r2, -toroid->fields.toroid.r2, -toroid->fields.toroid.r1 - toroid->fields.toroid.r2, 1.0};
-        Bounding_box box = bounding_box_alloc();
 
-        bounding_box_add_array(box, arr);
+        bounding_box_add_array(&(toroid->bbox), arr);
 
         arr[0] = toroid->fields.toroid.r1 + toroid->fields.toroid.r2;
         arr[1] = toroid->fields.toroid.r2;
         arr[2] = toroid->fields.toroid.r1 + toroid->fields.toroid.r2;
-        bounding_box_add_array(box, arr);
+        bounding_box_add_array(&(toroid->bbox), arr);
 
-        toroid->bbox = box;
-        toroid->bbox_inverse = bounding_box_transform(box, toroid->transform);
+        bounding_box_transform(&(toroid->bbox), toroid->transform, &(toroid->bbox_inverse));
     }
 
-    return toroid->bbox;
+    *res = toroid->bbox;
 }
 
 void
@@ -94,8 +95,8 @@ toroid(Shape s)
     s->fields.toroid.r1 = 0.75;
     s->fields.toroid.r2 = 0.25;
 
-    s->bbox = NULL;
-    s->bbox_inverse = NULL;
+    bounding_box(&(s->bbox));
+    s->bbox_valid = false;
     s->xs = intersections_empty(4);
 
     s->intersect = shape_intersect;

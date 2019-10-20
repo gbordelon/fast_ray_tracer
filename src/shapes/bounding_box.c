@@ -4,7 +4,7 @@
 #include "bounding_box.h"
 
 void
-bounding_box(Bounding_box box)
+bounding_box(Bounding_box *box)
 {
     box->min[0] = INFINITY;
     box->min[1] = INFINITY;
@@ -17,24 +17,8 @@ bounding_box(Bounding_box box)
     box->max[3] = 1.0;
 }
 
-Bounding_box
-bounding_box_alloc()
-{
-    Bounding_box box = (Bounding_box) malloc(sizeof(struct bbox));
-    bounding_box(box);
-    return box;
-}
-
 void
-bounding_box_free(Bounding_box box)
-{
-    if (box != NULL) {
-        free(box);
-    }
-}
-
-void
-bounding_box_add_array(Bounding_box box, double point[4])
+bounding_box_add_array(Bounding_box *box, double point[4])
 {
     double min_x = box->min[0];
     double min_y = box->min[1];
@@ -72,13 +56,13 @@ bounding_box_add_array(Bounding_box box, double point[4])
 }
 
 void
-bounding_box_add_point(Bounding_box box, Point p)
+bounding_box_add_point(Bounding_box *box, Point p)
 {
     bounding_box_add_array(box, p);
 }
 
 void
-bounding_box_add_box(Bounding_box box, Bounding_box other)
+bounding_box_add_box(Bounding_box *box, Bounding_box *other)
 {
     if (box != other) {
         bounding_box_add_array(box, other->min);
@@ -87,7 +71,7 @@ bounding_box_add_box(Bounding_box box, Bounding_box other)
 }
 
 bool
-bounding_box_contains_array(Bounding_box box, double point[4])
+bounding_box_contains_array(Bounding_box *box, double point[4])
 {
     return box->min[0] <= point[0] && point[0] <= box->max[0]
         && box->min[1] <= point[1] && point[1] <= box->max[1]
@@ -95,21 +79,21 @@ bounding_box_contains_array(Bounding_box box, double point[4])
 }
 
 bool
-bounding_box_contains_point(Bounding_box box, Point p)
+bounding_box_contains_point(Bounding_box *box, Point p)
 {
     return bounding_box_contains_array(box, p);
 }
 
 bool
-bounding_box_contains_box(Bounding_box box, Bounding_box other)
+bounding_box_contains_box(Bounding_box *box, Bounding_box *other)
 {
     return (box == other)
         || (bounding_box_contains_array(box, other->min)
            && bounding_box_contains_array(box, other->max));
 }
 
-Bounding_box
-bounding_box_transform(Bounding_box box, Matrix m)
+void
+bounding_box_transform(Bounding_box *box, Matrix m, Bounding_box *res)
 {
     double points[8][4] = {
         {box->min[0], box->min[1], box->min[2], 1.0 },
@@ -122,15 +106,14 @@ bounding_box_transform(Bounding_box box, Matrix m)
         {box->max[0], box->max[1], box->max[2], 1.0 },
     };
 
-    Bounding_box tr = bounding_box_alloc();
+    bounding_box(res);
+
     Point arr;
     int i;
     for (i = 0; i < 8; i++) {
         matrix_point_multiply(m, points[i], arr);
-        bounding_box_add_array(tr, arr);
+        bounding_box_add_array(res, arr);
     }
-
-    return tr;
 }
 
 struct two_doubles {
@@ -179,7 +162,7 @@ bbox_check_axis(double origin, double direction, double min, double max)
 }
 
 bool
-bounding_box_intersects(Bounding_box box, Ray r)
+bounding_box_intersects(Bounding_box *box, Ray r)
 {
     struct two_doubles xtmin_xtmax = bbox_check_axis(r->origin[0], r->direction[0], box->min[0], box->max[0]);
     struct two_doubles ytmin_ytmax = bbox_check_axis(r->origin[1], r->direction[1], box->min[1], box->max[1]);
@@ -191,8 +174,8 @@ bounding_box_intersects(Bounding_box box, Ray r)
     return tmin <= tmax;
 }
 
-Bounding_box
-bounding_box_split_bounds(Bounding_box box)
+void
+bounding_box_split_bounds(Bounding_box *box, Bounding_box *left_res, Bounding_box *right_res)
 {
     double dx = fabs(box->max[0] - box->min[0]);
     double dy = fabs(box->max[1] - box->min[1]);
@@ -215,26 +198,23 @@ bounding_box_split_bounds(Bounding_box box)
         z0 = z1 = z0 + dz / 2.0;
     }
 
-    Bounding_box boxes = (Bounding_box) malloc(2 * sizeof(struct bbox));
-    boxes->min[0] = box->min[0];
-    boxes->min[1] = box->min[1];
-    boxes->min[2] = box->min[2];
-    boxes->max[0] = x1;
-    boxes->max[1] = y1;
-    boxes->max[2] = z1;
+    left_res->min[0] = box->min[0];
+    left_res->min[1] = box->min[1];
+    left_res->min[2] = box->min[2];
+    left_res->max[0] = x1;
+    left_res->max[1] = y1;
+    left_res->max[2] = z1;
 
-    (boxes+1)->min[0] = x0;
-    (boxes+1)->min[1] = y0;
-    (boxes+1)->min[2] = z0;
-    (boxes+1)->max[0] = box->max[0];
-    (boxes+1)->max[1] = box->max[1];
-    (boxes+1)->max[2] = box->max[2];
-
-    return boxes;
+    right_res->min[0] = x0;
+    right_res->min[1] = y0;
+    right_res->min[2] = z0;
+    right_res->max[0] = box->max[0];
+    right_res->max[1] = box->max[1];
+    right_res->max[2] = box->max[2];
 }
 
 int
-bounding_box_to_string(char * buf, size_t n, Bounding_box box)
+bounding_box_to_string(char * buf, size_t n, Bounding_box *box)
 {
     return snprintf(buf, n, "Box: [%f %f %f] [%f %f %f]",
                     box->min[0], box->min[1], box->min[2],
