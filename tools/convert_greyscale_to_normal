@@ -12,25 +12,52 @@ usage () {
 
 [[ "$#" -le 0 ]] && { usage $@; exit 1; }
 
+# Sobel Roberts Prewitt Compass Kirsch Frei-Chen
+convolution="Frei-Chen"
+
+# compute and scale z from x,y. Closer to 1.0 is smoother, closer to 0 is noisier
+zScale="0.5"
+
+#
+# https://www.imagemagick.org/script/command-line-options.php?#evaluate
+#
+
+#noScaling=
+scalingMultipleR="1.0"
+scalingOffsetR="0.0"
+scalingOpR="Add"
+scalingMultipleG="1.0"
+scalingOffsetG="0.0"
+scalingOpG="Add"
+scalingMultipleB="2.0"
+scalingOffsetB="0.0"
+scalingOpB="Add"
+
 heightmappath="$1"
 heightmapname=$(basename $heightmappath)
 
 
-convert $heightmappath -define convolve:scale='50%!' -bias 50% -morphology Convolve Sobel:0 -compress none /tmp/${heightmapname}.r.tmp.png
-convert $heightmappath -define convolve:scale='50%!' -bias 50% -morphology Convolve Sobel:90 -compress none /tmp/${heightmapname}.g.tmp.png
+convert $heightmappath -define convolve:scale='50%!' -bias 50% -morphology Convolve ${convolution}:0 -compress none /tmp/${heightmapname}.r.tmp.png
+convert $heightmappath -define convolve:scale='50%!' -bias 50% -morphology Convolve ${convolution}:90 -compress none /tmp/${heightmapname}.g.tmp.png
 
-convert /tmp/${heightmapname}.r.tmp.png /tmp/${heightmapname}.g.tmp.png null: -poly '-1.0,2 -1.0,2 1.0,0' -evaluate Pow 0.5 /tmp/${heightmapname}.b.tmp.png
+convert /tmp/${heightmapname}.r.tmp.png /tmp/${heightmapname}.g.tmp.png null: -poly '-1.0,2 -1.0,2 1.0,0' -evaluate Pow 0.5  -evaluate Multiply $zScale /tmp/${heightmapname}.b.tmp.png
 
-convert /tmp/${heightmapname}.r.tmp.png -evaluate Multiply 0.5 -evaluate Add 0.5 -compress none /tmp/${heightmapname}.r.png
-convert /tmp/${heightmapname}.g.tmp.png -evaluate Multiply 0.5 -evaluate Add 0.5 -compress none /tmp/${heightmapname}.g.png
-convert /tmp/${heightmapname}.b.tmp.png -evaluate Multiply 0.5 -evaluate Add 0.5 -compress none /tmp/${heightmapname}.b.png
+if [[ -z ${noScaling+x} ]]
+then
+    convert /tmp/${heightmapname}.r.tmp.png -evaluate Multiply $scalingMultipleR -evaluate $scalingOpR $scalingOffsetR -compress none /tmp/${heightmapname}.r.png
+    convert /tmp/${heightmapname}.g.tmp.png -evaluate Multiply $scalingMultipleG -evaluate $scalingOpG $scalingOffsetG -compress none /tmp/${heightmapname}.g.png
+    convert /tmp/${heightmapname}.b.tmp.png -evaluate Multiply $scalingMultipleB -evaluate $scalingOpB $scalingOffsetB -compress none /tmp/${heightmapname}.b.png
+else
+     convert /tmp/${heightmapname}.r.tmp.png -compress none /tmp/${heightmapname}.r.png
+     convert /tmp/${heightmapname}.g.tmp.png -compress none /tmp/${heightmapname}.g.png
+     convert /tmp/${heightmapname}.b.tmp.png -compress none /tmp/${heightmapname}.b.png
+fi
 
-convert /tmp/${heightmapname}.r.tmp.png /tmp/${heightmapname}.g.tmp.png /tmp/${heightmapname}.b.tmp.png -colorspace RGB -combine /tmp/${heightmapname}.normal.png
+convert /tmp/${heightmapname}.r.png /tmp/${heightmapname}.g.png /tmp/${heightmapname}.b.png -colorspace RGB -combine /tmp/${heightmapname}.normal.png
 
 rm /tmp/${heightmapname}.r.tmp.png
 rm /tmp/${heightmapname}.g.tmp.png
 rm /tmp/${heightmapname}.b.tmp.png
-
 rm /tmp/${heightmapname}.r.png
 rm /tmp/${heightmapname}.g.png
 rm /tmp/${heightmapname}.b.png

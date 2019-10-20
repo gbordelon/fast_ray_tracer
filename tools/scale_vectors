@@ -1,0 +1,16 @@
+#!/usr/bin/env awk -f
+
+#
+# example usage: awk -f tools/scale_vectors.awk scenes/lpshead/head.OBJ | tr -d '\r' > /tmp/head.obj
+#
+BEGIN {}
+{
+if (/^v /) {
+    printf("v %f %f %f\n", $2 * 1000, $3 * 1000, $4 * 1000);
+} else if (/^vt /) {
+    printf("vt %f %f %f\n", $2, $3, $4);
+} else {
+    printf("%s\n", $0);
+}
+}
+END {}
