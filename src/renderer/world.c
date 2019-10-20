@@ -20,6 +20,8 @@ world()
     w->shapes = NULL;
     w->shapes_num = 0;
     w->xs = intersections_empty(64);
+    w->container.shapes = NULL;
+    w->container.size = 0;
     w->photon_maps = NULL;
     w->global_config = NULL;
 
@@ -94,6 +96,8 @@ world_copy(const World w, World new_world)
     new_world->shapes_num = w->shapes_num;
     new_world->shapes = array_of_shapes(w->shapes_num);
     new_world->xs = intersections_empty(64);
+    new_world->container.shapes = NULL;
+    new_world->container.size = 0;
     new_world->photon_maps = w->photon_maps;
     new_world->global_config = w->global_config;
 

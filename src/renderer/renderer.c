@@ -26,7 +26,7 @@
 #include "camera.h"
 #include "ray.h"
 
-void color_at(const World w, const Ray r, const size_t remaining, Color res, struct container *container);
+void color_at(const World w, const Ray r, const size_t remaining, Color res);
 void lighting(Computations comps, Shape shape, Light light, Point point, Vector eyev, Vector normalv, double shade_intensity, bool use_ambient, bool use_diffuse, bool use_specular_highlights, Color res);
 void lighting_gi(Computations comps, Shape shape, Point point, Vector eyev, Vector normalv, PhotonMap *maps, Color res);
 void lighting_caustics(Computations comps, Shape shape, Point point, Vector eyev, Vector normalv, PhotonMap *maps, Color res);
@@ -104,7 +104,7 @@ ray_for_pixel(Camera cam, size_t px, size_t py, double xy_jitter[2], Ray res)
  * average the colors
  */
 void
-pixel_multi_sample(Camera cam, World w, size_t x, size_t y, size_t usteps, size_t vsteps, Sampler sampler, ColorTriple res, struct container *container)
+pixel_multi_sample(Camera cam, World w, size_t x, size_t y, size_t usteps, size_t vsteps, Sampler sampler, ColorTriple res)
 {
     double jitter[2];
     size_t u, v, index[2];
@@ -138,7 +138,7 @@ pixel_multi_sample(Camera cam, World w, size_t x, size_t y, size_t usteps, size_
             color_default(ambient_from_triple(c));
             color_default(diffuse_from_triple(c));
             color_default(specular_from_triple(c));
-            color_at(w, &r, 5, c, container);
+            color_at(w, &r, 5, c);
 
             color_accumulate(ambient_from_triple(acc), ambient_from_triple(c));
             color_accumulate(diffuse_from_triple(acc), diffuse_from_triple(c));
@@ -182,10 +182,6 @@ render_multi_helper(World w, void *args)
 
     ColorTriple c, pixel_color;
 
-    struct container container;
-    container.shapes = NULL;
-    container.size = 0;
-
     struct sampler sampler;
     sampler_2d(jitter, usteps, vsteps, sampler_default_constraint, &sampler);
 
@@ -201,7 +197,7 @@ render_multi_helper(World w, void *args)
             color_default(diffuse_from_triple(pixel_color));
             color_default(specular_from_triple(pixel_color));
             //if (i == 310 && j == 240) { // debug
-                pixel_multi_sample(cam, w, i, j, usteps, vsteps, &sampler, c, &container);
+                pixel_multi_sample(cam, w, i, j, usteps, vsteps, &sampler, c);
                 // aggregate colors
                 color_accumulate(pixel_color, ambient_from_triple(c));
                 color_accumulate(pixel_color, diffuse_from_triple(c));
@@ -216,7 +212,6 @@ render_multi_helper(World w, void *args)
     }
 
     sampler_free(&sampler);
-    free(container.shapes);
     free(buf);
 }
 
@@ -307,9 +302,6 @@ render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
     Color pixel_color;
 
     Canvas image = canvas_alloc(cam->hsize, cam->vsize, NULL);
-    struct container container;
-    container.shapes = NULL;
-    container.size = 0;
     struct sampler sampler;
     sampler_2d(jitter, usteps, vsteps, sampler_default_constraint, &sampler);
 
@@ -320,7 +312,7 @@ render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
             color_default(diffuse_from_triple(c));
             color_default(specular_from_triple(c));
             color_default(pixel_color);
-            pixel_multi_sample(cam, w, i, j, usteps, vsteps, &sampler, c, &container);
+            pixel_multi_sample(cam, w, i, j, usteps, vsteps, &sampler, c);
             // aggregate colors
             color_accumulate(pixel_color, ambient_from_triple(c));
             color_accumulate(pixel_color, diffuse_from_triple(c));
@@ -333,13 +325,11 @@ render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
         printf("Wrote %d rows out of %lu\n", k, cam->vsize);
     }
 
-    free(container.shapes);
-
     return image;
 }
 
 void
-color_at_gi(const World w, const Ray r, Color res, struct container *container)
+color_at_gi(const World w, const Ray r, Color res)
 {
     Intersections xs = intersect_world(w, r);
     Intersection i = hit(xs, false);
@@ -358,7 +348,7 @@ color_at_gi(const World w, const Ray r, Color res, struct container *container)
         }
 
         if (diffuse[0] > 0 || diffuse[1] > 0 || diffuse[2] > 0) {
-            prepare_computations(i, r, c, xs, &comps, container); // can probably do something simpler here
+            prepare_computations(i, r, c, xs, &comps, &(w->container)); // can probably do something simpler here
             shade_hit_gi(w, &comps, c);
         }
     }
@@ -367,7 +357,7 @@ color_at_gi(const World w, const Ray r, Color res, struct container *container)
 }
 
 void
-color_at(const World w, const Ray r, const size_t remaining, ColorTriple res, struct container *container)
+color_at(const World w, const Ray r, const size_t remaining, ColorTriple res)
 {
     Intersections xs = intersect_world(w, r);
     Intersection i = hit(xs, false);
@@ -378,8 +368,8 @@ color_at(const World w, const Ray r, const size_t remaining, ColorTriple res, st
     color_default(specular_from_triple(c));
 
     if (i != NULL) {
-        prepare_computations(i, r, diffuse_from_triple(c), xs, &comps, container);
-        shade_hit(w, &comps, remaining, c, container);
+        prepare_computations(i, r, diffuse_from_triple(c), xs, &comps, &(w->container));
+        shade_hit(w, &comps, remaining, c);
     }
 
     color_copy(ambient_from_triple(res), ambient_from_triple(c));
@@ -504,7 +494,7 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
 }
 
 void
-reflected_color(World w, Computations comps, size_t remaining, Color res, struct container *container)
+reflected_color(World w, Computations comps, size_t remaining, Color res)
 {
     if (remaining == 0 || !comps->obj->material->reflective) {
         color_default(ambient_from_triple(res));
@@ -521,7 +511,7 @@ reflected_color(World w, Computations comps, size_t remaining, Color res, struct
     struct ray reflect_ray;
     ray_array(comps->over_point, comps->reflectv, &reflect_ray);
 
-    color_at(w, &reflect_ray, remaining - 1, c, container);
+    color_at(w, &reflect_ray, remaining - 1, c);
 
     ambient_from_triple(c)[0] *= comps->over_refl[0];
     ambient_from_triple(c)[1] *= comps->over_refl[1];
@@ -541,7 +531,7 @@ reflected_color(World w, Computations comps, size_t remaining, Color res, struct
 }
 
 void
-refracted_color(World w, Computations comps, size_t remaining, ColorTriple res, struct container *container)
+refracted_color(World w, Computations comps, size_t remaining, ColorTriple res)
 {
     if (remaining == 0 || equal(comps->obj->material->Tr, 0.0)) {
         color_default(ambient_from_triple(res));
@@ -580,7 +570,7 @@ refracted_color(World w, Computations comps, size_t remaining, ColorTriple res, 
     vector(t1[0] - t2[0], t1[1] - t2[1], t1[2] - t2[2], direction);
     ray_array(comps->under_point, direction, &refracted_ray);
 
-    color_at(w, &refracted_ray, remaining - 1, c, container);
+    color_at(w, &refracted_ray, remaining - 1, c);
 
     ambient_from_triple(c)[0] *= comps->obj->material->Tf[0];
     ambient_from_triple(c)[1] *= comps->obj->material->Tf[1];
@@ -637,7 +627,7 @@ shade_hit_gi(World w, Computations comps, Color res)
 }
 
 void
-final_gather(World w, Computations comps, Color res, struct container *container)
+final_gather(World w, Computations comps, Color res)
 {
     Color final_gather, total_power, c;
     Vector nt, nb, sample, direction;
@@ -673,7 +663,7 @@ final_gather(World w, Computations comps, Color res, struct container *container
 
             color_default(c);
 
-            color_at_gi(w, &r, c, container);
+            color_at_gi(w, &r, c);
 
             color_scale(c, rands[0]); // scale by theta
             color_scale(c, pdf_inv); // scale by hemisphere prob. dist. func.
@@ -708,7 +698,7 @@ final_gather(World w, Computations comps, Color res, struct container *container
 
                 color_default(c);
 
-                color_at_gi(w, &r, c, container);
+                color_at_gi(w, &r, c);
 
                 color_scale(c, rands[0]); // scale by theta
                 color_scale(c, pdf_inv); // scale by hemisphere prob. dist. func.
@@ -741,7 +731,7 @@ final_gather(World w, Computations comps, Color res, struct container *container
 }
 
 void
-shade_hit(World w, Computations comps, size_t remaining, ColorTriple res, struct container *container)
+shade_hit(World w, Computations comps, size_t remaining, ColorTriple res)
 {
     Light light;
     size_t i;
@@ -814,7 +804,7 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res, struct
 
         // final gather for soft indirect diffuse component
         if (use_final_gather) {
-            final_gather(w, comps, fgather, container);
+            final_gather(w, comps, fgather);
             //surface[0] *= fgather[0];
             //surface[1] *= fgather[1];
             //surface[2] *= fgather[2];
@@ -843,14 +833,14 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res, struct
         color_default(diffuse_from_triple(reflected));
         color_default(specular_from_triple(reflected));
 
-        reflected_color(w, comps, remaining, reflected, container);
+        reflected_color(w, comps, remaining, reflected);
 
         ColorTriple refracted;
         color_default(ambient_from_triple(refracted));
         color_default(diffuse_from_triple(refracted));
         color_default(specular_from_triple(refracted));
 
-        refracted_color(w, comps, remaining, refracted, container);
+        refracted_color(w, comps, remaining, refracted);
 
         if (comps->obj->material->reflective && comps->obj->material->Tr > 0.0) {
             double reflectance = schlick(comps);

@@ -34,12 +34,9 @@ typedef struct computations {
     Color over_refl;
 } *Computations;
 
-struct container {
-    Shape *shapes;
-    size_t size;
-};
+struct container;
 
-void shade_hit(World w, Computations comps, size_t remaining, Color res, struct container *container);
+void shade_hit(World w, Computations comps, size_t remaining, Color res);
 bool is_shadowed(World w, Point light_position, Point pt);
 
 double schlick(Computations comps);

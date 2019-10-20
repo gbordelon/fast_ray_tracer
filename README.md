@@ -14,9 +14,6 @@ open /tmp/out_file.png
 ```
 
 TODO
-* Get rid of bounding box alloc'ing and freeing.
-* Rework container so it hangs off the world object.
-* ~~Fix canvas so it takes a color space function at construction. Right now maps are always converting to sRGB.~~
 * Implement MTL file parsing.
     * ~~bump maps.~~
     * WIP
@@ -28,7 +25,6 @@ TODO
 * Refactor patterns into multiple source files
 * Add a circular area light
 * Add a spot light
-* ~~Use realloc instead of malloc when resizing arrays for intersections and group.children~~
 * Implement triangle mesh support
 * Refactor photon mapping code in light.c to use CMJ instead of random sampling for photon emission
 * Finish adding HSL color support
@@ -37,11 +33,15 @@ TODO
 * Implement selective projection maps. Perhaps object opt-in.
 * Genericize patterns so they don't use the Color type
 * Add const keyword to function signatures where appropriate.
-* Investigate BLAS/LAPACK
+* Investigate BLAS/LAPACK/SIMD
 * Add heirarchical yaml parsing so I can have a global config which is read first before a scene's yaml file.
 * Refactor shapes such that one only needs to include shapes.h
 * Add parameters to the config parser
     * epsilon
+* ~~Use realloc instead of malloc when resizing arrays for intersections and group.children~~
+* ~~Get rid of bounding box alloc'ing and free'ing.~~
+* ~~Rework container so it hangs off the world object.~~
+* ~~Fix canvas so it takes a color space function at construction. Right now maps are always converting to sRGB.~~
 * ~~Refactor materials out of shapes.{c,h}~~
 * ~~Refactor yaml parser logic to not load a file multiple times but use shape_copy on the parent group for object files.~~
 * ~~Refactor canvas/texture maps to only keep one image in memory even if multiple patterns try to load the file.~~

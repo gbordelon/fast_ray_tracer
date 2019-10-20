@@ -25,12 +25,12 @@ enum photon_map_type {
 };
 
 int
-power_at(enum photon_map_type map_type, const World w, const Ray r, Color power, bool had_diffuse, bool had_specular, const size_t remaining, struct container *container);
+power_at(enum photon_map_type map_type, const World w, const Ray r, Color power, bool had_diffuse, bool had_specular, const size_t remaining);
 
 // prepare_computations assumes the ray direction is from the camera but should be resusable
 
 int
-reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comps, bool had_specular, double average_diffuse_reflectance, size_t remaining, struct container *container)
+reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comps, bool had_specular, double average_diffuse_reflectance, size_t remaining)
 {
     Vector nt, nb, random_diffuse, sample;
     create_coordinate_system(comps->normalv, nt, nb);
@@ -53,11 +53,11 @@ reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comp
     //color_copy(diffuse_color, comps->photon_power);
 
     ray_array(comps->over_point, random_diffuse, &reflect_ray);
-    return power_at(map_type, w, &reflect_ray, diffuse_color, true, had_specular, remaining - 1, container);
+    return power_at(map_type, w, &reflect_ray, diffuse_color, true, had_specular, remaining - 1);
 }
 
 int
-reflect_photon_specular(enum photon_map_type map_type, World w, Computations comps, bool had_diffuse, double average_specular_reflectance, size_t remaining, struct container *container)
+reflect_photon_specular(enum photon_map_type map_type, World w, Computations comps, bool had_diffuse, double average_specular_reflectance, size_t remaining)
 {
     if (!comps->obj->material->reflective) {
         return 0;
@@ -67,13 +67,13 @@ reflect_photon_specular(enum photon_map_type map_type, World w, Computations com
 
     struct ray reflect_ray;
     ray_array(comps->over_point, comps->reflectv, &reflect_ray);
-    return power_at(map_type, w, &reflect_ray, comps->photon_power, had_diffuse, true, remaining - 1, container);
+    return power_at(map_type, w, &reflect_ray, comps->photon_power, had_diffuse, true, remaining - 1);
 }
 
 // TODO scale photon power by material->Tf triple but only once. Only as it either enters or leaves
 // TODO how do i know? Can i use comps->inside ? 
 int
-refract_photon(enum photon_map_type map_type, World w, Computations comps, bool had_diffuse, double average_transmission_filter, size_t remaining, struct container *container)
+refract_photon(enum photon_map_type map_type, World w, Computations comps, bool had_diffuse, double average_transmission_filter, size_t remaining)
 {
     if (equal(comps->obj->material->Tr, 0)) {
         return 0;
@@ -104,11 +104,11 @@ refract_photon(enum photon_map_type map_type, World w, Computations comps, bool 
 
     color_scale(comps->photon_power, 1.0 / average_transmission_filter);
 
-    return power_at(map_type, w, &refracted_ray, comps->photon_power, had_diffuse, true, remaining - 1, container);
+    return power_at(map_type, w, &refracted_ray, comps->photon_power, had_diffuse, true, remaining - 1);
 }
 
 int
-photon_hit(enum photon_map_type map_type, World w, Computations comps, bool had_diffuse, bool had_specular, size_t remaining, struct container *container)
+photon_hit(enum photon_map_type map_type, World w, Computations comps, bool had_diffuse, bool had_specular, size_t remaining)
 {
     PhotonMap *maps = w->photon_maps;
     int hit = 0;
@@ -156,19 +156,19 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, bool had_
                                 average_specular_reflectance +
                                 average_transmission_filter;
         if (r * total_refract_reflect < average_diffuse_reflectance) {
-            hit += reflect_photon_diffuse(map_type, w, comps, had_specular, average_diffuse_reflectance, remaining, container);
+            hit += reflect_photon_diffuse(map_type, w, comps, had_specular, average_diffuse_reflectance, remaining);
         } else if (r * total_refract_reflect < average_diffuse_reflectance + average_specular_reflectance) {
-            hit += reflect_photon_specular(map_type, w, comps, had_diffuse, average_specular_reflectance, remaining, container);
+            hit += reflect_photon_specular(map_type, w, comps, had_diffuse, average_specular_reflectance, remaining);
         } else if (r * total_refract_reflect < average_diffuse_reflectance + average_specular_reflectance + average_transmission_filter) {
-            hit += refract_photon(map_type, w, comps, had_diffuse, average_transmission_filter, remaining, container);
+            hit += refract_photon(map_type, w, comps, had_diffuse, average_transmission_filter, remaining);
         }
     } else if (map_type == CAUSTIC) {
         total_refract_reflect = average_specular_reflectance +
                                 average_transmission_filter;
         if (r * total_refract_reflect < average_specular_reflectance) {
-            hit += reflect_photon_specular(map_type, w, comps, had_diffuse, average_specular_reflectance, remaining, container);
+            hit += reflect_photon_specular(map_type, w, comps, had_diffuse, average_specular_reflectance, remaining);
         } else if (r * total_refract_reflect < average_specular_reflectance + average_transmission_filter) {
-            hit += refract_photon(map_type, w, comps, had_diffuse, average_transmission_filter, remaining, container);
+            hit += refract_photon(map_type, w, comps, had_diffuse, average_transmission_filter, remaining);
         }
     }
     // else participating media
@@ -177,7 +177,7 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, bool had_
 }
 
 int
-power_at(enum photon_map_type map_type, const World w, const Ray r, Color power, bool had_diffuse, bool had_specular, const size_t remaining, struct container *container)
+power_at(enum photon_map_type map_type, const World w, const Ray r, Color power, bool had_diffuse, bool had_specular, const size_t remaining)
 {
     Intersections xs = intersect_world(w, r);
     Intersection i = hit(xs, true);
@@ -185,8 +185,8 @@ power_at(enum photon_map_type map_type, const World w, const Ray r, Color power,
     int hit = 0;
 
     if (i != NULL) {
-        prepare_computations(i, r, power, xs, &comps, container);
-        hit = photon_hit(map_type, w, &comps, had_diffuse, had_specular, remaining, container);
+        prepare_computations(i, r, power, xs, &comps, &(w->container));
+        hit = photon_hit(map_type, w, &comps, had_diffuse, had_specular, remaining);
     }
 
     return hit;
@@ -200,9 +200,6 @@ trace_photons(const World w, size_t num_maps)
     struct ray r; 
     Light itr;
     int i, j, hit, global_total;
-    struct container container;
-    container.shapes = NULL;
-    container.size = 0;
     PhotonMap *maps = w->photon_maps;
     size_t num_photons = maps->max_photons; // assume all three maps have the same photon count
 
@@ -223,14 +220,14 @@ trace_photons(const World w, size_t num_maps)
     for (i = 0, itr = w->lights; i < w->lights_num; ++i, ++itr) {
         for (j = 0; j < itr->num_photons;) {
             itr->emit_photon(itr, &r); // get ray from light
-            hit = power_at(CAUSTIC, w, &r, itr->intensity, false, false, 5, &container);
+            hit = power_at(CAUSTIC, w, &r, itr->intensity, false, false, 5);
             j += hit;
         }
 
         global_total = 0;
         for (j = 0; j < itr->num_photons;) {
             itr->emit_photon(itr, &r); // get ray from light
-            hit = power_at(GLOBAL, w, &r, itr->intensity, false, false, 5, &container);
+            hit = power_at(GLOBAL, w, &r, itr->intensity, false, false, 5);
             j += hit;
             global_total += hit;
         }
