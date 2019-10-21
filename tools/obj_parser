@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+
+from math import sqrt
+from collections import OrderedDict as od
+
+def magnitude(a):
+    return sqrt(a[0] ** 2 + a[1] ** 2 + a[2] ** 2)
+
+def normalize(a):
+    inv = 1.0 / magnitude(a)
+    return a[0] * inv, a[1] * inv, a[2] * inv
+
+def cross(a, b):
+    return a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]
+
+
+class Triangle(object):
+    def __init__(self, v1, v2, v3):
+        self.v1 = v1
+        self.v2 = v2
+        self.v3 = v3
+        self.e1 = (v2[0] - v1[0], v2[1] - v1[1], v2[2] - v1[2])
+        self.e2 = (v3[0] - v1[0], v3[1] - v1[1], v3[2] - v1[2])
+        self.normal = normalize(cross(self.e2, self.e1))
+
+    def __repr__(self):
+        return 'v1: {} v2: {} v3: {} e1: {} e2: {} normal: {}'.format(
+                self.v1, self.v2, self.v3, self.e1, self.e2, self.normal)
+
+class Face(object):
+    def __init__(self, v1, v2, v3, t1, t2, t3, n1, n2, n3):
+        self.v1 = v1
+        self.v2 = v2
+        self.v3 = v3
+        self.t1 = t1
+        self.t2 = t2
+        self.t3 = t3
+        self.n1 = n1
+        self.n2 = n2
+        self.n3 = n3
+        self.use_normals = n1 > 0 and n2 > 0 and n3 > 0
+
+class OBJParser(object):
+    def __init__(self, f):
+        self.open_file = f
+        self.vertex_to_face_map = od()
+        self.vertices = []
+        self.textures = []
+        self.normals = []
+        self.faces = []
+        self.vertices.append(None)
+        self.textures.append(None)
+        self.normals.append(None)
+        self._parse_file()
+        if len(self.normals) < len(self.vertices):
+            self.normals = []
+            self.normals.append(None)
+            self._generate_normals()
+
+    def print_vertices(self):
+        for i, v in enumerate(self.vertices[1:]):
+            print('v {0:.10f} {1:.10f} {2:.10f}'.format(v[0], v[1], v[2]))
+
+    def print_normals(self):
+        for i, n in enumerate(self.normals[1:]):
+            print('vn {0:.10f} {1:.10f} {2:.10f}'.format(n[0], n[1], n[2]))
+
+    def _parse_file(self):
+        for line in self.open_file:
+            _line = line.strip()
+            if len(_line) > 0:
+                self._parse_line(_line)
+
+    def _parse_line(self, line):
+        lsp = line.split(' ')
+        if '' in lsp:
+            lsp.remove('')
+        if lsp[0] == 'v':
+            self.vertices.append(self._parse_vertex(lsp))
+        elif lsp[0] == 'vt':
+            self.textures.append(self._parse_texture(lsp))
+        elif lsp[0] == 'vn':
+            self.normals.append(self._parse_normal(lsp))
+        elif lsp[0] == 'f':
+            self.faces.extend(self._fan_triangulation(lsp))
+
+    def _parse_normal(self, line):
+        try:
+            return float(line[1]), float(line[2]), float(line[3])
+        except ValueError as e:
+            print(e, line)
+            raise
+
+    def _parse_texture(self, line):
+        try:
+            return float(line[1]), float(line[2]), float(line[3])
+        except ValueError as e:
+            print(e, line)
+            raise
+
+    def _parse_vertex(self, line):
+        try:
+            return float(line[1]), float(line[2]), float(line[3])
+        except ValueError as e:
+            print(e, line)
+            raise
+
+    def _fan_triangulation(self, line):
+        faces = []
+        use_normals = False
+        use_textures = False
+        n1 = 0
+        if '/' in line[1]:
+            lsp = line[1].split('/')
+            v1 = lsp[0]
+            t1 = lsp[1]
+            use_textures = True
+            if len(lsp) > 2:
+                n1 = lsp[2]
+                use_normals = True
+        else:
+            v1 = line[1]
+            t1 = 0
+
+        for i in range(2, len(line) - 1):
+            n2 = 0
+            n3 = 0
+            if '/' in line[i]:
+                lsp = line[i].split('/')
+                v2 = lsp[0]
+                t2 = lsp[1]
+                if len(lsp) > 2:
+                    n2 = lsp[2]
+            else:
+                v2 = line[i]
+                t2 = 0
+
+            if '/' in line[i+1]:
+                lsp = line[i+1].split('/')
+                v3 = lsp[0]
+                t3 = lsp[1]
+                if len(lsp) > 2:
+                    n3 = lsp[2]
+            else:
+                v3 = line[i+1]
+                t3 = 0
+
+            try:
+                face = Face(int(v1), int(v2), int(v3),
+                            int(t1), int(t2), int(t3),
+                            int(n1), int(n2), int(n3))
+
+                if int(v1) not in self.vertex_to_face_map:
+                    self.vertex_to_face_map[int(v1)] = od({face:None})
+                else:
+                    if face not in self.vertex_to_face_map[int(v1)]:
+                        self.vertex_to_face_map[int(v1)][face] = None
+
+                if int(v2) not in self.vertex_to_face_map:
+                    self.vertex_to_face_map[int(v2)] = od({face:None})
+                else:
+                    if face not in self.vertex_to_face_map[int(v2)]:
+                        self.vertex_to_face_map[int(v2)][face] = None
+
+                if int(v3) not in self.vertex_to_face_map:
+                    self.vertex_to_face_map[int(v3)] = od({face:None})
+                else:
+                    if face not in self.vertex_to_face_map[int(v3)]:
+                        self.vertex_to_face_map[int(v3)][face] = None
+
+                faces.append(face)
+            except IndexError as e:
+                print(e, v1, v2, v3, t1, t2, t3, n1, n2, n3)
+                raise
+
+        return faces
+
+    def _generate_normals(self):
+        for i, _ in enumerate(self.vertices):
+            if i == 0:
+                continue
+            acc = [0.0, 0.0, 0.0]
+            num = 0
+            for face in self.vertex_to_face_map[i]:
+                triangle = Triangle(self.vertices[face.v1], self.vertices[face.v2], self.vertices[face.v3])
+                acc[0] += triangle.normal[0]
+                acc[1] += triangle.normal[1]
+                acc[2] += triangle.normal[2]
+
+            self.normals.append(normalize(acc))
+
+if __name__ == '__main__':
+    import sys
+    with open(sys.argv[1], 'r') as f:
+        op = OBJParser(f)
+    op.print_normals()

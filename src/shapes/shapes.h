@@ -138,4 +138,7 @@ void shape_set_material_recursive(Shape obj, Material m);
 void shape_bounds(Shape sh, Bounding_box *res);
 void shape_parent_space_bounds(Shape sh, Bounding_box *res);
 
+void shape_recursive_parent_update(Shape sh, Shape parent);
+void shape_recursive_invalidate_bounding_box(Shape sh);
+
 #endif

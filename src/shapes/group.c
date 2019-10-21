@@ -47,53 +47,6 @@ recursive_print(Shape sh, size_t indent)
 
 
 void
-group_recursive_parent_update(Shape sh, Shape parent)
-{
-    Shape child;
-    int i;
-
-    sh->parent = parent;
-
-    if (sh->type == SHAPE_GROUP) {
-        for (i = 0, child = sh->fields.group.children;
-                i < sh->fields.group.num_children;
-                i++, child++) {
-            group_recursive_parent_update(child, sh);
-        }
-    } else if (sh->type == SHAPE_CSG) {
-        group_recursive_parent_update(sh->fields.csg.left, sh);
-        group_recursive_parent_update(sh->fields.csg.right, sh);
-    }
-}
-
-void
-invalidate_bounding_box(Shape sh)
-{
-    sh->bbox_valid = false;
-    bounding_box(&(sh->bbox));
-}
-
-void
-recursive_invalidate_bounding_box(Shape sh)
-{
-    Shape child;
-    int i;
-
-    invalidate_bounding_box(sh);
-
-    if (sh->type == SHAPE_GROUP) {
-        for (i = 0, child = sh->fields.group.children;
-                i < sh->fields.group.num_children;
-                i++, child++) {
-            recursive_invalidate_bounding_box(child);
-        }
-    } else if (sh->type == SHAPE_CSG) {
-        recursive_invalidate_bounding_box(sh->fields.csg.left);
-        recursive_invalidate_bounding_box(sh->fields.csg.right);
-    }
-}
-
-void
 group_add_children_stage(Shape group, Shape children, size_t num_children)
 {
     int from;
@@ -120,8 +73,8 @@ void
 group_add_children_finish(Shape group)
 {
     if (group != NULL) {
-        recursive_invalidate_bounding_box(group);
-        group_recursive_parent_update(group, group->parent);
+        shape_recursive_invalidate_bounding_box(group);
+        shape_recursive_parent_update(group, group->parent);
         if (group->fields.group.num_children > 0) {
             group->fields.group.children_xs = (Intersections *) realloc(group->fields.group.children_xs, group->fields.group.num_children * sizeof(Intersections));
         }
@@ -366,7 +319,7 @@ group_divide(Shape g, size_t threshold)
                 shape_free(g->fields.group.children + i);
             }
             // recursive parent update on children
-            group_recursive_parent_update(new_group_pos, g);
+            shape_recursive_parent_update(new_group_pos, g);
             new_group_pos++;
         }
         if (map.right_count > 0) {
@@ -376,7 +329,7 @@ group_divide(Shape g, size_t threshold)
                 shape_free(g->fields.group.children + i);
             }
             // recursive parent update on children
-            group_recursive_parent_update(new_group_pos, g);
+            shape_recursive_parent_update(new_group_pos, g);
             new_group_pos++;
         }
         if (map.middle_count != g->fields.group.num_children) {
@@ -394,7 +347,7 @@ group_divide(Shape g, size_t threshold)
             }
             g->fields.group.children_xs = (Intersections *) realloc(g->fields.group.children_xs, g->fields.group.num_children * sizeof(Intersections));
             g->fields.group.size_children_array = new_array_size;
-            group_recursive_parent_update(g, g->parent);
+            shape_recursive_parent_update(g, g->parent);
         }
     }
     
@@ -453,8 +406,8 @@ group(Shape s, Shape children, size_t num_children)
     s->fields.group.num_children = num_children;
     s->fields.group.size_children_array = array_len;
 
-    group_recursive_parent_update(s, s->parent);
-    recursive_invalidate_bounding_box(s);
+    shape_recursive_parent_update(s, s->parent);
+    shape_recursive_invalidate_bounding_box(s);
 
     s->intersect = shape_intersect;
     s->local_intersect = group_local_intersect;

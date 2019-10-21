@@ -57,9 +57,19 @@ parse_map(const char *line, void (*color_space_fn)(const Color, Color))
 {
     char file_name[MAX_MATERIAL_NAME_LEN];
     size_t name_len;
+    int rv;
+    double scaler = 1.0;
     Canvas image;
 
-    sscanf(line, "%*s %255s", file_name);
+    rv = sscanf(line, "%*s -bm %lf %255s", &scaler, file_name);
+    if (rv == 0) {
+        rv = sscanf(line, "%*s %255s", file_name);
+    } else if (rv == 1) {
+        // Which one?
+    } else if (rv == 2) {
+        // do nothing
+    }
+
     name_len = strlen(file_name);
 
     // decide on uv map type, for refl maps only
@@ -211,7 +221,7 @@ struct shape_num_tuple
 fan_triangulation(char *line, double *vertexes, double *textures, double *normals)
 {
     struct shape_num_tuple rv;
-    size_t v10, v11, v12, t10, t11, t12, n10, n11, n12;
+    size_t v10 = 0, v11, v12, t10 = 0, t11, t12, n10 = 0, n11, n12;
     char *pch = strtok(line, " \t"), *pch2, *pch3;
     char *first_slash;
     Shape shape = array_of_shapes(32);
@@ -251,6 +261,12 @@ fan_triangulation(char *line, double *vertexes, double *textures, double *normal
     pch2 = strtok(NULL, " \t");
     pch3 = strtok(NULL, " \t");
     while (pch2 != NULL && pch3 != NULL && *pch3 != '\n') {
+        v11 = 0;
+        v12 = 0;
+        t11 = 0;
+        t12 = 0;
+        n11 = 0;
+        n12 = 0;
         if (strchr(pch2, '/') == NULL) {
             sscanf(pch2, "%lu", &v11);
         } else {

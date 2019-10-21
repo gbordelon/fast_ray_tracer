@@ -1,16 +1,20 @@
-#ifndef TRIANGLE
-#define TRIANGLE
+#ifndef TRIANGLE_H
+#define TRIANGLE_H
+
+#include "../libs/linalg/linalg.h"
 
 #include "shapes.h"
 
 Shape triangle_point_alloc(Point p1, Point p2, Point p3);
-Shape triangle_array_alloc(double p1[4], double p2[4], double p3[4]);
-void triangle(Shape s, double p1[4], double p2[4], double p3[4]);
+Shape triangle_array_alloc(Point p1, Point p2, Point p3);
+Shape smooth_triangle_alloc(Point p1, Point p2, Point p3,
+                            Vector n1, Vector n2, Vector n3);
 
-void smooth_triangle(Shape s, double p1[4], double p2[4], double p3[4],
-                     double n1[4], double n2[4], double n3[4]);
-Shape smooth_triangle_alloc(double p1[4], double p2[4], double p3[4],
-                            double n1[4], double n2[4], double n3[4]);
+void triangle(Shape s, Point p1, Point p2, Point p3);
 
+void smooth_triangle(Shape s, Point p1, Point p2, Point p3,
+                     Vector n1, Vector n2, Vector n3);
+
+void convert_triangle_to_smooth_triangle(Shape s, Vector n1, Vector n2, Vector n3);
 
 #endif

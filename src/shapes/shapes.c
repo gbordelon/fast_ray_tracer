@@ -242,3 +242,51 @@ shape_to_string(char *buf, size_t n, Shape sh)
         (void *)sh->parent,
         type_name);
 }
+
+
+void
+shape_recursive_parent_update(Shape sh, Shape parent)
+{
+    Shape child;
+    int i;
+
+    sh->parent = parent;
+
+    if (sh->type == SHAPE_GROUP) {
+        for (i = 0, child = sh->fields.group.children;
+                i < sh->fields.group.num_children;
+                i++, child++) {
+            shape_recursive_parent_update(child, sh);
+        }
+    } else if (sh->type == SHAPE_CSG) {
+        shape_recursive_parent_update(sh->fields.csg.left, sh);
+        shape_recursive_parent_update(sh->fields.csg.right, sh);
+    }
+}
+
+void
+invalidate_bounding_box(Shape sh)
+{
+    sh->bbox_valid = false;
+    bounding_box(&(sh->bbox));
+}
+
+void
+shape_recursive_invalidate_bounding_box(Shape sh)
+{
+    Shape child;
+    int i;
+
+    invalidate_bounding_box(sh);
+
+    if (sh->type == SHAPE_GROUP) {
+        for (i = 0, child = sh->fields.group.children;
+                i < sh->fields.group.num_children;
+                i++, child++) {
+            shape_recursive_invalidate_bounding_box(child);
+        }
+    } else if (sh->type == SHAPE_CSG) {
+        shape_recursive_invalidate_bounding_box(sh->fields.csg.left);
+        shape_recursive_invalidate_bounding_box(sh->fields.csg.right);
+    }
+}

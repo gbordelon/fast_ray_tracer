@@ -65,7 +65,7 @@ triangle_bounds(Shape triangle, Bounding_box *res)
 }
 
 void
-triangle(Shape s, double p1[4], double p2[4], double p3[4])
+triangle(Shape s, Point p1, Point p2, Point p3)
 {
     shape_set_transform(s, MATRIX_IDENTITY);
 
@@ -105,7 +105,7 @@ triangle(Shape s, double p1[4], double p2[4], double p3[4])
 
 
 Shape
-triangle_array_alloc(double p1[4], double p2[4], double p3[4])
+triangle_array_alloc(Point p1, Point p2, Point p3)
 {
     Shape s = (Shape) malloc(sizeof(struct shape));
     triangle(s, p1, p2, p3);
@@ -175,8 +175,8 @@ smooth_triangle_local_normal_at(Shape s, Point local_point, Intersection hit, Ve
 
 void
 smooth_triangle(Shape s,
-                double p1[4], double p2[4], double p3[4],
-                double n1[4], double n2[4], double n3[4])
+                Point p1, Point p2, Point p3,
+                Vector n1, Vector n2, Vector n3)
 {
     shape_set_transform(s, MATRIX_IDENTITY);
 
@@ -195,9 +195,9 @@ smooth_triangle(Shape s,
     vector_from_points(p2, p1, s->fields.triangle.e1);
     vector_from_points(p3, p1, s->fields.triangle.e2);
 
-    memcpy(s->fields.triangle.u_normals.s_normals.n1, n1, sizeof(Vector));
-    memcpy(s->fields.triangle.u_normals.s_normals.n2, n2, sizeof(Vector));
-    memcpy(s->fields.triangle.u_normals.s_normals.n3, n3, sizeof(Vector));
+    vector_copy(s->fields.triangle.u_normals.s_normals.n1, n1);
+    vector_copy(s->fields.triangle.u_normals.s_normals.n2, n3);
+    vector_copy(s->fields.triangle.u_normals.s_normals.n3, n3);
 
     s->intersect = shape_intersect;
     s->local_intersect = smooth_triangle_local_intersect;
@@ -210,4 +210,18 @@ smooth_triangle(Shape s,
 
     s->bounds = triangle_bounds;
     s->parent_space_bounds = shape_parent_space_bounds;
+}
+
+void
+convert_triangle_to_smooth_triangle(Shape s, Vector n1, Vector n2, Vector n3)
+{
+    if (s->type != SHAPE_TRIANGLE) {
+        return;
+    }
+    s->type = SHAPE_SMOOTH_TRIANGLE;
+    vector_copy(s->fields.triangle.u_normals.s_normals.n1, n1);
+    vector_copy(s->fields.triangle.u_normals.s_normals.n2, n3);
+    vector_copy(s->fields.triangle.u_normals.s_normals.n3, n3);
+    s->local_intersect = smooth_triangle_local_intersect;
+    s->local_normal_at = smooth_triangle_local_normal_at;
 }
