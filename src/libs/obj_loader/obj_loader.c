@@ -300,7 +300,6 @@ fan_triangulation(char *line, double *vertexes, double *textures, double *normal
             smooth_triangle(shape,
                             vertexes + 4 * (v10-1), vertexes + 4 * (v11-1), vertexes + 4 * (v12-1),
                             normals + 4 * (n10-1), normals + 4 * (n11-1), normals + 4 * (n12-1));
-
         } else {
             triangle(shape,
                      vertexes + (v10-1) * 4, vertexes + (v11-1) * 4, vertexes + (v12-1) * 4);

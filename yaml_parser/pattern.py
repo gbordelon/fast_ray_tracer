@@ -146,6 +146,13 @@ class Pattern(object):
            uv_top.c_repr('pattern_{0}_top'.format(name), resources),
            uv_bottom.c_repr('pattern_{0}_bottom'.format(name), resources))
 
+            elif mapping in ['triangular', 'triangle']:
+                uv_pattern = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
+                buf += """    Pattern pattern_{0} = array_of_patterns(2);
+    Pattern pattern_{0}_body = pattern_{0} + 1;
+{1}
+    texture_map_pattern(pattern_{0}_body, TRIANGLE_UV_MAP, pattern_{0});
+""".format(name, uv_pattern.c_repr('pattern_{0}_body'.format(name), resources))
             elif mapping in ['planar', 'plane']:
                 uv_pattern = UVPattern.uv_from_yaml(self.yaml_obj['uv_pattern'])
                 buf += """    Pattern pattern_{0} = array_of_patterns(2);

@@ -29,7 +29,7 @@ scalingOpR="Add"
 scalingMultipleG="1.0"
 scalingOffsetG="0.0"
 scalingOpG="Add"
-scalingMultipleB="2.0"
+scalingMultipleB="1.0"
 scalingOffsetB="0.0"
 scalingOpB="Add"
 

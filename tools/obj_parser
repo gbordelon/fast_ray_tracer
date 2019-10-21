@@ -186,8 +186,13 @@ class OBJParser(object):
                 acc[0] += triangle.normal[0]
                 acc[1] += triangle.normal[1]
                 acc[2] += triangle.normal[2]
+                num += 1
 
-            self.normals.append(normalize(acc))
+            if num > 0:
+                acc[0] /= float(num)
+                acc[1] /= float(num)
+                acc[2] /= float(num)
+            self.normals.append(acc)
 
 if __name__ == '__main__':
     import sys

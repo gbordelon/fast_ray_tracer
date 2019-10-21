@@ -159,17 +159,18 @@ smooth_triangle_local_normal_at(Shape s, Point local_point, Intersection hit, Ve
 {
     Vector v2;
     Vector v3;
-    memcpy(res, s->fields.triangle.u_normals.s_normals.n1, sizeof(Vector));
-    memcpy(v2, s->fields.triangle.u_normals.s_normals.n2, sizeof(Vector));
-    memcpy(v3, s->fields.triangle.u_normals.s_normals.n3, sizeof(Vector));
+    vector_copy(res, s->fields.triangle.u_normals.s_normals.n1);
+    vector_copy(v2, s->fields.triangle.u_normals.s_normals.n2);
+    vector_copy(v3, s->fields.triangle.u_normals.s_normals.n3);
 
     vector_scale(v2, hit->u);
     vector_scale(v3, hit->v);
-    vector_scale(res, 1 - hit->u - hit->v);
+    vector_scale(res, 1.0 - hit->u - hit->v);
 
     res[0] += v2[0] + v3[0];
     res[1] += v2[1] + v3[1];
     res[2] += v2[2] + v3[2];
+
 }
 
 
@@ -196,7 +197,7 @@ smooth_triangle(Shape s,
     vector_from_points(p3, p1, s->fields.triangle.e2);
 
     vector_copy(s->fields.triangle.u_normals.s_normals.n1, n1);
-    vector_copy(s->fields.triangle.u_normals.s_normals.n2, n3);
+    vector_copy(s->fields.triangle.u_normals.s_normals.n2, n2);
     vector_copy(s->fields.triangle.u_normals.s_normals.n3, n3);
 
     s->intersect = shape_intersect;

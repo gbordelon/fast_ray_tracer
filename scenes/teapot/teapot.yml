@@ -33,8 +33,8 @@
 # ======================================================
 
 - add: camera
-  width: 100
-  height: 100
+  width: 400
+  height: 400
   field-of-view: 1.2
   from: [ 0, 0, -30 ]
   to: [ 0, 0, 0 ]
@@ -59,7 +59,7 @@
 # ======================================================
 
 - add: light
-  at: [ 0, 30, -30 ]
+  at: [ -10, 10, -30 ]
 #  to: [ 0, -1, 0 ]
 #  at: [ 0, 0, 0 ]
   intensity: [ 1, 1, 1 ]
@@ -104,7 +104,7 @@
 - define: teapot
   value:
     add: obj
-    file: scenes/teapot/teapot.obj
+    file: scenes/teapot/teapot_low.obj
     transform:
     - [ rotate-x, -2.2 ]
     #- [ rotate-x, 1.57 ]
@@ -113,3 +113,22 @@
 
 
 - add: teapot
+  material:
+    colors: [1,1,1]
+#    pattern:
+#      transform:
+#      - [scale, 1,1,1]
+#      type: map
+#      mapping: triangle
+#      uv_pattern:
+#        type: checkers
+#        width: 16
+#        height: 8
+#        colors:
+#        - [0, 0.5, 0]
+#        - [1, 1, 1]
+    ambient: 0.1
+    specular: 0.6
+    shininess: 15
+    diffuse: 0.8
+

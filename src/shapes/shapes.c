@@ -77,7 +77,6 @@ shape_normal_at(Shape sh, Point world_point, Intersection hit, Vector res)
 
         //vector_scale(world_normal, 0.5);
         color_accumulate(world_normal, perturbed);
-    } else {
     }
 
     vector_normalize(world_normal, res);
