@@ -124,7 +124,7 @@ shape_world_to_object(Shape sh, Point pt, Point res)
     }
 
     if (sh->transform_identity) {
-        point_copy(res, pt);
+        point_copy(res, tmp);
     } else {
         matrix_point_multiply(sh->transform_inverse, tmp, res);
     }
