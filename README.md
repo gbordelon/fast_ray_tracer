@@ -14,8 +14,6 @@ open /tmp/out_file.png
 ```
 
 TODO
-* ~~Add a flag to skip matrix multiplies by the identity matrix~~
-* ~~Implement a better shadow ray mechanism so intersection stops after the first hit~~
 * Implement MTL file parsing.
     * ~~bump maps.~~
     * WIP
@@ -24,6 +22,7 @@ TODO
     * ~~Support the obj file mtllib directive to determine a material file to import.~~
 * Add parameters to the config parser
     * obj_loader default vertex num, default group num
+    * super-sampling flag for textures
 * Refactor patterns into multiple source files
 * Add a circular area light
 * Add a spot light
@@ -40,6 +39,8 @@ TODO
 * Refactor shapes such that one only needs to include shapes.h
 * Add parameters to the config parser
     * epsilon
+* ~~Add a flag to skip matrix multiplies by the identity matrix~~
+* ~~Implement a better shadow ray mechanism so intersection stops after the first hit~~
 * ~~Use realloc instead of malloc when resizing arrays for intersections and group.children~~
 * ~~Get rid of bounding box alloc'ing and free'ing.~~
 * ~~Rework container so it hangs off the world object.~~

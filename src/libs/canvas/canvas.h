@@ -11,6 +11,7 @@ typedef struct canvas {
     Color *arr;
     size_t width;
     size_t height;
+    bool super_sample;
     void (*color_space_fn)(const Color, Color);
     pthread_mutex_t  write_lock;
 } *Canvas;

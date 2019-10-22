@@ -21,13 +21,12 @@ Canvas
 canvas_alloc(size_t width, size_t height, void (*color_space_fn)(const Color, Color))
 {
     Canvas c = (Canvas) malloc(sizeof(struct canvas));
-    // null check c
     c->arr = (Color *) malloc(width * height * sizeof(Color));
-    // null check c->arr
 
     c->width = width;
     c->height = height;
     c->color_space_fn = color_space_fn;
+    c->super_sample = true;
 
     pthread_mutex_init(&(c->write_lock), NULL);
 
@@ -115,7 +114,37 @@ canvas_write_pixel(Canvas c, int col, int row, Color color)
 void
 canvas_pixel_at(Canvas c, int col, int row, Color res)
 {
-    c->color_space_fn(*(c->arr + row * c->width + col), res);
+    if (c->super_sample) {
+        Color tmp;
+        color_default(tmp);
+        color_default(res);
+        col -= 1;
+        row -= 1;
+        int i, j;
+        for (j = 0; j < 3; ++j, ++col) {
+            if (col < 0) {
+                col += c->width;
+            }
+            if (col == c->width) {
+                col = 0;
+            }
+            for (i = 0; i < 3; ++i, ++row) {
+                if (row < 0) {
+                    row += c->height;
+                }
+                if (row == c->height) {
+                    row = 0;
+                }
+                c->color_space_fn(*(c->arr + row * c->width + col), tmp);
+                color_accumulate(res, tmp);
+            }
+            row -= 3;
+        }
+        color_scale(res, 1.0 / 9.0);
+    }
+    else {
+        c->color_space_fn(*(c->arr + row * c->width + col), res);
+    }
 }
 
 Ppm
