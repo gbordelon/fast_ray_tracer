@@ -53,7 +53,7 @@ check_axis(double origin, double direction)
 }
 
 Intersections
-cube_local_intersect(Shape cube, Ray r)
+cube_local_intersect(Shape cube, Ray r, bool stop_after_first_hit)
 {
     struct two_doubles xtmin_xtmax = check_axis(r->origin[0], r->direction[0]);
     struct two_doubles ytmin_ytmax = check_axis(r->origin[1], r->direction[1]);

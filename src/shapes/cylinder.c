@@ -40,7 +40,7 @@ cylinder_intersect_caps(Shape cylinder, Ray r, Intersections xs)
 }
 
 Intersections
-cylinder_local_intersect(Shape cylinder, Ray r)
+cylinder_local_intersect(Shape cylinder, Ray r, bool stop_after_first_hit)
 {
     Intersections xs = cylinder->xs;
     xs->num = 0;

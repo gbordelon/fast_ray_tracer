@@ -8,7 +8,7 @@
 #include "shapes.h"
 
 Intersections
-triangle_local_intersect(Shape triangle, Ray r)
+triangle_local_intersect(Shape triangle, Ray r, bool stop_after_first_hit)
 {
     Vector dir_cross_e2;
     vector_cross(r->direction, triangle->fields.triangle.e2, dir_cross_e2);
@@ -119,7 +119,7 @@ triangle_point_alloc(Point p1, Point p2, Point p3)
 }
 
 Intersections
-smooth_triangle_local_intersect(Shape triangle, Ray r)
+smooth_triangle_local_intersect(Shape triangle, Ray r, bool stop_after_first_hit)
 {
     Vector dir_cross_e2;
     vector_cross(r->direction, triangle->fields.triangle.e2, dir_cross_e2);

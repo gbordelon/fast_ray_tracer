@@ -40,7 +40,7 @@ intersect_caps(Shape cone, Ray r, Intersections xs)
 }
 
 Intersections
-cone_local_intersect(Shape cone, Ray r)
+cone_local_intersect(Shape cone, Ray r, bool stop_after_first_hit)
 {
     Intersections xs = cone->xs;
     xs->num = 0;

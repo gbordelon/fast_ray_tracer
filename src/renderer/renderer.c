@@ -46,7 +46,7 @@ is_shadowed(World w, Point light_position, Point pt)
     struct ray r;
     ray_array(pt, direction, &r);
 
-    Intersections xs = intersect_world(w, &r);
+    Intersections xs = intersect_world(w, &r, true);
 
     Intersection h = hit(xs, true);
     bool retval = h != NULL && h->t < distance;
@@ -331,7 +331,7 @@ render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
 void
 color_at_gi(const World w, const Ray r, Color res)
 {
-    Intersections xs = intersect_world(w, r);
+    Intersections xs = intersect_world(w, r, false);
     Intersection i = hit(xs, false);
     struct computations comps;
     Color c;
@@ -359,7 +359,7 @@ color_at_gi(const World w, const Ray r, Color res)
 void
 color_at(const World w, const Ray r, const size_t remaining, ColorTriple res)
 {
-    Intersections xs = intersect_world(w, r);
+    Intersections xs = intersect_world(w, r, false);
     Intersection i = hit(xs, false);
     struct computations comps;
     ColorTriple c;

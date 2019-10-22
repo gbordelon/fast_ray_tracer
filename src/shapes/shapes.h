@@ -85,6 +85,8 @@ struct triangle_fields {
 typedef struct shape {
     Matrix transform;
     Matrix transform_inverse;
+    bool transform_identity;
+
     Material material;
     struct shape *parent;
     Bounding_box bbox;
@@ -102,8 +104,8 @@ typedef struct shape {
         struct triangle_fields triangle;
     } fields;
 
-    Intersections (*intersect)(struct shape *sh, Ray r);
-    Intersections (*local_intersect)(struct shape *sh, Ray r);
+    Intersections (*intersect)(struct shape *sh, Ray r, bool stop_after_first_hit);
+    Intersections (*local_intersect)(struct shape *sh, Ray r, bool stop_after_first_hit);
     void (*normal_at)(struct shape *sh, Point world_point, Intersection hit, Vector res);
     void (*local_normal_at)(struct shape *sh, Point local_point, Intersection hit, Vector res);
     void (*normal_to_world)(struct shape *sh, Vector local_normal, Vector res);
@@ -128,7 +130,7 @@ bool shape_includes(Shape a, Shape b);
 
 int shape_to_string(char *buf, size_t n, Shape sh);
 
-Intersections shape_intersect(Shape sh, Ray r);
+Intersections shape_intersect(Shape sh, Ray r, bool stop_after_first_hit);
 
 void shape_set_transform(Shape obj, const Matrix transform);
 

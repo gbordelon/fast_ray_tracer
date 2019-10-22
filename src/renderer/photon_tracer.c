@@ -179,7 +179,7 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, bool had_
 int
 power_at(enum photon_map_type map_type, const World w, const Ray r, Color power, bool had_diffuse, bool had_specular, const size_t remaining)
 {
-    Intersections xs = intersect_world(w, r);
+    Intersections xs = intersect_world(w, r, true); // TODO this may be wrong
     Intersection i = hit(xs, true);
     struct computations comps;
     int hit = 0;

@@ -15,7 +15,11 @@ base_pattern_at_shape(Pattern p, Shape s, Point pt, Color res)
 
     s->world_to_object(s, pt, object_point);
 
-    matrix_point_multiply(p->transform_inverse, object_point, pattern_point);
+    if (p->transform_identity) {
+        point_copy(pattern_point, object_point);
+    } else {
+        matrix_point_multiply(p->transform_inverse, object_point, pattern_point);
+    }
 
     p->pattern_at(p, s, pattern_point, c);
 
@@ -201,7 +205,11 @@ texture_map_pattern_at(Pattern p, Shape s, Point pt, Color res)
     p->uv_map(s, pt, &face_u_v);
     Pattern face = p->fields.uv_map.uv_faces + face_u_v.face;
 
-    matrix_point_multiply(face->transform_inverse, pt, uv_pattern_point);
+    if (face->transform_identity) {
+        point_copy(uv_pattern_point, pt);
+    } else {
+        matrix_point_multiply(face->transform_inverse, pt, uv_pattern_point);
+    }
     p->uv_map(s, uv_pattern_point, &face_u_v);
 
     face->uv_pattern_at(face, face_u_v.u, face_u_v.v, c);
@@ -486,6 +494,7 @@ pattern_set_transform(Pattern obj, const Matrix m)
     if (obj != NULL) {
         matrix_copy(m, obj->transform);
         matrix_inverse(m, obj->transform_inverse);
+        obj->transform_identity = matrix_equal(m, MATRIX_IDENTITY);
     }
 }
 

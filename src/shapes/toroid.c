@@ -12,7 +12,7 @@
 
 
 Intersections
-toroid_local_intersect(Shape toroid, Ray r)
+toroid_local_intersect(Shape toroid, Ray r, bool stop_after_first_hit)
 {
     double ox = r->origin[0];
     double oy = r->origin[1];

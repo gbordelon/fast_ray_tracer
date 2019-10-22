@@ -14,6 +14,8 @@ open /tmp/out_file.png
 ```
 
 TODO
+* ~~Add a flag to skip matrix multiplies by the identity matrix~~
+* ~~Implement a better shadow ray mechanism so intersection stops after the first hit~~
 * Implement MTL file parsing.
     * ~~bump maps.~~
     * WIP

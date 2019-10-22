@@ -161,13 +161,13 @@ default_world()
 }
 
 Intersections
-intersect_world(const World w, const Ray r)
+intersect_world(const World w, const Ray r, bool stop_after_first_hit)
 {
     int i;
 
     w->xs->num = 0;
     for (i = 0; i < w->shapes_num; i++) {
-        Intersections xs_1 = (w->shapes + i)->intersect(w->shapes + i, r);
+        Intersections xs_1 = (w->shapes + i)->intersect(w->shapes + i, r, stop_after_first_hit);
         if (xs_1 == NULL || xs_1->num == 0) {
             continue;
         }
@@ -183,6 +183,10 @@ intersect_world(const World w, const Ray r)
         // copy from xs_1 into xs + xs->num
         memcpy(w->xs->xs + w->xs->num, xs_1->xs, xs_1->num * sizeof(struct intersection));
         w->xs->num += xs_1->num;
+
+        if (stop_after_first_hit) {
+            break;
+        }
     }
 
     if (w->xs->num > 1) {

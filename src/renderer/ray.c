@@ -33,5 +33,3 @@ ray_position(Ray ray, double t, Point position)
     position[1] += ray->direction[1] * t;
     position[2] += ray->direction[2] * t;
 }
-
-

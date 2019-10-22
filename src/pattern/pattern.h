@@ -119,6 +119,8 @@ typedef void (*uv_map_fn)(Shape, Point, UVMapReturnType *);
 typedef struct pattern {
     Matrix transform;
     Matrix transform_inverse;
+    bool transform_identity;
+
     enum pattern_type type;
     size_t ref_count;
 

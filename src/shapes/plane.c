@@ -8,7 +8,7 @@
 #include "bounding_box.h"
 
 Intersections
-plane_local_intersect(Shape plane, Ray r)
+plane_local_intersect(Shape plane, Ray r, bool stop_after_first_hit)
 {
     if (fabs(r->direction[1]) < EPSILON) {
         return NULL;

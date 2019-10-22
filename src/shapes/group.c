@@ -89,7 +89,7 @@ group_add_children(Shape group, Shape children, size_t num_children)
 }
 
 Intersections
-group_local_intersect(Shape group, Ray r)
+group_local_intersect(Shape group, Ray r, bool stop_after_first_hit)
 {
     Bounding_box box;
     group->bounds(group, &box);
@@ -102,12 +102,20 @@ group_local_intersect(Shape group, Ray r)
     int i;
     Shape child;
     size_t total_xs_num = 0;
+    bool doit = true;
     for (i = 0, child = group->fields.group.children;
             i < group->fields.group.num_children;
             i++, child++) {
-        *(children_xs + i) = child->intersect(child, r);
+        if (doit) {
+            *(children_xs + i) = child->intersect(child, r, stop_after_first_hit);
+        } else {
+            *(children_xs + i) = NULL;
+        }
         if (*(children_xs + i) != NULL) {
             total_xs_num += (*(children_xs + i))->num;
+            if (stop_after_first_hit && total_xs_num > 0) {
+                doit = false;
+            }
         }
     }
 

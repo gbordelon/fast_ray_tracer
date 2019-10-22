@@ -39,12 +39,18 @@ shape_free(Shape s)
 }
 
 Intersections
-shape_intersect(Shape sh, Ray r)
+shape_intersect(Shape sh, Ray r, bool stop_after_first_hit)
 {
     struct ray transformed_ray;
+    Ray r2 = &transformed_ray;
 
-    ray_transform(r, sh->transform_inverse, &transformed_ray);
-    Intersections xs = sh->local_intersect(sh, &transformed_ray);
+    if (sh->transform_identity) {
+        r2 = r;
+    } else {
+        ray_transform(r, sh->transform_inverse, &transformed_ray);
+    }
+
+    Intersections xs = sh->local_intersect(sh, r2, stop_after_first_hit);
 
     return xs;
 }
@@ -90,9 +96,13 @@ shape_normal_to_world(Shape sh, Vector local_normal, Vector res)
     Vector normal;
 
     matrix_transpose(sh->transform_inverse, tr);
-    
-    matrix_vector_multiply(tr, local_normal, un_normal);
-    vector_normalize(un_normal, normal);
+
+    if (sh->transform_identity) {
+        vector_copy(normal, local_normal);
+    } else {
+        matrix_vector_multiply(tr, local_normal, un_normal);
+        vector_normalize(un_normal, normal);
+    }
 
     Vector tmp;
     if (sh->parent != NULL) {
@@ -113,7 +123,11 @@ shape_world_to_object(Shape sh, Point pt, Point res)
         point_copy(tmp, pt);
     }
 
-    matrix_point_multiply(sh->transform_inverse, tmp, res);
+    if (sh->transform_identity) {
+        point_copy(res, pt);
+    } else {
+        matrix_point_multiply(sh->transform_inverse, tmp, res);
+    }
 }
 
 void
@@ -134,6 +148,7 @@ shape_set_transform(Shape obj, const Matrix m)
     if (obj != NULL) {
         matrix_copy(m, obj->transform);
         matrix_inverse(m, obj->transform_inverse);
+        obj->transform_identity = matrix_equal(m, MATRIX_IDENTITY);
     }
 }
 

@@ -11,7 +11,7 @@
 #include "sphere.h"
 
 Intersections
-sphere_local_intersect(Shape sphere, Ray r)
+sphere_local_intersect(Shape sphere, Ray r, bool stop_after_first_hit)
 {
     Point sphere_origin = { 0.0, 0.0, 0.0, 0.0 };
     Vector sphere_to_ray;
