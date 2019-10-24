@@ -13,62 +13,43 @@
 void
 area_light_emit_photon(Light l, Ray res)
 {
-    Vector normal, nt, nb, sample, direction;
-    double r1 = drand48();
-    double r2 = drand48();
+    Vector tmp, normal, uvec, vvec;
+    size_t index[2] = { 0, 0 };
+    double rands[2];
+    struct sampler sampler;
+    sampler_2d(true, 1, 1, sampler_default_constraint, &sampler);
 
-    Vector uvec;
     vector_copy(uvec, l->u.area.uvec);
     vector_scale(uvec, l->u.area.usteps);
 
-    Vector vvec;
     vector_copy(vvec, l->u.area.vvec);
     vector_scale(vvec, l->u.area.vsteps);
 
-    vector_scale(uvec, r1);
-    vector_scale(vvec, r2);
+    sampler.get_point(&sampler, index, rands);
+    vector_scale(uvec, rands[0]);
+    vector_scale(vvec, rands[1]);
 
     res->origin[0] = l->u.area.corner[0] + uvec[0] + vvec[0];
     res->origin[1] = l->u.area.corner[1] + uvec[1] + vvec[1];
     res->origin[2] = l->u.area.corner[2] + uvec[2] + vvec[2];
     res->origin[3] = 1;
 
-    vector_cross(l->u.area.uvec, l->u.area.vvec, normal); // may be backward
-    create_coordinate_system(normal, nt, nb);
+    vector_cross(l->u.area.uvec, l->u.area.vvec, tmp); // may be backward
+    vector_normalize(tmp, normal);
+    sampler.get_vector_hemisphere(&sampler, normal, true, index, rands, res->direction);
 
-    r1 = drand48();
-    r2 = drand48();
-    cosine_weighted_sample_hemisphere(r1, r2, sample);
-//    uniform_sample_hemisphere(r1, r2, sample);
-//    direction[0] = sample[0] * nb[0] + sample[1] * normal[0] + sample[2] * nt[0];
-//    direction[1] = sample[0] * nb[1] + sample[1] * normal[1] + sample[2] * nt[1];
-//    direction[2] = sample[0] * nb[2] + sample[1] * normal[2] + sample[2] * nt[2];
-//    direction[3] = 0;
-//    vector_normalize(direction, res->direction);
-    sample[1] *= -1.0;
-    vector_normalize(sample, res->direction);
     //printf("direction %f %f %f\n", res->direction[0], res->direction[1], res->direction[2]);
 }
 
 void
 hemisphere_light_emit_photon(Light l, Ray res)
 {
-    Vector nt, nb, sample, direction;
-    double r1 = drand48();
-    double r2 = drand48();
+    size_t index[2] = { 0, 0 };
+    double rands[2];
+    struct sampler sampler;
+    sampler_2d(true, 1, 1, sampler_default_constraint, &sampler);
     point_copy(res->origin, l->u.hemi.position);
-
-    create_coordinate_system(l->u.hemi.normal, nt, nb);
-
-    r1 = drand48();
-    r2 = drand48();
-    cosine_weighted_sample_hemisphere(r1, r2, sample);
-//    uniform_sample_hemisphere(r1, r2, sample);
-    direction[0] = sample[0] * nb[0] + sample[1] * l->u.hemi.normal[0] + sample[2] * nt[0];
-    direction[1] = sample[0] * nb[1] + sample[1] * l->u.hemi.normal[1] + sample[2] * nt[1];
-    direction[2] = sample[0] * nb[2] + sample[1] * l->u.hemi.normal[2] + sample[2] * nt[2];
-    direction[3] = 0;
-    vector_normalize(direction, res->direction);
+    sampler.get_vector_hemisphere(&sampler, l->u.hemi.normal, true, index, rands, res->direction);
 }
 
 void

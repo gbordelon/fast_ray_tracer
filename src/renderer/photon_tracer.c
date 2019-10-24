@@ -32,27 +32,28 @@ power_at(enum photon_map_type map_type, const World w, const Ray r, Color power,
 int
 reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comps, bool had_specular, double average_diffuse_reflectance, size_t remaining)
 {
-    Vector nt, nb, random_diffuse, sample;
-    create_coordinate_system(comps->normalv, nt, nb);
-    double r1 = drand48();
-    double r2 = drand48();
-    cosine_weighted_sample_hemisphere(r1, r2, sample);
-    random_diffuse[0] = sample[0] * nb[0] + sample[1] * comps->normalv[0] + sample[2] * nt[0];
-    random_diffuse[1] = sample[0] * nb[1] + sample[1] * comps->normalv[1] + sample[2] * nt[1];
-    random_diffuse[2] = sample[0] * nb[2] + sample[1] * comps->normalv[2] + sample[2] * nt[2];
-    random_diffuse[3] = 0;
-
+    Vector random_diffuse;
+    struct sampler sampler;
     struct ray reflect_ray;
     Color diffuse_color;
+    double rands[2];
+    size_t index[2] = { 0, 0 };
+    double average_photon_power = (comps->photon_power[0] + comps->photon_power[1] + comps->photon_power[2]) / 3.0;
 
     color_copy(diffuse_color, comps->over_Kd);
-    diffuse_color[0] *= comps->photon_power[0] / average_diffuse_reflectance;
-    diffuse_color[1] *= comps->photon_power[1] / average_diffuse_reflectance;
-    diffuse_color[2] *= comps->photon_power[2] / average_diffuse_reflectance;
+    color_scale(diffuse_color, average_photon_power);
+
     // debug
     //color_copy(diffuse_color, comps->photon_power);
 
+    sampler_2d(true, 1, 1, sampler_default_constraint, &sampler);
+    sampler.get_vector_hemisphere(&sampler, comps->normalv, true, index, rands, random_diffuse);
     ray_array(comps->over_point, random_diffuse, &reflect_ray);
+
+    sampler_free(&sampler);
+
+    color_scale(diffuse_color, 1.0 / average_diffuse_reflectance);
+
     return power_at(map_type, w, &reflect_ray, diffuse_color, true, had_specular, remaining - 1);
 }
 
@@ -103,7 +104,6 @@ refract_photon(enum photon_map_type map_type, World w, Computations comps, bool 
     ray_array(comps->under_point, direction, &refracted_ray);
 
     color_scale(comps->photon_power, 1.0 / average_transmission_filter);
-
     return power_at(map_type, w, &refracted_ray, comps->photon_power, had_diffuse, true, remaining - 1);
 }
 
@@ -124,7 +124,7 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, bool had_
 
     Color diffuse_color, specular_color, transmission_filter;
     color_copy(diffuse_color, comps->over_Kd);
-    color_copy(specular_color, comps->over_Ks);
+    color_copy(specular_color, comps->over_refl);
     color_copy(transmission_filter, comps->obj->material->Tf);
 
     // only store photons if the struck material is diffuse
@@ -137,7 +137,7 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, bool had_
             }
         // never store the first diffuse hit in the global map
         } else if (map_type == GLOBAL) {
-            if (had_diffuse) {
+            if (had_diffuse) { // DEBUG
                 pm_store(maps + 1, comps->photon_power, comps->p, comps->photon_ray.direction);
                 hit += 1;
             }
@@ -179,7 +179,7 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, bool had_
 int
 power_at(enum photon_map_type map_type, const World w, const Ray r, Color power, bool had_diffuse, bool had_specular, const size_t remaining)
 {
-    Intersections xs = intersect_world(w, r, true); // TODO this may be wrong
+    Intersections xs = intersect_world(w, r, false);
     Intersection i = hit(xs, true);
     struct computations comps;
     int hit = 0;

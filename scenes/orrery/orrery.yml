@@ -59,8 +59,8 @@
   to: [-1, -1, 0]
   up: [0, 1, 0]
   focal-length: 11
-  usteps: 4
-  vsteps: 4
+  usteps: 1
+  vsteps: 1
   aperture:
     jitter: false
     size: 0.4
@@ -79,12 +79,14 @@
 # light located at [0, 2.5, -10].
 
 - add: light
-  corner: [-5, 0, -10]
-  uvec: [10, 0, 0]
-  vvec: [0, 5, 0]
-  usteps: 10
-  vsteps: 5
-  jitter: true
+  at: [0, 2.5, -10]
+#- add: light
+#  corner: [-5, 0, -10]
+#  uvec: [10, 0, 0]
+#  vvec: [0, 5, 0]
+#  usteps: 10
+#  vsteps: 5
+#  jitter: true
   intensity: [1, 1, 1]
 
 # -------------------------------------------

@@ -88,7 +88,7 @@ void pm_photon_dir( PhotonMap *pm, double *dir, Photon *p )
 
 /* irradiance_estimate computes an irradiance estimate
 * at a given surface position */
-void pm_irradiance_estimate(
+long pm_irradiance_estimate(
   PhotonMap *pm,
   double irrad[3],                // returned irradiance
   double pos[3],                  // surface position
@@ -121,7 +121,7 @@ void pm_irradiance_estimate(
   if (np.found<8) {
     free(np.dist2);
     free(np.index);
-    return;
+    return np.found;
   }
 
 
@@ -152,6 +152,7 @@ void pm_irradiance_estimate(
 
   free(np.dist2);
   free(np.index);
+  return np.found;
 }
 
 

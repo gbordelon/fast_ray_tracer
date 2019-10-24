@@ -54,7 +54,7 @@ void delete_Photon_map(PhotonMap *pm);
 
   void pm_balance(PhotonMap *pm);           // balance the kd-tree (before use!)
 
-  void pm_irradiance_estimate(
+  long pm_irradiance_estimate(
     PhotonMap *pm,
     double irrad[3],                // returned irradiance
     double pos[3],                  // surface position

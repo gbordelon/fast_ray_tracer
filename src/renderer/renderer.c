@@ -624,13 +624,14 @@ shade_hit_gi(World w, Computations comps, Color res)
                 indirect);
 
     color_accumulate(res, indirect);
+    color_scale(res, M_PI);
 }
 
 void
 final_gather(World w, Computations comps, Color res)
 {
     Color final_gather, total_power, c;
-    Vector nt, nb, sample, direction;
+    Vector direction;
     struct ray r;
     double pdf_inv = 2 * M_PI; // initialize to a uniform hemisphere prob. dist. func.
     size_t num_rays = final_gather_usteps * final_gather_vsteps;
@@ -642,7 +643,6 @@ final_gather(World w, Computations comps, Color res)
 
     sampler_2d(true, final_gather_usteps, final_gather_vsteps, sampler_default_constraint, &sampler);
        
-    create_coordinate_system(comps->normalv, nt, nb);
     point_copy(r.origin, comps->over_point);
     color_default(final_gather);
     color_default(total_power);
@@ -653,14 +653,7 @@ final_gather(World w, Computations comps, Color res)
         index[1] = j;
         for (i = 0; i < final_gather_usteps; ++i) {
             index[0] = i;
-            sampler.get_point(&sampler, index, rands);
-            uniform_sample_hemisphere(rands[0], rands[1], sample);
-            direction[0] = sample[0] * nb[0] + sample[1] * comps->normalv[0] + sample[2] * nt[0];
-            direction[1] = sample[0] * nb[1] + sample[1] * comps->normalv[1] + sample[2] * nt[1];
-            direction[2] = sample[0] * nb[2] + sample[1] * comps->normalv[2] + sample[2] * nt[2];
-            direction[3] = 0;
-            vector_normalize(direction, r.direction);
-
+            sampler.get_vector_hemisphere(&sampler, comps->normalv, false, index, rands, r.direction);
             color_default(c);
 
             color_at_gi(w, &r, c);
@@ -688,13 +681,7 @@ final_gather(World w, Computations comps, Color res)
             //if (cell_power[j * final_gather_usteps + i][0] >= (total_power[0] * 0.8) &&
             //    cell_power[j * final_gather_usteps + i][1] >= (total_power[1] * 0.8) &&
             //    cell_power[j * final_gather_usteps + i][2] >= (total_power[2] * 0.8)) { // only sample the upper 80th percentile
-                sampler.get_point(&sampler, index, rands);
-                uniform_sample_hemisphere(rands[0], rands[1], sample);
-                direction[0] = sample[0] * nb[0] + sample[1] * comps->normalv[0] + sample[2] * nt[0];
-                direction[1] = sample[0] * nb[1] + sample[1] * comps->normalv[1] + sample[2] * nt[1];
-                direction[2] = sample[0] * nb[2] + sample[1] * comps->normalv[2] + sample[2] * nt[2];
-                direction[3] = 0;
-                vector_normalize(direction, r.direction);
+                sampler.get_vector_hemisphere(&sampler, comps->normalv, false, index, rands, r.direction);
 
                 color_default(c);
 
@@ -821,8 +808,8 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res)
                         caustics);
         }
 
-        color_accumulate(diffuse_from_triple(surface), indirect);
-        color_accumulate(diffuse_from_triple(surface), fgather);
+        color_accumulate(ambient_from_triple(surface), indirect);
+        color_accumulate(ambient_from_triple(surface), fgather);
         color_accumulate(diffuse_from_triple(surface), caustics);
     }
 
@@ -880,7 +867,7 @@ lighting_caustics(Computations comps, Shape shape, Point point, Vector eyev, Vec
         return;
     }
 
-    pm_irradiance_estimate(maps+0, intensity_estimate, point, eyev, irradiance_estimate_radius, irradiance_estimate_num, irradiance_estimate_cone_filter_k);
+    long num_photons_used = pm_irradiance_estimate(maps+0, intensity_estimate, point, eyev, irradiance_estimate_radius, irradiance_estimate_num, irradiance_estimate_cone_filter_k);
     color_scale(intensity_estimate, 1.0 / 10.0);
 
     if (visualize_photon_map) { // TODO investigate whether or not I should do this or always return the intensity_estimate
@@ -909,9 +896,8 @@ lighting_gi(Computations comps, Shape shape, Point point, Vector eyev, Vector no
         return;
     }
 
-    pm_irradiance_estimate(maps+1, intensity_estimate, point, eyev, irradiance_estimate_radius, irradiance_estimate_num, irradiance_estimate_cone_filter_k);
-    // TODO take irradiance_estimate_num into account when scaling
-    color_scale(intensity_estimate, 1.5 * M_PI * M_PI / (double)(maps+1)->max_photons);
+    long num_photons_used = pm_irradiance_estimate(maps+1, intensity_estimate, point, eyev, irradiance_estimate_radius, irradiance_estimate_num, irradiance_estimate_cone_filter_k);
+    color_scale(intensity_estimate, (M_PI * (double)irradiance_estimate_num) / ((double)num_photons_used * (double)(maps+1)->max_photons));
 
     double eye_dot_normal = vector_dot(eyev, normalv);
     if (visualize_photon_map) {
@@ -922,9 +908,6 @@ lighting_gi(Computations comps, Shape shape, Point point, Vector eyev, Vector no
         diffuse[2] *= intensity_estimate[2];
 
         color_scale(diffuse, eye_dot_normal);
-        //if (visualize_soft_indirect) {
-        //    color_scale(diffuse, 0.5);
-        //}
         color_accumulate(res, diffuse);
     }
 }

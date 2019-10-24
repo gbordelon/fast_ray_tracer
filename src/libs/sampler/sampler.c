@@ -13,12 +13,11 @@ uniform_sample_hemisphere(const double r1, const double r2, Vector res)
 { 
     double sin_theta = sqrt(1 - r1 * r1);
     double phi = 2 * M_PI * r2;
-    double x = sin_theta * cos(phi);
-    double z = sin_theta * sin(phi);
+
     Vector v;
-    v[0] = x;
+    v[0] = sin_theta * cos(phi);
     v[1] = r1;
-    v[2] = z;
+    v[2] = sin_theta * sin(phi);
     v[3] = 0;
     vector_normalize(v, res);
 }
@@ -30,8 +29,8 @@ cosine_weighted_sample_hemisphere(const double r1, const double r2, Vector res)
     double phi = 2 * M_PI * r2;
     Vector v;
     v[0] = sin(theta) * cos(phi);
-    v[2] = sin(theta) * sin(phi);
-    v[1] = cos(theta);
+    v[1] = sin(theta) * sin(phi);
+    v[2] = cos(theta);
     v[3] = 0;
     vector_normalize(v, res);
 }
@@ -53,8 +52,38 @@ create_coordinate_system(const Vector n, Vector nt, Vector nb)
         vector_scale(tmp, sqrt(n[1] * n[1] + n[2] * n[2]));
     }
     vector_normalize(tmp, nt); // probably don't have to do this with the sqrt scaling above
+    vector_scale(nt, -1.0);
     vector_cross(n, nt, nb);
 } 
+
+void
+sampler_hemisphere(Sampler sampler, Vector normalv, bool cosine_weighted, size_t *index, double *rands, Vector res)
+{
+    Vector tmp;
+    if (sampler->needs_hemi_coords) {
+        sampler->needs_hemi_coords = false;
+        create_coordinate_system(normalv, sampler->nt, sampler->nb);
+    }
+
+    sampler->get_point(sampler, index, rands);
+    Vector sample;
+    if (cosine_weighted) {
+        //cosine_weighted_sample_hemisphere(rands[0], rands[1], sample);
+        uniform_sample_hemisphere(rands[0], rands[1], sample);
+    } else {
+        uniform_sample_hemisphere(rands[0], rands[1], sample);
+    }
+    tmp[0] = sample[0] * sampler->nb[0] + sample[1] * normalv[0] + sample[2] * sampler->nt[0];
+    tmp[1] = sample[0] * sampler->nb[1] + sample[1] * normalv[1] + sample[2] * sampler->nt[1];
+    tmp[2] = sample[0] * sampler->nb[2] + sample[1] * normalv[2] + sample[2] * sampler->nt[2];
+    tmp[3] = 0;
+
+    vector_normalize(tmp, res);
+    //vector_print(res);
+    //vector_print(sampler->nt);
+    //vector_print(sampler->nb);
+    //printf("\n");
+}
 
 /*
 size_t
@@ -307,6 +336,14 @@ sampler3D(const bool jitter, const size_t usteps, const size_t vsteps, const siz
 }
 */
 
+void
+sampler_reset_hemisphere_sampler(Sampler sampler)
+{
+    sampler->needs_hemi_coords = true;
+    vector_default(sampler->nt);
+    vector_default(sampler->nb);
+}
+
 double
 no_jitter()
 {
@@ -375,6 +412,7 @@ sampler_reset_2d(Sampler sampler)
 {
     sampler_reset_canonical_2d(sampler);
     sampler_shuffle_2d(sampler);
+    sampler_reset_hemisphere_sampler(sampler);
 }
 
 void
@@ -402,10 +440,16 @@ sampler_init(const bool jitter, const size_t dimensions, const size_t *steps, bo
     for (i = 0, array_len = 1; i < dimensions; ++i) {
         array_len *= steps[i];
     }
-    sampler->arr = (double *)malloc(dimensions * array_len * sizeof(double));
+
+    sampler->arr = NULL;
+    if (array_len > 0) {
+        sampler->arr = (double *)malloc(dimensions * array_len * sizeof(double));
+    }
 
     sampler->constraint_fn = constraint_fn;
     sampler->get_point = sampler_get_point_2d;
+    sampler->get_vector_hemisphere = sampler_hemisphere;
+    sampler->reset_hemisphere_coords = sampler_reset_hemisphere_sampler;
 }
 
 void
@@ -435,5 +479,3 @@ sampler_default_constraint(const double *x)
 {
     return true;
 }
-
-
