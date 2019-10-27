@@ -1,6 +1,6 @@
 from pattern import Pattern
 
-map_types = ['Ka', 'Kd', 'Ks', 'Ns', 'bump', 'disp', 'refl']
+map_types = ['Ka', 'Kd', 'Ks', 'Ns', 'bump', 'disp', 'refl', 'd']
 
 class Material(object):
     def __init__(self, yaml_obj):
@@ -82,23 +82,24 @@ class Material(object):
     Material material_{0} = material_alloc();
     color_space_fn(material_{0}_color_raw, material_{0}->Ka);
     color_space_fn(material_{0}_color_raw, material_{0}->Kd);
-    color_space_fn(material_{0}_spec_highlight, material_{0}->Ks);
-    rgb_to_rgb(material_{0}_reflective, material_{0}->refl);
-    rgb_to_rgb(material_{0}_refractive, material_{0}->Tf);
     color_scale(material_{0}->Ka, {5:.10f});
     color_scale(material_{0}->Kd, {6:.10f});
+    rgb_to_rgb(material_{0}_spec_highlight, material_{0}->Ks);
+    rgb_to_rgb(material_{0}_reflective, material_{0}->refl);
+    rgb_to_rgb(material_{0}_refractive, material_{0}->Tf);
     material_{0}->reflective = material_{0}_reflective[0] > 0.0
                              || material_{0}_reflective[1] > 0.0
                              || material_{0}_reflective[2] > 0.0;
 
-    material_{0}->Ns = {8:.10f};
     material_{0}->Tr = {10:.10f};
+    material_{0}->Ns = {8:.10f};
     material_{0}->Ni = {11:.10f};
     material_{0}->casts_shadow = {12};
     material_set_pattern(material_{0}, map_Ka, pattern_{0}_Ka);
     material_set_pattern(material_{0}, map_Kd, pattern_{0}_Kd);
     material_set_pattern(material_{0}, map_Ks, pattern_{0}_Ks);
     material_set_pattern(material_{0}, map_Ns, pattern_{0}_Ns);
+    material_set_pattern(material_{0}, map_d, pattern_{0}_d);
     material_set_pattern(material_{0}, map_bump, pattern_{0}_bump);
     material_set_pattern(material_{0}, map_disp, pattern_{0}_disp);
     material_set_pattern(material_{0}, map_refl, pattern_{0}_refl);

@@ -18,6 +18,7 @@ typedef struct computations {
     double t;
     double n1;
     double n2;
+    double over_d;
     bool inside;
     Shape obj;
     Point p;

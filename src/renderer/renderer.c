@@ -235,7 +235,7 @@ render_multi_helper(World w, void *args)
             color_default(ambient_from_triple(pixel_color));
             color_default(diffuse_from_triple(pixel_color));
             color_default(specular_from_triple(pixel_color));
-            //if (i == 354 && j == 274) { // debug
+            //if (i == 175 && j == 160) { // debug
                 pixel_multi_sample(cam, w, i, j, usteps, vsteps, &sampler, c);
                 // aggregate colors
                 color_accumulate(pixel_color, ambient_from_triple(c));
@@ -462,22 +462,12 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
 
     if (res->obj->material->map_Ka != NULL) {
         res->obj->material->map_Ka->pattern_at_shape(res->obj->material->map_Ka, res->obj, res->over_point, res->over_Ka);
-/*
-        res->over_Ka[0] *= res->obj->material->Ka[0];
-        res->over_Ka[1] *= res->obj->material->Ka[1];
-        res->over_Ka[2] *= res->obj->material->Ka[2];
-*/
     } else {
         color_copy(res->over_Ka, res->obj->material->Ka);
     }
 
     if (res->obj->material->map_Kd != NULL) {
         res->obj->material->map_Kd->pattern_at_shape(res->obj->material->map_Kd, res->obj, res->over_point, res->over_Kd);
-/*
-        res->over_Kd[0] *= res->obj->material->Kd[0];
-        res->over_Kd[1] *= res->obj->material->Kd[1];
-        res->over_Kd[2] *= res->obj->material->Kd[2];
-*/
     } else {
         color_copy(res->over_Kd, res->obj->material->Kd);
     }
@@ -492,6 +482,14 @@ prepare_computations(Intersection i, Ray r, Color photon_power, Intersections xs
         res->obj->material->map_refl->pattern_at_shape(res->obj->material->map_refl, res->obj, res->over_point, res->over_refl);
     } else {
         color_copy(res->over_refl, res->obj->material->refl);
+    }
+
+    if (res->obj->material->map_d != NULL) {
+        Color tmp;
+        res->obj->material->map_d->pattern_at_shape(res->obj->material->map_d, res->obj, res->over_point, tmp);
+        res->over_d = tmp[0]; // I hope the canvas reader stores this in the R channel...
+    } else {
+        res->over_d = 1.0 - res->obj->material->Tr;
     }
 }
 
@@ -535,7 +533,7 @@ reflected_color(World w, Computations comps, size_t remaining, Color res)
 void
 refracted_color(World w, Computations comps, size_t remaining, ColorTriple res)
 {
-    if (remaining == 0 || equal(comps->obj->material->Tr, 0.0)) {
+    if (remaining == 0 || comps->over_d <= 0.0) {
         color_default(ambient_from_triple(res));
         color_default(diffuse_from_triple(res));
         color_default(specular_from_triple(res));
@@ -574,6 +572,7 @@ refracted_color(World w, Computations comps, size_t remaining, ColorTriple res)
 
     color_at(w, &refracted_ray, remaining - 1, c);
 
+    // Transmission filter
     ambient_from_triple(c)[0] *= comps->obj->material->Tf[0];
     ambient_from_triple(c)[1] *= comps->obj->material->Tf[1];
     ambient_from_triple(c)[2] *= comps->obj->material->Tf[2];
@@ -585,6 +584,19 @@ refracted_color(World w, Computations comps, size_t remaining, ColorTriple res)
     specular_from_triple(c)[0] *= comps->obj->material->Tf[0];
     specular_from_triple(c)[1] *= comps->obj->material->Tf[1];
     specular_from_triple(c)[2] *= comps->obj->material->Tf[2];
+
+    // Dissolve
+    ambient_from_triple(c)[0] *= comps->over_d;
+    ambient_from_triple(c)[1] *= comps->over_d;
+    ambient_from_triple(c)[2] *= comps->over_d;
+
+    diffuse_from_triple(c)[0] *= comps->over_d;
+    diffuse_from_triple(c)[1] *= comps->over_d;
+    diffuse_from_triple(c)[2] *= comps->over_d;
+
+    specular_from_triple(c)[0] *= comps->over_d;
+    specular_from_triple(c)[1] *= comps->over_d;
+    specular_from_triple(c)[2] *= comps->over_d;
 
     color_accumulate(ambient_from_triple(res), ambient_from_triple(c));
     color_accumulate(diffuse_from_triple(res), diffuse_from_triple(c));
@@ -833,7 +845,7 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res)
 
         refracted_color(w, comps, remaining, refracted);
 
-        if (comps->obj->material->reflective && comps->obj->material->Tr > 0.0) {
+        if (comps->obj->material->reflective && comps->over_d > 0.0) {
             double reflectance = schlick(comps);
             color_scale(ambient_from_triple(reflected), reflectance);
             color_scale(diffuse_from_triple(reflected), reflectance);
@@ -848,6 +860,21 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res)
         color_accumulate(diffuse_from_triple(surface), diffuse_from_triple(reflected));
         color_accumulate(specular_from_triple(surface), specular_from_triple(reflected));
 
+        if (comps->obj->material->Tr > 0.0 && comps->over_d > 0.0) {
+            // Dissolve
+            ambient_from_triple(surface)[0] *= 1.0 - comps->over_d;
+            ambient_from_triple(surface)[1] *= 1.0 - comps->over_d;
+            ambient_from_triple(surface)[2] *= 1.0 - comps->over_d;
+
+            diffuse_from_triple(surface)[0] *= 1.0 - comps->over_d;
+            diffuse_from_triple(surface)[1] *= 1.0 - comps->over_d;
+            diffuse_from_triple(surface)[2] *= 1.0 - comps->over_d;
+
+            specular_from_triple(surface)[0] *= 1.0 - comps->over_d;
+            specular_from_triple(surface)[1] *= 1.0 - comps->over_d;
+            specular_from_triple(surface)[2] *= 1.0 - comps->over_d;
+
+        }
         color_accumulate(ambient_from_triple(surface), ambient_from_triple(refracted));
         color_accumulate(diffuse_from_triple(surface), diffuse_from_triple(refracted));
         color_accumulate(specular_from_triple(surface), specular_from_triple(refracted));

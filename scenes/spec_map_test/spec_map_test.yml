@@ -1,0 +1,195 @@
+- add: config
+  illumination:
+    include-direct: true
+    include-global: false
+    visualize-photon-map: false
+    visualize-soft-indirect: false
+    direct-illumination:
+      include-ambient: true
+      include-diffuse: true
+      include-specular: true
+      include-specular-highlight: true
+      path-length: 10
+    global-illumination:
+      include-caustics: false
+      include-final-gather: true
+      usteps: 4
+      vsteps: 4
+      irradiance-estimate-num: 200
+      irradiance-estimate-radius: 0.1
+      irradiance-estimate-cone-filter-k: 1.0
+      photon-count: 100000
+      path-length: 5
+  threading:
+    thread-count: 4
+  scene:
+    divide-threshold: 1
+  output:
+    file: /tmp/out_file
+    # see src/renderer/config.h for the enum
+    color-space: SRGB
+
+- add: camera
+  width: 400
+  height: 400
+  field-of-view: 1.2
+  from: [ 0, 0, -2 ]
+  to: [ 0, 0, 0 ]
+  up: [ 0, 1, 0 ]
+  focal-length: 1
+  usteps: 1
+  vsteps: 1
+  aperture:
+    jitter: false
+    size: 0.4
+#    type: [ CIRCULAR_APERTURE, 1.0 ]
+#    type: [ CROSS_APERTURE, -0.1, 0.1, -0.1, 0.1 ]
+#    type: [ DIAMOND_APERTURE, -1, 1, -1, 1 ]
+#    type: [ DOUGHNUT_APERTURE, 1.0, 0.5 ]
+    type: [ POINT_APERTURE ]
+#    type: [ SQUARE_APERTURE ]
+
+
+
+# ======================================================
+# light sources
+# ======================================================
+
+- add: light
+  at: [ -2, 0.8, -1 ]
+#  to: [ 0, -1, 0 ]
+#  at: [ 0, 0, 0 ]
+  intensity: [ 1, 1, 1 ]
+
+- define: rotation
+  value:
+    - [ rotate-z, -0.5 ]
+    - [ rotate-y, 1 ]
+
+- add: sphere
+  transform:
+  - rotation
+  material:
+    diffuse: 1
+    ambient: 0.1
+    specular: 0.2
+    patterns:
+      Ka:
+        type: map
+        mapping: sphere
+        uv_pattern:
+          type: image
+          file: scenes/spec_map_test/earthlights1k.jpg
+        transform:
+        - [ scale, 1, 1, 1 ]
+      Kd:
+        type: map
+        mapping: sphere
+        uv_pattern:
+          type: image
+          file: scenes/spec_map_test/earthmap1k.jpg
+        transform:
+        - [ scale, 1, 1, 1 ]
+      Ks:
+        type: map
+        mapping: sphere
+        uv_pattern:
+          type: image
+          file: scenes/spec_map_test/earthspec1k.jpg
+        transform:
+        - [ scale, 1, 1, 1 ]
+      bump:
+        type: map
+        mapping: sphere
+        uv_pattern:
+          type: image
+          file: scenes/spec_map_test/earthnormal1k.png
+        transform:
+        - [ scale, 1, 1, 1 ]
+
+# clouds
+- add: sphere
+  transform:
+  - rotation
+  - [scale, 1.001,1.001,1.001]
+  material:
+    color: [1,1,1]
+    diffuse: 0.98
+    ambient: 0.02
+    specular: 0.2
+    reflective: 0
+    shininess: 20
+    shadow: false
+    transparency: 1.0
+    patterns:
+      Kd:
+        type: map
+        mapping: sphere
+        uv_pattern:
+          type: image
+          file: scenes/spec_map_test/earthcloudmap.jpg
+        transform:
+        - [ scale, 1, 1, 1 ]
+      d:
+        type: map
+        mapping: sphere
+        uv_pattern:
+          type: image
+          file: scenes/spec_map_test/earthcloudmaptrans.jpg
+        transform:
+        - [ scale, 1, 1, 1 ]
+#      bump:
+#        type: map
+#        mapping: sphere
+#        uv_pattern:
+#          type: image
+#          file: scenes/spec_map_test/earthcloudmapnormal.png
+#        transform:
+#        - [ scale, 1, 1, 1 ]
+
+# stars
+- add: sphere
+  transform:
+  - [scale, 100,100,100]
+  material:
+    color: [1,1,1]
+    diffuse: 0.9
+    ambient: 0.1
+    specular: 0.0
+    reflective: 0
+    shininess: 200
+    transparency: 0.0
+    patterns:
+      Ka:
+        type: map
+        mapping: sphere
+        uv_pattern:
+          type: image
+          file: scenes/spec_map_test/2k_stars_milky_way.jpg
+        transform:
+        - [ scale, 1, 1, 1 ]
+      Kd:
+        type: map
+        mapping: sphere
+        uv_pattern:
+          type: image
+          file: scenes/spec_map_test/2k_stars_milky_way.jpg
+        transform:
+        - [ scale, 1, 1, 1 ]
+
+#- add: plane
+#  transform:
+#  - [ rotate-x, 1.57]
+#  - [ translate, 0,0,2 ]
+#  material:
+#    color: [ 1, 1, 1 ]
+#    ambient: 0.3
+#    diffuse: 0.1
+#    specular: 0
+#    pattern:
+#      type: checker
+#      colors:
+#      - [ 0.6, 0.6, 0.6 ]
+#      - [ 0.4, 0.4, 0.4 ]
+#      transform:
+#      - [ scale, 1, 1, 1]

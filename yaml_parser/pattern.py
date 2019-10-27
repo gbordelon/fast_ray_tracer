@@ -261,6 +261,9 @@ class UVPattern(object):
 
             if file_path not in resources:
                 uv_pattern_name = 'pattern_{}'.format(file_path.replace('/', '_').replace('-','_').replace('.','_'))
+                color_space_fn_name = 'rgb_to_rgb'
+                if name.find('Ka') > 0 or name.find('Kd') > 0:
+                    color_space_fn_name = 'color_space_fn'
                 buf = """    if (access("{1}", F_OK ) == -1 ) {{
         printf("file '{1}' does not exist.");
         return 1;
@@ -268,11 +271,11 @@ class UVPattern(object):
     printf("Loading resource '{1}'... ");
     fflush(stdout);
     Canvas {2};
-    construct_canvas_from_ppm_file(&{2}, "{1}", color_space_fn);
+    construct_canvas_from_ppm_file(&{2}, "{1}", {3});
     uv_texture_pattern({2}, {0});
     printf("Done!\\n");
     fflush(stdout);
-""".format(name, ppm_file_path, uv_pattern_name)
+""".format(name, ppm_file_path, uv_pattern_name, color_space_fn_name)
                 resources[file_path] = uv_pattern_name
             else:
                 buf = """    uv_texture_pattern({1}, {0});
