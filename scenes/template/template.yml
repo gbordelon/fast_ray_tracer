@@ -9,6 +9,7 @@
       include-diffuse: true
       include-specular: true
       include-specular-highlight: true
+      path-length: 5
     global-illumination:
       include-caustics: true
       include-final-gather: false
@@ -18,6 +19,7 @@
       irradiance-estimate-radius: 0.1
       irradiance-estimate-cone-filter-k: 1.0
       photon-count: 100000
+      path-length: 5
   threading:
     thread-count: 4
   scene:

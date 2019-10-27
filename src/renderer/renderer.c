@@ -32,6 +32,45 @@ void lighting_gi(Computations comps, Shape shape, Point point, Vector eyev, Vect
 void lighting_caustics(Computations comps, Shape shape, Point point, Vector eyev, Vector normalv, PhotonMap *maps, Color res);
 void shade_hit_gi(World w, Computations comps, Color res);
 
+// for easier reading
+static bool visualize_photon_map;
+static bool visualize_soft_indirect;
+static bool include_direct;
+static bool include_ambient;
+static bool include_diffuse;
+static bool include_spec_highlight;
+static bool include_specular;
+static size_t path_length;
+static bool use_gi;
+static bool use_caustics;
+static bool use_final_gather;
+static size_t final_gather_usteps;
+static size_t final_gather_vsteps;
+static size_t irradiance_estimate_num;
+static double irradiance_estimate_radius;
+static double irradiance_estimate_cone_filter_k;
+
+void
+setup_config(World w)
+{
+    visualize_photon_map = w->global_config->illumination.debug_visualize_photon_map;
+    visualize_soft_indirect = w->global_config->illumination.debug_visualize_soft_indirect;
+    include_direct = w->global_config->illumination.include_direct || visualize_soft_indirect;
+    include_ambient = w->global_config->illumination.di.include_ambient && !visualize_soft_indirect;
+    include_diffuse = w->global_config->illumination.di.include_diffuse || visualize_soft_indirect;
+    include_spec_highlight = w->global_config->illumination.di.include_specular_highlight && !visualize_soft_indirect;
+    include_specular = w->global_config->illumination.di.include_specular && !visualize_soft_indirect;
+    use_gi = w->global_config->illumination.include_global || visualize_soft_indirect || visualize_photon_map;
+    use_caustics = w->global_config->illumination.gi.include_caustics && !visualize_soft_indirect;
+    use_final_gather = w->global_config->illumination.gi.include_final_gather || visualize_soft_indirect;
+    final_gather_usteps = w->global_config->illumination.gi.usteps;
+    final_gather_vsteps = w->global_config->illumination.gi.vsteps;
+    irradiance_estimate_num = w->global_config->illumination.gi.irradiance_estimate_num;
+    irradiance_estimate_radius = w->global_config->illumination.gi.irradiance_estimate_radius;
+    irradiance_estimate_cone_filter_k =  w->global_config->illumination.gi.irradiance_estimate_cone_filter_k;
+    path_length = w->global_config->illumination.di.path_length;
+}
+
 bool
 is_shadowed(World w, Point light_position, Point pt)
 {
@@ -46,7 +85,7 @@ is_shadowed(World w, Point light_position, Point pt)
     struct ray r;
     ray_array(pt, direction, &r);
 
-    Intersections xs = intersect_world(w, &r, true);
+    Intersections xs = intersect_world(w, &r, false);
 
     Intersection h = hit(xs, true);
     bool retval = h != NULL && h->t < distance;
@@ -138,7 +177,7 @@ pixel_multi_sample(Camera cam, World w, size_t x, size_t y, size_t usteps, size_
             color_default(ambient_from_triple(c));
             color_default(diffuse_from_triple(c));
             color_default(specular_from_triple(c));
-            color_at(w, &r, 5, c);
+            color_at(w, &r, path_length, c);
 
             color_accumulate(ambient_from_triple(acc), ambient_from_triple(c));
             color_accumulate(diffuse_from_triple(acc), diffuse_from_triple(c));
@@ -196,16 +235,16 @@ render_multi_helper(World w, void *args)
             color_default(ambient_from_triple(pixel_color));
             color_default(diffuse_from_triple(pixel_color));
             color_default(specular_from_triple(pixel_color));
-            //if (i == 310 && j == 240) { // debug
+            //if (i == 354 && j == 274) { // debug
                 pixel_multi_sample(cam, w, i, j, usteps, vsteps, &sampler, c);
                 // aggregate colors
                 color_accumulate(pixel_color, ambient_from_triple(c));
                 color_accumulate(pixel_color, diffuse_from_triple(c));
                 color_accumulate(pixel_color, specular_from_triple(c));
                 color_scale(pixel_color, 1.0 / 3.0);
-                // record the color
-                color_copy(*(buf+i), pixel_color);
             //}
+            // record the color
+            color_copy(*(buf+i), pixel_color);
         }
         printf("Wrote row %lu\n", y_start);
         canvas_write_pixels(image, 0, j, buf, cam->hsize);
@@ -213,43 +252,6 @@ render_multi_helper(World w, void *args)
 
     sampler_free(&sampler);
     free(buf);
-}
-
-// for easier reading
-static bool visualize_photon_map;
-static bool visualize_soft_indirect;
-static bool include_direct;
-static bool include_ambient;
-static bool include_diffuse;
-static bool include_spec_highlight; 
-static bool include_specular;
-static bool use_gi;
-static bool use_caustics;
-static bool use_final_gather;
-static size_t final_gather_usteps;
-static size_t final_gather_vsteps;
-static size_t irradiance_estimate_num;
-static double irradiance_estimate_radius;
-static double irradiance_estimate_cone_filter_k;
-
-void
-setup_config(World w)
-{
-    visualize_photon_map = w->global_config->illumination.debug_visualize_photon_map;
-    visualize_soft_indirect = w->global_config->illumination.debug_visualize_soft_indirect;
-    include_direct = w->global_config->illumination.include_direct || visualize_soft_indirect;
-    include_ambient = w->global_config->illumination.di.include_ambient && !visualize_soft_indirect;
-    include_diffuse = w->global_config->illumination.di.include_diffuse || visualize_soft_indirect;
-    include_spec_highlight = w->global_config->illumination.di.include_specular_highlight && !visualize_soft_indirect;
-    include_specular = w->global_config->illumination.di.include_specular && !visualize_soft_indirect;
-    use_gi = w->global_config->illumination.include_global || visualize_soft_indirect || visualize_photon_map;
-    use_caustics = w->global_config->illumination.gi.include_caustics && !visualize_soft_indirect;
-    use_final_gather = w->global_config->illumination.gi.include_final_gather || visualize_soft_indirect;
-    final_gather_usteps = w->global_config->illumination.gi.usteps;
-    final_gather_vsteps = w->global_config->illumination.gi.vsteps;
-    irradiance_estimate_num = w->global_config->illumination.gi.irradiance_estimate_num;
-    irradiance_estimate_radius = w->global_config->illumination.gi.irradiance_estimate_radius;
-    irradiance_estimate_cone_filter_k =  w->global_config->illumination.gi.irradiance_estimate_cone_filter_k;
 }
 
 Canvas
@@ -623,7 +625,7 @@ shade_hit_gi(World w, Computations comps, Color res)
                 w->photon_maps,
                 indirect);
 
-    color_accumulate(res, indirect);
+    color_copy(res, indirect);
     color_scale(res, M_PI);
 }
 
@@ -758,7 +760,7 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res)
         }
     }
 
-    // shade the hit with soft indirect diffuse an caustics
+    // shade the hit with soft indirect diffuse and caustics
     if (use_gi && (comps->over_Kd[0] > 0 || comps->over_Kd[1] > 0 || comps->over_Kd[2] > 0)) {
         Color fgather;
         Color caustics;
@@ -807,10 +809,12 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res)
                         w->photon_maps,
                         caustics);
         }
-
         color_accumulate(ambient_from_triple(surface), indirect);
-        color_accumulate(ambient_from_triple(surface), fgather);
-        color_accumulate(diffuse_from_triple(surface), caustics);
+        //color_accumulate(ambient_from_triple(surface), fgather);
+        ambient_from_triple(surface)[0] = fgather[0] * comps->over_Kd[0];
+        ambient_from_triple(surface)[1] = fgather[1] * comps->over_Kd[1];
+        ambient_from_triple(surface)[2] = fgather[2] * comps->over_Kd[2];
+        color_accumulate(ambient_from_triple(surface), caustics);
     }
 
     // shade the hit with specular reflections and refractions
@@ -868,7 +872,10 @@ lighting_caustics(Computations comps, Shape shape, Point point, Vector eyev, Vec
     }
 
     long num_photons_used = pm_irradiance_estimate(maps+0, intensity_estimate, point, eyev, irradiance_estimate_radius, irradiance_estimate_num, irradiance_estimate_cone_filter_k);
-    color_scale(intensity_estimate, 1.0 / 10.0);
+
+    if (num_photons_used > 0) {
+        color_scale(intensity_estimate, 100.0 / ((double)num_photons_used));
+    }
 
     if (visualize_photon_map) { // TODO investigate whether or not I should do this or always return the intensity_estimate
         color_copy(res, intensity_estimate);
@@ -893,11 +900,15 @@ lighting_gi(Computations comps, Shape shape, Point point, Vector eyev, Vector no
     color_copy(diffuse, comps->over_Kd);
 
     if (!(diffuse[0] > 0.0) && !(diffuse[1] > 0.0) && !(diffuse[2] > 0.0)) {
+        color_copy(res, diffuse);
         return;
     }
 
     long num_photons_used = pm_irradiance_estimate(maps+1, intensity_estimate, point, eyev, irradiance_estimate_radius, irradiance_estimate_num, irradiance_estimate_cone_filter_k);
-    color_scale(intensity_estimate, (M_PI * (double)irradiance_estimate_num) / ((double)num_photons_used * (double)(maps+1)->max_photons));
+
+    if (num_photons_used > 0) {
+        color_scale(intensity_estimate, 10.0 * (double)irradiance_estimate_num / (double)num_photons_used);
+    }
 
     double eye_dot_normal = vector_dot(eyev, normalv);
     if (visualize_photon_map) {
@@ -907,8 +918,8 @@ lighting_gi(Computations comps, Shape shape, Point point, Vector eyev, Vector no
         diffuse[1] *= intensity_estimate[1];
         diffuse[2] *= intensity_estimate[2];
 
-        color_scale(diffuse, eye_dot_normal);
-        color_accumulate(res, diffuse);
+        //color_scale(diffuse, eye_dot_normal);
+        color_copy(res, diffuse);
     }
 }
 

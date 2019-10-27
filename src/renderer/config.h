@@ -6,6 +6,7 @@ struct direct_illumination {
     bool include_diffuse;
     bool include_specular_highlight;
     bool include_specular;
+    size_t path_length;
 };
 
 struct global_illumination {
@@ -17,6 +18,7 @@ struct global_illumination {
     double irradiance_estimate_radius;
     double irradiance_estimate_cone_filter_k;
     size_t photon_count;
+    size_t path_length;
 };
 
 struct illumination_config {

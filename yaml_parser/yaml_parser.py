@@ -198,7 +198,7 @@ main()
     w->shapes_num = 1;
     w->global_config = &global_config;
 
-    if (global_config.illumination.gi.photon_count > 0 && global_config.illumination.include_global ) {{
+    if (global_config.illumination.gi.photon_count > 0 && (global_config.illumination.include_global  || global_config.illumination.debug_visualize_photon_map || global_config.illumination.debug_visualize_soft_indirect)) {{
         w->photon_maps = array_of_photon_maps(3);
         printf("Tracing photons...");
         fflush(stdout);
@@ -206,7 +206,7 @@ main()
         for (i = 0; i < 3; ++i) {{
             init_Photon_map(global_config.illumination.gi.photon_count, w->photon_maps + i);
         }}
-        trace_photons(w, 3);
+        trace_photons(w, 3, global_config.illumination.gi.include_caustics, global_config.illumination.gi.include_final_gather);
         printf("Done!\\n");
         fflush(stdout);
     }} else {{

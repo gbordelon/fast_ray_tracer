@@ -5,10 +5,11 @@
     visualize-photon-map: false
     visualize-soft-indirect: false
     direct-illumination:
-      include-ambient: true
+      include-ambient: false
       include-diffuse: true
       include-specular: true
-      include-specular-highlight: false
+      include-specular-highlight: true
+      path-length: 5
     global-illumination:
       include-caustics: false
       include-final-gather: true
@@ -17,7 +18,8 @@
       irradiance-estimate-num: 200
       irradiance-estimate-radius: 0.1
       irradiance-estimate-cone-filter-k: 1.0
-      photon-count: 100000
+      photon-count: 1000000
+      path-length: 5
   threading:
     thread-count: 4
   scene:
@@ -33,15 +35,15 @@
 # ======================================================
 
 - add: camera
-  width: 400
-  height: 400
+  width: 800
+  height: 800
   field-of-view: 1.2
   from: [ 0, 0, -2.75 ]
   to: [ 0, 0, 0 ]
   up: [ 0, 1, 0 ]
   focal-length: 1
-  usteps: 1
-  vsteps: 1
+  usteps: 4
+  vsteps: 4
   aperture:
     jitter: false
     size: 0
@@ -51,21 +53,31 @@
 # test light sources
 # ======================================================
 
-- add: light
-  at: [ 0, 1.4, 0 ]
-  to: [ 0, -1, 0 ]
-#  at: [ 0, 0, 0 ]
-  intensity: [ 1, 1, 1 ]
-
 #- add: light
-#  corner: [-0.5, 1.4, -0.5]
-#  uvec: [1, 0, 0]
-#  vvec: [0, 0, 1]
-#  usteps: 10
-#  vsteps: 10
-#  jitter: true
-#  intensity: [1.0, 1.0, 1.0]
-#  cache-size: 1
+#  at: [ 2.0, 1, 0.5 ]
+#  intensity: [ 0.2, 0.2, 0.2 ]
+#- add: light
+#  at: [ 2.0, 1.5, 1.0 ]
+#  intensity: [ 0.2, 0.2, 0.2 ]
+#- add: light
+#  at: [ 2.0, 1.5, 0 ]
+#  intensity: [ 0.2, 0.2, 0.2 ]
+#- add: light
+#  at: [ 2.0, 0.5, 1.0 ]
+#  intensity: [ 0.2, 0.2, 0.2 ]
+#- add: light
+#  at: [ 2.0, 0.5, 0 ]
+#  intensity: [ 0.2, 0.2, 0.2 ]
+
+- add: light
+  corner: [2, 0.5, 1.0]
+  uvec: [0, 1, 0]
+  vvec: [0, 0, -1]
+  usteps: 10
+  vsteps: 10
+  jitter: true
+  intensity: [1.0, 1.0, 1.0]
+  cache-size: 65535
 
 
 # ======================================================
@@ -128,10 +140,18 @@
     reflective: 0.0
     shadow: false
 
+- define: inert-material
+  value:
+    color: [ 0, 0, 0 ]
+    diffuse: 0.0
+    ambient: 0.0
+    specular: 0.0
+    reflective: 0.0
+
 - define: black-material
   extend: white-material
   value:
-    color: [ 0,0,0 ]
+    color: [ 0.01,0.01,0.01 ]
 
 - define: blue-material
   extend: white-material
@@ -143,10 +163,15 @@
   value:
     color: [ 1,0,0 ]
 
+- define: yellow-material
+  extend: white-material
+  value:
+    color: [ 1,1,0 ]
+
 - define: green-material
   extend: white-material
   value:
-    color: [ 0,1,0 ]
+    color: [ 0.2,0.8,0 ]
 
 - define: wall-transform
   value:
@@ -248,6 +273,7 @@
 # top
 - add: cube
   material: white-material
+#  material: black-material
   transform:
   - wall-transform
   - [ translate, 0, 1.55, 0 ]
@@ -255,6 +281,7 @@
 # back
 - add: cube
   material: white-material
+#  material: black-material
   transform:
   - wall-transform
   - [ rotate-x, 1.5707963267948966 ]
@@ -264,13 +291,14 @@
 - add: cube
   material: black-material
   transform:
-  - [ scale, 3, 0.1, 3 ]
+  - [ scale, 10, 0.01, 10 ]
   - [ rotate-x, 1.5707963267948966 ]
-  - [ translate, 0, 0, -3 ]
+  - [ translate, 0, 0, -2.76 ]
 
-# bottom
+# floor
 - add: cube
   material: white-material
+#  material: red-material
   transform:
   - wall-transform
   - [ translate, 0, -1.55, 0 ]
@@ -278,44 +306,65 @@
 # left
 - add: cube
   material: red-material
+#  material: white-material
   transform:
   - wall-transform
   - [ rotate-z, 1.5707963267948966 ]
   - [ translate, -1.55, 0, 0 ]
 
 # right
-- add: cube
-  material: green-material
+- add: csg
+  operation: difference
   transform:
   - wall-transform
-  - [ rotate-z, 1.5707963267948966 ]
+  - [ rotate-z, -1.5707963267948966 ]
   - [ translate, 1.55, 0, 0 ]
+  left:
+    add: csg
+    operation: union
+    left:
+      add: cube
+      material: blue-material
+      transform:
+      - [scale, 1, 0.995, 1]
+    right:
+      add: cube
+      material: inert-material
+      transform:
+      - [translate, 0, 0.01, 0]
+  right:
+    add: cube
+    material: white-material
+    transform:
+    - [scale, 0.3, 1.02, 0.3]
 
 
-# light
-- add: cube
-  material: light-material
-  transform:
-  - [ scale, 0.5, .01, 0.5 ]
-  - [ translate, 0, 1.44, 0 ]
-#  - [ translate, 0, 1.64, 0.5 ]
+## light
+#- add: cube
+#  material: light-material
+#  transform:
+#  - [ scale, 0.5, .01, 0.5 ]
+#  - [ translate, 0, 1.44, 0 ]
+##  - [ translate, 0, 1.64, 0.5 ]
 
 
 # mirror ball
 - add: sphere
   material: mirror-material
+#  material: yellow-material
   transform:
   - [scale, 0.5, 0.5, 0.5]
   - [translate, -0.6, -0.75, 0.5]
 
 
 # glass ball
-- add: sphere
-  material: glass
+- add: cube
+  #material: glass
+  material: white-material
   transform:
-  - [scale, 0.5, 0.5, 0.5]
-  - [translate, 0.6, -0.75, 0.0]
-  #- [translate, 0.85, -0.85, 0.0]
+  - [scale, 0.5, 1, 0.5]
+  #- [translate, 0.6, -0.75, 0.0]
+  - [translate, 0.6, -0.5, -0.5]
 
 ## lens
 #- add: lensWithCylinder

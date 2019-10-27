@@ -41,7 +41,10 @@ reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comp
     double average_photon_power = (comps->photon_power[0] + comps->photon_power[1] + comps->photon_power[2]) / 3.0;
 
     color_copy(diffuse_color, comps->over_Kd);
-    color_scale(diffuse_color, average_photon_power);
+    diffuse_color[0] *= comps->photon_power[0];
+    diffuse_color[1] *= comps->photon_power[1];
+    diffuse_color[2] *= comps->photon_power[2];
+    //color_scale(diffuse_color, average_photon_power);
 
     // debug
     //color_copy(diffuse_color, comps->photon_power);
@@ -52,7 +55,7 @@ reflect_photon_diffuse(enum photon_map_type map_type, World w, Computations comp
 
     sampler_free(&sampler);
 
-    color_scale(diffuse_color, 1.0 / average_diffuse_reflectance);
+    //color_scale(diffuse_color, average_diffuse_reflectance);
 
     return power_at(map_type, w, &reflect_ray, diffuse_color, true, had_specular, remaining - 1);
 }
@@ -127,18 +130,23 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, bool had_
     color_copy(specular_color, comps->over_refl);
     color_copy(transmission_filter, comps->obj->material->Tf);
 
+    double average_diffuse_reflectance = (diffuse_color[0] + diffuse_color[1] + diffuse_color[2]) / 3.0;
+
     // only store photons if the struck material is diffuse
     if (diffuse_color[0] > 0 || diffuse_color[1] > 0 || diffuse_color[2] > 0) {
+        diffuse_color[0] *= comps->photon_power[0];
+        diffuse_color[1] *= comps->photon_power[1];
+        diffuse_color[2] *= comps->photon_power[2];
         // only store photons with at least one specular reflection in the caustics map
         if (map_type == CAUSTIC) {
             if (had_specular) {
-                pm_store(maps + 0, comps->photon_power, comps->p, comps->photon_ray.direction);
+                pm_store(maps + 0, diffuse_color, comps->p, comps->photon_ray.direction);
                 return 1;
             }
         // never store the first diffuse hit in the global map
         } else if (map_type == GLOBAL) {
             if (had_diffuse) { // DEBUG
-                pm_store(maps + 1, comps->photon_power, comps->p, comps->photon_ray.direction);
+                pm_store(maps + 1, diffuse_color, comps->p, comps->photon_ray.direction);
                 hit += 1;
             }
         }
@@ -151,7 +159,6 @@ photon_hit(enum photon_map_type map_type, World w, Computations comps, bool had_
     double average_specular_reflectance = (specular_color[0] + specular_color[1] + specular_color[2]) / 3.0;
     double average_transmission_filter = (transmission_filter[0] + transmission_filter[1] + transmission_filter[2]) / 3.0;
     if (map_type == GLOBAL) {
-        double average_diffuse_reflectance = (diffuse_color[0] + diffuse_color[1] + diffuse_color[2]) / 3.0;
         total_refract_reflect = average_diffuse_reflectance +
                                 average_specular_reflectance +
                                 average_transmission_filter;
@@ -193,13 +200,13 @@ power_at(enum photon_map_type map_type, const World w, const Ray r, Color power,
 }
 
 void
-trace_photons(const World w, size_t num_maps)
+trace_photons(const World w, size_t num_maps, bool populate_caustic_map, bool populate_global_map)
 {
     double total_lightness = 0;
     Color lab;
     struct ray r; 
     Light itr;
-    int i, j, hit, global_total;
+    int i, j, hit, global_total, caustic_total;
     PhotonMap *maps = w->photon_maps;
     size_t num_photons = maps->max_photons; // assume all three maps have the same photon count
 
@@ -217,25 +224,33 @@ trace_photons(const World w, size_t num_maps)
         itr->num_photons = num_photons * lab[0] / total_lightness;
     }
 
+    caustic_total = 0;
+    global_total = 0;
     for (i = 0, itr = w->lights; i < w->lights_num; ++i, ++itr) {
-        for (j = 0; j < itr->num_photons;) {
-            itr->emit_photon(itr, &r); // get ray from light
-            hit = power_at(CAUSTIC, w, &r, itr->intensity, false, false, 5);
-            j += hit;
+        if (populate_caustic_map) {
+            for (j = 0; j < itr->num_photons;) {
+                itr->emit_photon(itr, &r); // get ray from light
+                hit = power_at(CAUSTIC, w, &r, itr->intensity, false, false, w->global_config->illumination.gi.path_length);
+                j += hit;
+                caustic_total += hit;
+                //printf("%d\n", caustic_total);
+            }
         }
 
-        global_total = 0;
-        for (j = 0; j < itr->num_photons;) {
-            itr->emit_photon(itr, &r); // get ray from light
-            hit = power_at(GLOBAL, w, &r, itr->intensity, false, false, 5);
-            j += hit;
-            global_total += hit;
-        }
-        for (j = 0; j < num_maps; ++j) {
-            pm_scale_photon_power(maps + i, 1.0/(double)itr->num_photons);
+        if (populate_global_map) {
+            for (j = 0; j < itr->num_photons;) {
+                itr->emit_photon(itr, &r); // get ray from light
+                hit = power_at(GLOBAL, w, &r, itr->intensity, false, false, w->global_config->illumination.gi.path_length);
+                j += hit;
+                global_total += hit;
+                //printf("%d\n", global_total);
+            }
         }
     }
 
+    for (j = 0; j < num_maps; ++j) {
+        pm_scale_photon_power(maps + j, 1.0/(double)num_photons);
+    }
     for (i = 0; i < num_maps; ++i) {
         pm_balance(maps + i);
     }

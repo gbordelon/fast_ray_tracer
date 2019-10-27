@@ -112,6 +112,8 @@ class DirectIlluminationConfig(object):
             obj['include-specular-highlight'] = True
         if 'include-specular' not in obj:
             obj['include-specular'] = True
+        if 'path-length' not in obj:
+            obj['path-length'] = 5
 
         return cls(yaml_obj=obj)
 
@@ -120,10 +122,12 @@ class DirectIlluminationConfig(object):
     global_config.illumination.di.include_diffuse = {1};
     global_config.illumination.di.include_specular_highlight = {2};
     global_config.illumination.di.include_specular = {3};
+    global_config.illumination.di.path_length = {4};
 """.format(self.yaml_obj['include-ambient'],
            self.yaml_obj['include-diffuse'],
            self.yaml_obj['include-specular-highlight'],
-           self.yaml_obj['include-specular'])
+           self.yaml_obj['include-specular'],
+           self.yaml_obj['path-length'])
 
 class GlobalIlluminationConfig(object):
     def __init__(self, yaml_obj):
@@ -147,6 +151,8 @@ class GlobalIlluminationConfig(object):
             obj['irradiance-estimate-cone-filter-k'] = 1.0
         if 'photon-count' not in obj:
             obj['photon-count'] = 0
+        if 'path-length' not in obj:
+            obj['path-length'] = 5
 
         return cls(yaml_obj=obj)
 
@@ -159,6 +165,7 @@ class GlobalIlluminationConfig(object):
     global_config.illumination.gi.irradiance_estimate_radius = {5:.10f};
     global_config.illumination.gi.irradiance_estimate_cone_filter_k = {6:.10f};
     global_config.illumination.gi.photon_count = {7};
+    global_config.illumination.gi.path_length = {8};
 """.format(self.yaml_obj['include-caustics'],
            self.yaml_obj['include-final-gather'],
            self.yaml_obj['usteps'],
@@ -166,7 +173,8 @@ class GlobalIlluminationConfig(object):
            self.yaml_obj['irradiance-estimate-num'],
            self.yaml_obj['irradiance-estimate-radius'],
            self.yaml_obj['irradiance-estimate-cone-filter-k'],
-           self.yaml_obj['photon-count'])
+           self.yaml_obj['photon-count'],
+           self.yaml_obj['path-length'])
 
 class IlluminationConfig(object):
     def __init__(self, yaml_obj):
