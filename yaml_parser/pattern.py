@@ -252,12 +252,12 @@ class UVPattern(object):
            self.yaml_obj['colors']['br'][2])
         elif typ == 'image':
             file_path = self.yaml_obj['file']
-            ppm_file_path = file_path[:-3] + 'ppm';
-            if file_path[-3:] != 'ppm':
+            png_file_path = file_path[:-3] + 'png';
+            if file_path[-3:] != 'png':
                 # check for existence of ppm extension file name
-                if not (os.path.exists(ppm_file_path) and os.path.isfile(ppm_file_path)):
+                if not (os.path.exists(png_file_path) and os.path.isfile(png_file_path)):
                     # if it does not exist, create it with 'convert'
-                    subprocess.run(['convert', file_path, '-compress', 'none', ppm_file_path])
+                    subprocess.run(['convert', file_path, '-compress', 'none', '-quality', '95', png_file_path])
 
             if file_path not in resources:
                 uv_pattern_name = 'pattern_{}'.format(file_path.replace('/', '_').replace('-','_').replace('.','_'))
@@ -271,11 +271,11 @@ class UVPattern(object):
     printf("Loading resource '{1}'... ");
     fflush(stdout);
     Canvas {2};
-    construct_canvas_from_ppm_file(&{2}, "{1}", {3});
+    read_png(&{2}, "{1}", false, {3});
     uv_texture_pattern({2}, {0});
     printf("Done!\\n");
     fflush(stdout);
-""".format(name, ppm_file_path, uv_pattern_name, color_space_fn_name)
+""".format(name, png_file_path, uv_pattern_name, color_space_fn_name)
                 resources[file_path] = uv_pattern_name
             else:
                 buf = """    uv_texture_pattern({1}, {0});
