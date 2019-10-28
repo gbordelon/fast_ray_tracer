@@ -99,6 +99,8 @@ class Light(object):
             obj['cache-size'] = 65536
         if 'at' in obj:
             if 'to' in obj:
+                if 'radius' in obj:
+                    return CircleAreaLight.from_yaml(obj)
                 return HemisphereLight.from_yaml(obj)
             return PointLight.from_yaml(obj)
         elif 'corner' in obj:
@@ -117,8 +119,8 @@ class HemisphereLight(Light):
     Light hemisphere_light_{0} = all_lights + {0};
     Point hemisphere_light_{0}_point = {{ {1:.10f}, {2:.10f}, {3:.10f}, 1.0 }};
     Color hemisphere_light_{0}_intensity = color({4:.10f}, {5:.10f}, {6:.10f});
-    Vector hemisphere_light_{0}_normal = {{ {7:.10f}, {8:.10f}, {9:.10f}, 0.0 }};
-    hemisphere_light(hemisphere_light_{0}_point, hemisphere_light_{0}_normal, hemisphere_light_{0}_intensity, hemisphere_light_{0});
+    Point hemisphere_light_{0}_to = {{ {7:.10f}, {8:.10f}, {9:.10f}, 0.0 }};
+    hemisphere_light(hemisphere_light_{0}_point, hemisphere_light_{0}_to, hemisphere_light_{0}_intensity, hemisphere_light_{0});
 
     /* end point light {0} */
 """.format(name,
@@ -145,6 +147,7 @@ class PointLight(Light):
 """.format(name,
            self.yaml_obj['at'][0], self.yaml_obj['at'][1], self.yaml_obj['at'][2],
            self.yaml_obj['intensity'][0], self.yaml_obj['intensity'][1], self.yaml_obj['intensity'][2])
+
 
 class AreaLight(Light):
     def __init__(self, yaml_obj):
@@ -174,6 +177,35 @@ class AreaLight(Light):
            self.yaml_obj['uvec'][0], self.yaml_obj['uvec'][1], self.yaml_obj['uvec'][2],
            self.yaml_obj['vvec'][0], self.yaml_obj['vvec'][1], self.yaml_obj['vvec'][2],
            self.yaml_obj['usteps'], self.yaml_obj['vsteps'], bool_str, self.yaml_obj['cache-size'])
+
+
+class CircleAreaLight(Light):
+    def __init__(self, yaml_obj):
+        Light.__init__(self, yaml_obj)
+
+    @classmethod
+    def from_yaml(cls, obj) -> 'CircleAreaLight':
+        return cls(obj)
+
+    def c_repr(self, name):
+        bool_str = "false"
+        if self.yaml_obj['jitter']:
+            bool_str = "true"
+        return """
+    /* circle area light {0} */
+    Light circle_area_light_{0} = all_lights + {0};
+    Point circle_area_light_{0}_position = {{ {1:.10f}, {2:.10f}, {3:.10f}, 1.0}};
+    Color circle_area_light_{0}_intensity = color({4:.10f}, {5:.10f}, {6:.10f});
+    Point circle_area_light_{0}_to = vector_init({7:.10f}, {8:.10f}, {9:.10f});
+    circle_light(circle_area_light_{0}_position, circle_area_light_{0}_to, {14:.10f}/*radius*/, {10}/*usteps*/, {11}/*vsteps*/, {12}/*jitter*/, {13}/*cache_size*/, circle_area_light_{0}_intensity, circle_area_light_{0});
+
+    /* end circle area light 0 */
+""".format(name,
+           self.yaml_obj['at'][0], self.yaml_obj['at'][1], self.yaml_obj['at'][2],
+           self.yaml_obj['intensity'][0], self.yaml_obj['intensity'][1], self.yaml_obj['intensity'][2],
+           self.yaml_obj['to'][0], self.yaml_obj['to'][1], self.yaml_obj['to'][2],
+           self.yaml_obj['usteps'], self.yaml_obj['vsteps'], bool_str, self.yaml_obj['cache-size'],
+           self.yaml_obj['radius'])
 
 
 

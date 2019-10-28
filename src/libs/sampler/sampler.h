@@ -19,6 +19,7 @@ typedef struct sampler {
     void (*reset)(struct sampler *);
     void (*get_point)(struct sampler *, const size_t *, double *);
     void (*get_vector_hemisphere)(struct sampler *, Vector, bool, size_t *, double *, Vector);
+    void (*get_point_circle)(struct sampler *, Vector, double, size_t *, double *, Vector);
     void (*reset_hemisphere_coords)(struct sampler *);
 } *Sampler;
 

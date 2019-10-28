@@ -5,11 +5,25 @@
 
 #include "sampler.h"
 
+void
+uniform_sample_circle(const double r1, const double r2, const double radius, Point res)
+{ 
+    // rands should be treated as theta and radius
+    double theta = r1 * 2.0 * M_PI;
+    double r = r2 * radius;
+
+    // find a point on the xz unit circle
+    res[0] = r * cos(theta);
+    res[1] = 0.0;
+    res[2] = r * sin(theta);
+    res[3] = 1.0;
+}
+
 /*
  * some function from https://www.scratchapixel.com/code.php?id=34&origin=/lessons/3d-basic-rendering/global-illumination-path-tracing
  */
 void
-uniform_sample_hemisphere(const double r1, const double r2, Vector res) 
+uniform_sample_hemisphere(const double r1, const double r2, Vector res)
 { 
     double sin_theta = sqrt(1 - r1 * r1);
     double phi = 2 * M_PI * r2;
@@ -68,8 +82,8 @@ sampler_hemisphere(Sampler sampler, Vector normalv, bool cosine_weighted, size_t
     sampler->get_point(sampler, index, rands);
     Vector sample;
     if (cosine_weighted) {
-        //cosine_weighted_sample_hemisphere(rands[0], rands[1], sample);
-        uniform_sample_hemisphere(rands[0], rands[1], sample);
+        cosine_weighted_sample_hemisphere(rands[0], rands[1], sample);
+        //uniform_sample_hemisphere(rands[0], rands[1], sample);
     } else {
         uniform_sample_hemisphere(rands[0], rands[1], sample);
     }
@@ -80,6 +94,31 @@ sampler_hemisphere(Sampler sampler, Vector normalv, bool cosine_weighted, size_t
 
     vector_normalize(tmp, res);
     //vector_print(res);
+    //vector_print(sampler->nt);
+    //vector_print(sampler->nb);
+    //printf("\n");
+}
+
+void
+sampler_circle(Sampler sampler, Vector normalv, double radius, size_t *index, double *rands, Point res)
+{
+    if (sampler->needs_hemi_coords) {
+        sampler->needs_hemi_coords = false;
+        create_coordinate_system(normalv, sampler->nt, sampler->nb);
+    }
+
+    sampler->get_point(sampler, index, rands);
+    Point sample;
+    uniform_sample_circle(rands[0], rands[1], radius, sample);
+
+    // translate point into unit 3D space using the normal
+
+    res[0] = sample[0] * sampler->nb[0] + sample[1] * normalv[0] + sample[2] * sampler->nt[0];
+    res[1] = sample[0] * sampler->nb[1] + sample[1] * normalv[1] + sample[2] * sampler->nt[1];
+    res[2] = sample[0] * sampler->nb[2] + sample[1] * normalv[2] + sample[2] * sampler->nt[2];
+    res[3] = 1.0;
+
+    //point_print(res);
     //vector_print(sampler->nt);
     //vector_print(sampler->nb);
     //printf("\n");
@@ -450,6 +489,7 @@ sampler_init(const bool jitter, const size_t dimensions, const size_t *steps, bo
     sampler->get_point = sampler_get_point_2d;
     sampler->get_vector_hemisphere = sampler_hemisphere;
     sampler->reset_hemisphere_coords = sampler_reset_hemisphere_sampler;
+    sampler->get_point_circle = sampler_circle;
 }
 
 void

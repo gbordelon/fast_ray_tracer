@@ -11,8 +11,25 @@
 #include "light.h"
 
 void
+circle_light_emit_photon(Light l, Ray res)
+{
+    // get a random point from points
+    Points pts = l->light_surface_points(l);
+    int choice = rand() % pts->points_num;
+    point_copy(res->origin, *(pts->points + choice));
+
+    size_t index[2] = { 0, 0 };
+    double rands[2];
+    struct sampler sampler;
+    sampler_2d(true, 1, 1, sampler_default_constraint, &sampler);
+    sampler.get_vector_hemisphere(&sampler, l->u.circle.normal, true, index, rands, res->direction);
+    sampler_free(&sampler);
+}
+
+void
 area_light_emit_photon(Light l, Ray res)
 {
+/*
     Vector tmp, normal, uvec, vvec;
     size_t index[2] = { 0, 0 };
     double rands[2];
@@ -33,12 +50,22 @@ area_light_emit_photon(Light l, Ray res)
     res->origin[1] = l->u.area.corner[1] + uvec[1] + vvec[1];
     res->origin[2] = l->u.area.corner[2] + uvec[2] + vvec[2];
     res->origin[3] = 1;
+*/
+    // get a point from points
+    Points pts = l->light_surface_points(l);
+    int choice = rand() % pts->points_num;
+    point_copy(res->origin, *(pts->points + choice));
 
-    vector_cross(l->u.area.uvec, l->u.area.vvec, tmp); // may be backward
+    Vector tmp, normal;
+    vector_cross(l->u.area.uvec, l->u.area.vvec, tmp);
     vector_normalize(tmp, normal);
-    sampler.get_vector_hemisphere(&sampler, normal, true, index, rands, res->direction);
 
-    //printf("direction %f %f %f\n", res->direction[0], res->direction[1], res->direction[2]);
+    size_t index[2] = { 0, 0 };
+    double rands[2];
+    struct sampler sampler;
+    sampler_2d(true, 1, 1, sampler_default_constraint, &sampler);
+    sampler.get_vector_hemisphere(&sampler, normal, true, index, rands, res->direction);
+    sampler_free(&sampler);
 }
 
 void
@@ -50,6 +77,7 @@ hemisphere_light_emit_photon(Light l, Ray res)
     sampler_2d(true, 1, 1, sampler_default_constraint, &sampler);
     point_copy(res->origin, l->u.hemi.position);
     sampler.get_vector_hemisphere(&sampler, l->u.hemi.normal, true, index, rands, res->direction);
+    sampler_free(&sampler);
 }
 
 void
@@ -66,6 +94,44 @@ point_light_emit_photon(Light l, Ray res)
 
     point_copy(res->origin, l->u.point.position);
     vector_copy(res->direction, direction);
+}
+
+void
+construct_circle_light_surface_points_cache(Light light, size_t cache_size)
+{
+    if (light->surface_points_cache == NULL) {
+        int u, v, i;
+        double jitter[2];
+        size_t index[2];
+        Point point = {0.0, 0.0, 0.0, 1.0};
+        Points pts = (Points) malloc(cache_size * sizeof(struct pts));
+        Points itr = pts;
+        struct sampler sampler;
+
+        sampler_2d(light->u.circle.jitter, light->u.circle.usteps, light->u.circle.vsteps, sampler_default_constraint, &sampler);
+
+        for (i = 0, itr = pts; i < cache_size; i++, itr++) {
+            itr->points_num = light->num_samples;
+            itr->points = (Point*) malloc(light->num_samples * sizeof(Point));
+
+            sampler.reset(&sampler);
+            for (v = 0; v < light->u.circle.vsteps; ++v) {
+                index[1] = v;
+                for (u = 0; u < light->u.circle.usteps; ++u) {
+                    index[0] = u;
+                    sampler.get_point_circle(&sampler, light->u.circle.normal, light->u.circle.radius, index, jitter, point);
+
+                    point[0] += light->u.circle.origin[0];
+                    point[1] += light->u.circle.origin[1];
+                    point[2] += light->u.circle.origin[2];
+                    point_copy(*(itr->points + v * light->u.circle.usteps + u), point);
+                }
+            }
+        }
+        light->surface_points_cache = pts;
+        light->surface_points_cache_len = cache_size;
+        sampler_free(&sampler);
+    }
 }
 
 void
@@ -120,6 +186,7 @@ construct_area_light_surface_points_cache(Light light, size_t cache_size)
         }
         light->surface_points_cache = pts;
         light->surface_points_cache_len = cache_size;
+        sampler_free(&sampler);
     }
 }
 
@@ -144,7 +211,6 @@ point_light_surface_points(Light light)
     return light->surface_points_cache;
 }
 
-// TODO UV mapped sphere sampling like area light...
 Points
 hemisphere_light_surface_points(Light light)
 {
@@ -182,6 +248,41 @@ point_light_intensity_at(Light light, World w, Point p)
         return 0.0;
     }
     return 1.0;
+}
+
+void
+circle_light(Point origin,
+             Point to,
+             double radius,
+             size_t usteps,
+             size_t vsteps,
+             bool jitter,
+             size_t cache_size,
+             Color intensity,
+             Light l)
+{
+    l->type = CIRCLE_LIGHT;
+
+    point_copy(l->u.circle.origin, origin);
+    Vector normal;
+    vector_from_points(to, origin, normal);
+    vector_normalize(normal, l->u.circle.normal);
+
+    l->u.circle.radius = radius;
+    l->u.circle.usteps = usteps;
+    l->u.circle.vsteps = vsteps;
+    l->u.circle.jitter = jitter;
+
+    color_copy(l->intensity, intensity);
+    l->num_samples = usteps * vsteps;
+
+    l->light_surface_points = area_light_surface_points; // share with area
+    l->intensity_at = area_light_intensity_at; // share with area
+    l->emit_photon = circle_light_emit_photon;
+
+    // populate surface_points_cache
+    l->surface_points_cache = NULL;
+    construct_circle_light_surface_points_cache(l, cache_size);
 }
 
 void
@@ -255,16 +356,18 @@ point_light(Point p, Color intensity, Light l)
 }
 
 void
-hemisphere_light(Point p, Vector normal, Color intensity, Light l)
+hemisphere_light(Point p, Point to, Color intensity, Light l)
 {
     l->type = HEMISPHERE_LIGHT;
     color_copy(l->intensity, intensity);
     l->num_samples = 1;
     point_copy(l->u.hemi.position, p);
+    Vector normal;
+    vector_from_points(to, p, normal);
     vector_normalize(normal, l->u.hemi.normal);
 
     l->light_surface_points = hemisphere_light_surface_points;
-    l->intensity_at = point_light_intensity_at; // TODO make this like area light
+    l->intensity_at = point_light_intensity_at;
     l->emit_photon = hemisphere_light_emit_photon;
 
 
@@ -272,7 +375,26 @@ hemisphere_light(Point p, Vector normal, Color intensity, Light l)
     l->surface_points_cache = NULL;
     hemisphere_light_surface_points(l);
 }
+/*
+void
+spot_light(Point p, Vector normal, double outer_angle, double inner_angle, Color intensity, Light l)
+{
+    l->type = SPOT_LIGHT;
+    color_copy(l->intensity, intensity);
+    l->num_samples = 1;
+    point_copy(l->u.spot.position, p);
+    vector_normalize(normal, l->u.spot.normal);
 
+    l->light_surface_points = hemisphere_light_surface_points;
+    l->intensity_at = spot_light_intensity_at;
+    l->emit_photon = spot_light_emit_photon;
+
+
+    // populate surface_points_cache
+    l->surface_points_cache = NULL;
+    spot_light_surface_points(l);
+}
+*/
 Light
 point_light_alloc(Point p, Color intensity)
 {
