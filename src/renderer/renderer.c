@@ -235,14 +235,14 @@ render_multi_helper(World w, void *args)
             color_default(ambient_from_triple(pixel_color));
             color_default(diffuse_from_triple(pixel_color));
             color_default(specular_from_triple(pixel_color));
-            //if (i == 175 && j == 160) { // debug
+//            if (500 <= i && i <= 550 && 175 <= j && j <= 225) { // debug
                 pixel_multi_sample(cam, w, i, j, usteps, vsteps, &sampler, c);
                 // aggregate colors
                 color_accumulate(pixel_color, ambient_from_triple(c));
                 color_accumulate(pixel_color, diffuse_from_triple(c));
                 color_accumulate(pixel_color, specular_from_triple(c));
                 color_scale(pixel_color, 1.0 / 3.0);
-            //}
+//            }
             // record the color
             color_copy(*(buf+i), pixel_color);
         }
@@ -261,7 +261,7 @@ render_multi(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
 
     int i;
     size_t num_threads = w->global_config->threading.num_threads;
-    Canvas image = canvas_alloc(cam->hsize, cam->vsize, NULL);
+    Canvas image = canvas_alloc(cam->hsize, cam->vsize, false, NULL);
     World worlds = (World) malloc(num_threads * sizeof(struct world));
     struct render_args *args_array = (struct render_args *)malloc(cam->vsize * sizeof(struct render_args));
     struct render_args *debug = args_array;
@@ -303,7 +303,7 @@ render(Camera cam, World w, size_t usteps, size_t vsteps, bool jitter)
     ColorTriple c;
     Color pixel_color;
 
-    Canvas image = canvas_alloc(cam->hsize, cam->vsize, NULL);
+    Canvas image = canvas_alloc(cam->hsize, cam->vsize, false, NULL);
     struct sampler sampler;
     sampler_2d(jitter, usteps, vsteps, sampler_default_constraint, &sampler);
 
@@ -845,7 +845,7 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res)
 
         refracted_color(w, comps, remaining, refracted);
 
-        if (comps->obj->material->reflective && comps->over_d > 0.0) {
+        if (comps->obj->material->reflective && comps->over_d < 1.0) {
             double reflectance = schlick(comps);
             color_scale(ambient_from_triple(reflected), reflectance);
             color_scale(diffuse_from_triple(reflected), reflectance);
@@ -860,6 +860,7 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res)
         color_accumulate(diffuse_from_triple(surface), diffuse_from_triple(reflected));
         color_accumulate(specular_from_triple(surface), specular_from_triple(reflected));
 
+
         if (comps->obj->material->Tr > 0.0 && comps->over_d > 0.0) {
             // Dissolve
             ambient_from_triple(surface)[0] *= 1.0 - comps->over_d;
@@ -873,8 +874,8 @@ shade_hit(World w, Computations comps, size_t remaining, ColorTriple res)
             specular_from_triple(surface)[0] *= 1.0 - comps->over_d;
             specular_from_triple(surface)[1] *= 1.0 - comps->over_d;
             specular_from_triple(surface)[2] *= 1.0 - comps->over_d;
-
         }
+
         color_accumulate(ambient_from_triple(surface), ambient_from_triple(refracted));
         color_accumulate(diffuse_from_triple(surface), diffuse_from_triple(refracted));
         color_accumulate(specular_from_triple(surface), specular_from_triple(refracted));

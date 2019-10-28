@@ -16,7 +16,7 @@ usage () {
 convolution="Frei-Chen"
 
 # compute and scale z from x,y. Closer to 1.0 is smoother, closer to 0 is noisier
-zScale="0.5"
+zScale="1.0"
 
 #
 # https://www.imagemagick.org/script/command-line-options.php?#evaluate

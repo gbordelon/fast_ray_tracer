@@ -2,13 +2,12 @@
   illumination:
     include-direct: true
     include-global: false
-    visualize-photon-map: false
-    visualize-soft-indirect: false
     direct-illumination:
       include-ambient: true
       include-diffuse: true
       include-specular: true
       include-specular-highlight: true
+      path-length: 1
     global-illumination:
       include-caustics: false
       include-final-gather: false
@@ -17,6 +16,9 @@
       irradiance-estimate-num: 200
       irradiance-estimate-radius: 0.1
       photon-count: 0
+      path-length: 5
+    visualize-photon-map: false
+    visualize-soft-indirect: false
   threading:
     thread-count: 4
   scene:
@@ -79,14 +81,13 @@
 # light located at [0, 2.5, -10].
 
 - add: light
-  at: [0, 2.5, -10]
-#- add: light
-#  corner: [-5, 0, -10]
-#  uvec: [10, 0, 0]
-#  vvec: [0, 5, 0]
-#  usteps: 10
-#  vsteps: 5
-#  jitter: true
+#  at: [0, 2.5, -10]
+  corner: [-5, 0, -10]
+  uvec: [10, 0, 0]
+  vvec: [0, 5, 0]
+  usteps: 10
+  vsteps: 10
+  jitter: true
   intensity: [1, 1, 1]
 
 # -------------------------------------------
@@ -715,14 +716,15 @@
   transform:
   - [ scale, 1000, 1000, 1000 ]
   material:
-    pattern:
-      type: map
-      mapping: spherical
-      uv_pattern:
-        type: image
-        file: scenes/orrery/artist_workshop_8k.png
-      transform:
-      - [ rotate-y, -2.7 ]
+    patterns:
+      Ka:
+        type: map
+        mapping: sphere
+        uv_pattern:
+          type: image
+          file: scenes/orrery/artist_workshop_2k.png
+        transform:
+        - [ rotate-y, -2.7 ]
     diffuse: 0
     specular: 0
     ambient: 1

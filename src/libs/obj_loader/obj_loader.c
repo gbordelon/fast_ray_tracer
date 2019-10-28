@@ -83,9 +83,9 @@ parse_map(const char *line, void (*color_space_fn)(const Color, Color))
 
     // decide on ppm or png file parser
     if (strcmp(file_name + name_len - 3, "ppm") == 0) {
-        construct_canvas_from_ppm_file(&image, file_name, color_space_fn);
+        construct_canvas_from_ppm_file(&image, file_name, false, color_space_fn);
     } else if (strcmp(file_name + name_len - 3, "png") == 0) {
-        read_png(&image, file_name, color_space_fn);
+        read_png(&image, file_name, false, color_space_fn);
     } else {
         printf("unrecognized file format for file %s\n", file_name);
         return NULL;

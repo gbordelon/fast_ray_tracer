@@ -21,7 +21,7 @@ typedef struct ppm_struct {
     size_t len;
 } *Ppm;
 
-Canvas canvas_alloc(size_t width, size_t height, void (*color_space_fn)(const Color, Color));
+Canvas canvas_alloc(size_t width, size_t height, bool super_sample, void (*color_space_fn)(const Color, Color));
 
 Ppm ppm_alloc(size_t len);
 
@@ -35,7 +35,7 @@ void canvas_pixel_at(Canvas c, int col, int row, Color res);
 int write_ppm_file(Canvas c, const bool use_scaling, const char *file_name);
 int write_png(Canvas c, const char *file_name);
 
-void construct_canvas_from_ppm_file(Canvas *c, const char * file_path, void (*color_space_fn)(const Color, Color));
-int read_png(Canvas *c, const char *filename, void (*color_space_fn)(const Color, Color));
+void construct_canvas_from_ppm_file(Canvas *c, const char * file_path, bool super_sample, void (*color_space_fn)(const Color, Color));
+int read_png(Canvas *c, const char *filename, bool super_sample, void (*color_space_fn)(const Color, Color));
 
 #endif

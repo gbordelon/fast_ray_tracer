@@ -18,7 +18,7 @@
 #define header_len 32
 
 Canvas
-canvas_alloc(size_t width, size_t height, void (*color_space_fn)(const Color, Color))
+canvas_alloc(size_t width, size_t height, bool super_sample, void (*color_space_fn)(const Color, Color))
 {
     Canvas c = (Canvas) malloc(sizeof(struct canvas));
     c->arr = (Color *) malloc(width * height * sizeof(Color));
@@ -26,7 +26,7 @@ canvas_alloc(size_t width, size_t height, void (*color_space_fn)(const Color, Co
     c->width = width;
     c->height = height;
     c->color_space_fn = color_space_fn;
-    c->super_sample = true;
+    c->super_sample = super_sample;
 
     pthread_mutex_init(&(c->write_lock), NULL);
 
@@ -320,7 +320,7 @@ write_ppm_file(Canvas c, const bool use_scaling, const char *file_path)
 }
 
 void
-construct_canvas_from_ppm_file(Canvas *c, const char * file_path, void (*color_space_fn)(const Color, Color))
+construct_canvas_from_ppm_file(Canvas *c, const char * file_path, bool super_sample, void (*color_space_fn)(const Color, Color))
 {
     char buf[32];
     size_t width, height, max_val;
@@ -338,7 +338,7 @@ construct_canvas_from_ppm_file(Canvas *c, const char * file_path, void (*color_s
     fscanf(file, "%zu", &height); // height
     fscanf(file, "%zu", &max_val); // max val
 
-    *c = canvas_alloc(width, height, color_space_fn);
+    *c = canvas_alloc(width, height, super_sample, color_space_fn);
     if (*c == NULL) {
         fclose(file);
         return;
@@ -522,7 +522,7 @@ write_png(Canvas c, const char *file_name)
 }
 
 int
-read_png (Canvas *c, const char *filename, void (*color_space_fn)(const Color, Color))
+read_png (Canvas *c, const char *filename, bool super_sample, void (*color_space_fn)(const Color, Color))
 {
   int code = 0, i;
   size_t width, height;
@@ -615,7 +615,7 @@ read_png (Canvas *c, const char *filename, void (*color_space_fn)(const Color, C
   png_read_image(png_ptr, row_ptr);
 
   // convert buffer to Canvas
-  *c = canvas_alloc(width, height, color_space_fn);
+  *c = canvas_alloc(width, height, super_sample, color_space_fn);
   if (*c == NULL) {
     code = 3;
     goto read_cleanup;

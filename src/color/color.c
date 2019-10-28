@@ -34,6 +34,15 @@ print_color(const Color c)
 }
 
 void
+print_color_triple(const ColorTriple c)
+{
+    print_color(ambient_from_triple(c));
+    print_color(diffuse_from_triple(c));
+    print_color(specular_from_triple(c));
+    printf("\n");
+}
+
+void
 color_copy(Color to, const Color from)
 {
     memcpy(to, from, sizeof(Color));

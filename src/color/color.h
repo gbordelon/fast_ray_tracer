@@ -31,6 +31,7 @@ void color_copy(Color to, const Color from);
 void color_triple_copy(ColorTriple to, const ColorTriple from);
 
 void print_color(const Color c);
+void print_color_triple(const ColorTriple c);
 
 void color_average(Color c1, Color c2, Color res);
 void color_triple_average(Color c1, Color c2, Color res);
