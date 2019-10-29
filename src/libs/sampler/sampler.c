@@ -113,9 +113,9 @@ sampler_circle(Sampler sampler, Vector normalv, double radius, size_t *index, do
 
     // translate point into unit 3D space using the normal
 
-    res[0] = sample[0] * sampler->nb[0] + sample[1] * normalv[0] + sample[2] * sampler->nt[0];
-    res[1] = sample[0] * sampler->nb[1] + sample[1] * normalv[1] + sample[2] * sampler->nt[1];
-    res[2] = sample[0] * sampler->nb[2] + sample[1] * normalv[2] + sample[2] * sampler->nt[2];
+    res[0] = sample[0] * sampler->nb[0] + sample[2] * sampler->nt[0];
+    res[1] = sample[0] * sampler->nb[1] + sample[2] * sampler->nt[1];
+    res[2] = sample[0] * sampler->nb[2] + sample[2] * sampler->nt[2];
     res[3] = 1.0;
 
     //point_print(res);

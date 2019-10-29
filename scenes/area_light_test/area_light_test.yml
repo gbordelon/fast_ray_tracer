@@ -5,7 +5,7 @@
     visualize-photon-map: false
     visualize-soft-indirect: false
     direct-illumination:
-      include-ambient: true
+      include-ambient: false
       include-diffuse: true
       include-specular: true
       include-specular-highlight: true
@@ -33,14 +33,14 @@
   width: 400
   height: 400
   field-of-view: 1.2
-  from: [ 0, 1, -4 ]
-  to: [ 0.01, 0, 0 ]
+  from: [ 0, 2, -1 ]
+  to: [ 0, 1, 0 ]
   up: [ 0, 1, 0 ]
   focal-length: 1
   usteps: 2
   vsteps: 2
   aperture:
-    jitter: false
+    jitter: true
     size: 0.4
 #    type: [ CIRCULAR_APERTURE, 1.0 ]
 #    type: [ CROSS_APERTURE, -0.1, 0.1, -0.1, 0.1 ]
@@ -60,20 +60,21 @@
 #  intensity: [ 1, 1, 1 ]
 
 - add: light
-  at: [2, 2, 2]
+  at: [0, 3, 0]
   to: [0, 0, 0]
-  radius: 0.5
+  radius: 1
   usteps: 10
   vsteps: 10
   jitter: true
   intensity: [1.0, 1.0, 1.0]
-  cache-size: 4096
+  cache-size: 256
 
 - add: sphere
   transform:
   - [scale, 1, 1, 1 ]
   material:
-    color: [1,0,0]
+    color: [0,0,0]
+    specular: 1.0
 
 - add: plane
   transform:

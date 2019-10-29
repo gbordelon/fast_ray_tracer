@@ -5,7 +5,7 @@ OBJDIR	:= $(TOPDIR)/obj
 CFILES	:= c
 OFILES	:= o
 CC		:= cc
-CFLAGS	:= -std=c11 -pedantic -Wall -g -lz -lpng16 -O2
+CFLAGS	:= -std=c11 -pedantic -Wall -g -lz -lpng16 -march=native -O2
 
 C_NAMES	:= $(shell find . -name '*.c')
 H_NAMES	:= $(shell find . -name '*.h')
