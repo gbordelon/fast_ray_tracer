@@ -85,7 +85,7 @@ is_shadowed(World w, Point light_position, Point pt)
     struct ray r;
     ray_array(pt, direction, &r);
 
-    Intersections xs = intersect_world(w, &r, false);
+    Intersections xs = intersect_world(w, &r, true);
 
     Intersection h = hit(xs, true);
     bool retval = h != NULL && h->t < distance;

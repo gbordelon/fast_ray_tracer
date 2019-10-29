@@ -99,7 +99,7 @@ group_local_intersect(Shape group, Ray r, bool stop_after_first_hit)
 
     Intersections *children_xs = group->fields.group.children_xs;
 
-    int i;
+    int i, j;
     Shape child;
     size_t total_xs_num = 0;
     bool doit = true;
@@ -114,7 +114,10 @@ group_local_intersect(Shape group, Ray r, bool stop_after_first_hit)
         if (*(children_xs + i) != NULL) {
             total_xs_num += (*(children_xs + i))->num;
             if (stop_after_first_hit && total_xs_num > 0) {
-                doit = false;
+                // iterate over (*(children_xs + i))->xs to see if t > 0
+                for (j = 0; doit && j < (*(children_xs + i))->num; ++j) {
+                    doit = doit && ((*(children_xs + i))->xs + j)->t <= 0;
+                }
             }
         }
     }

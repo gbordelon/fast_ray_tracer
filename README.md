@@ -14,17 +14,15 @@ open /tmp/out_file.png
 ```
 
 TODO
-* Add a circular area light
 * Add a spot light
 * Refactor photon mapping code in light.c to use CMJ instead of random sampling for photon emission
-* Support object emission (refactor entire lighting system)
 * Remove malloc/free from the photon map where possible.
 * Implement participating media photon tracing/mapping.
 * Implement MTL file parsing.
-    * ~~bump maps.~~
-    * WIP
+    * Support object emission (refactor entire lighting system)
     * Use a material's Tf triple to determine the casts_shadow flag. This includes changing the intensity_at function for each light type. This also requires changing the way the hit function works.
-        * Investigate why shadow calc short-cut causes lighting problems.
+        * ~~Investigate why shadow calc short-cut causes lighting problems.~~ Sometimes t < 0 for the first hit found. Fixed.
+    * ~~bump maps.~~
     * ~~Support illum directives~~ I decided not to bother.
     * ~~Support the obj file mtllib directive to determine a material file to import.~~
 * Add parameters to the config parser
@@ -42,6 +40,7 @@ TODO
 * Refactor shapes such that one only needs to include shapes.h
 * Add parameters to the config parser
     * epsilon
+* ~~Add a circular area light~~
 * ~~Add a flag to skip matrix multiplies by the identity matrix~~
 * ~~Implement a better shadow ray mechanism so intersection stops after the first hit~~
 * ~~Use realloc instead of malloc when resizing arrays for intersections and group.children~~
