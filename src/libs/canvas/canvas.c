@@ -135,12 +135,12 @@ canvas_pixel_at(Canvas c, int col, int row, Color res)
                 if (row == c->height) {
                     row = 0;
                 }
-                c->color_space_fn(*(c->arr + row * c->width + col), tmp);
-                color_accumulate(res, tmp);
+                color_accumulate(tmp, *(c->arr + row * c->width + col));
             }
             row -= 3;
         }
-        color_scale(res, 1.0 / 9.0);
+        color_scale(tmp, 1.0 / 9.0);
+        c->color_space_fn(tmp, res);
     }
     else {
         c->color_space_fn(*(c->arr + row * c->width + col), res);
@@ -631,13 +631,13 @@ read_png (Canvas *c, const char *filename, bool super_sample, void (*color_space
         (*out)[1] = ((double)rgb[1]) / 255.0;
         (*out)[2] = ((double)rgb[2]) / 255.0;
     } else if (bit_depth == 16) {
-        uint16_t tmp = (rgb[0] & 0xff << 8);
+        uint16_t tmp = (rgb[0] & 0xff) << 8;
         tmp |= rgb[1] & 0xff;
         (*out)[0] = ((double)tmp) / 65535.0;
-        tmp = (rgb[2] & 0xff << 8);
+        tmp = (rgb[2] & 0xff) << 8;
         tmp |= rgb[3] & 0xff;
         (*out)[1] = ((double)tmp) / 65535.0;
-        tmp = (rgb[4] & 0xff << 8);
+        tmp = (rgb[4] & 0xff) << 8;
         tmp |= rgb[5] & 0xff;
         (*out)[2] = ((double)tmp) / 65535.0;
         rgb += 3;

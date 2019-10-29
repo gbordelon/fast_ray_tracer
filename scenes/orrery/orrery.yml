@@ -7,7 +7,7 @@
       include-diffuse: true
       include-specular: true
       include-specular-highlight: true
-      path-length: 1
+      path-length: 5
     global-illumination:
       include-caustics: false
       include-final-gather: false
@@ -54,8 +54,8 @@
 # ======================================================
 
 - add: camera
-  width: 900
-  height: 450
+  width: 2048
+  height: 1024
   field-of-view: 1.2
   from: [2, 4, -10]
   to: [-1, -1, 0]
@@ -81,14 +81,14 @@
 # light located at [0, 2.5, -10].
 
 - add: light
-#  at: [0, 2.5, -10]
-  corner: [-5, 0, -10]
-  uvec: [10, 0, 0]
-  vvec: [0, 5, 0]
-  usteps: 10
-  vsteps: 10
-  jitter: true
   intensity: [1, 1, 1]
+  at: [0, 2.5, -10]
+#  corner: [-5, 0, -10]
+#  uvec: [10, 0, 0]
+#  vvec: [0, 5, 0]
+#  usteps: 10
+#  vsteps: 10
+#  jitter: true
 
 # -------------------------------------------
 # some common textures
@@ -119,7 +119,7 @@
 #
 # GEAR is the actual gear object itself.
 # -----------------------------------------------
-
+#
 - define: NOTCH
   value:
     add: csg
@@ -722,7 +722,23 @@
         mapping: sphere
         uv_pattern:
           type: image
-          file: scenes/orrery/artist_workshop_2k.png
+          file: scenes/orrery/artist_workshop_16k.png
+        transform:
+        - [ rotate-y, -2.7 ]
+#      Kd:
+#        type: map
+#        mapping: sphere
+#        uv_pattern:
+#          type: image
+#          file: scenes/orrery/artist_workshop_16k.png
+#        transform:
+#        - [ rotate-y, -2.7 ]
+      bump:
+        type: map
+        mapping: sphere
+        uv_pattern:
+          type: image
+          file: scenes/orrery/artist_workshop_2k_normal.png
         transform:
         - [ rotate-y, -2.7 ]
     diffuse: 0
