@@ -235,9 +235,16 @@ construct_ppm(Canvas c, bool use_scaling)
     for (cur_val = c->arr; n < out_len - 1; n += 6, cur_val++) {
         color_copy(rgb_tmp, *cur_val);
         if (use_scaling) {
+            double color_length = rgb_tmp[0] + rgb_tmp[1] + rgb_tmp[2];
+            if (color_length > 1.7320508075688772) { // sqrt(3) as max magnitude
+                color_scale(rgb_tmp, 1.0 / color_length);
+                color_scale(rgb_tmp, 1.7320508075688772);
+            }
+            /*
             rgb_tmp[0] /= rgb_max[0];
             rgb_tmp[1] /= rgb_max[1];
             rgb_tmp[2] /= rgb_max[2];
+            */
         } else {
             // clamping
             if (rgb_tmp[0] > 1.0) {

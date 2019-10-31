@@ -5,7 +5,7 @@
     visualize-photon-map: false
     visualize-soft-indirect: false
     direct-illumination:
-      include-ambient: false
+      include-ambient: true
       include-diffuse: true
       include-specular: true
       include-specular-highlight: true
@@ -18,7 +18,7 @@
       irradiance-estimate-num: 200
       irradiance-estimate-radius: 0.1
       irradiance-estimate-cone-filter-k: 1.0
-      photon-count: 100000
+      photon-count: 1000000
       path-length: 5
   threading:
     thread-count: 4
@@ -32,15 +32,15 @@
 - add: camera
   width: 400
   height: 400
-  field-of-view: 1.2
-  from: [ 0, 2, -1 ]
-  to: [ 0, 1, 0 ]
+  field-of-view: 0.7
+  from: [ 0, 0, -10 ]
+  to: [ 0, 0, 0 ]
   up: [ 0, 1, 0 ]
   focal-length: 1
-  usteps: 2
-  vsteps: 2
+  usteps: 1
+  vsteps: 1
   aperture:
-    jitter: true
+    jitter: false
     size: 0.4
 #    type: [ CIRCULAR_APERTURE, 1.0 ]
 #    type: [ CROSS_APERTURE, -0.1, 0.1, -0.1, 0.1 ]
@@ -55,40 +55,128 @@
 # light sources
 # ======================================================
 
-#- add: light
-#  at: [ -2, 0.8, -1 ]
-#  intensity: [ 1, 1, 1 ]
-
 - add: light
-  at: [0, 3, 0]
-  to: [0, 0, 0]
-  radius: 1
-  usteps: 10
-  vsteps: 10
-  jitter: true
-  intensity: [1.0, 1.0, 1.0]
-  cache-size: 256
+  at: [ -10, 10, -10 ]
+  intensity: [ 1, 1, 1 ]
+
+#- add: light
+#  at: [-10, 10, -10]
+#  to: [0, 0, 0]
+#  radius: 1
+#  usteps: 10
+#  vsteps: 10
+#  jitter: true
+#  intensity: [1.0, 1.0, 1.0]
+#  cache-size: 1024
 
 - add: sphere
   transform:
   - [scale, 1, 1, 1 ]
+  - [translate, -2.2, 2.2, 2.2]
   material:
-    color: [0,0,0]
-    specular: 1.0
+    color: [1.00, 0.86, 0.29] # gold
+    specular: 0.9
+    diffuse: 0.1
+    shininess: 1.0
+    reflective: 0.01
 
-- add: plane
+- add: sphere
   transform:
-  - [ translate, 0,-1,0 ]
+  - [scale, 1, 1, 1 ]
+  - [translate, -2.2, 0, 1.1]
   material:
-    color: [ 1, 1, 1 ]
-    ambient: 0.1
-    diffuse: 0.9
-    specular: 0.1
-    reflective: 0.8
-    pattern:
-      type: checker
-      colors:
-      - [ 0.4, 0.4, 0.4 ]
-      - [ 0.6, 0.6, 0.6 ]
-      transform:
-      - [ scale, 1, 1, 1]
+    color: [1.00, 0.86, 0.29] # gold
+    specular: 0.9
+    diffuse: 0.1
+    shininess: 10.0
+    reflective: 0.02
+
+- add: sphere
+  transform:
+  - [scale, 1, 1, 1 ]
+  - [translate, -2.2, -2.2, 0]
+  material:
+    color: [1.00, 0.86, 0.29] # gold
+    specular: 0.9
+    diffuse: 0.1
+    shininess: 2000.0
+    reflective: 0.05
+
+- add: sphere
+  transform:
+  - [scale, 1, 1, 1 ]
+  - [translate, 0, 2.2, 1.1]
+  material:
+    color: [0.95, 0.64, 0.54] # copper
+    specular: 0.9
+    diffuse: 0.1
+    shininess: 1.0
+    reflective: 0.01
+
+- add: sphere
+  transform:
+  - [scale, 1, 1, 1 ]
+  - [translate, 0, 0, 0]
+  material:
+    color: [0.95, 0.64, 0.54] # copper
+    specular: 0.9
+    diffuse: 0.1
+    shininess: 10.0
+    reflective: 0.02
+
+- add: sphere
+  transform:
+  - [scale, 1, 1, 1 ]
+  - [translate, 0, -2.2, -1.1]
+  material:
+    color: [0.95, 0.64, 0.54] # copper
+    specular: 0.9
+    diffuse: 0.1
+    shininess: 2000.0
+    reflective: 0.05
+
+- add: sphere
+  transform:
+  - [scale, 1, 1, 1 ]
+  - [translate, 2.2, 2.2, 0]
+  material:
+    color: [0.56, 0.57, 0.58] # iron
+    specular: 0.9
+    diffuse: 0.1
+    shininess: 1.0
+    reflective: 0.01
+
+- add: sphere
+  transform:
+  - [scale, 1, 1, 1 ]
+  - [translate, 2.2, 0, -1.1]
+  material:
+    color: [0.56, 0.57, 0.58] # iron
+    specular: 0.9
+    diffuse: 0.1
+    shininess: 10.0
+    reflective: 0.02
+
+- add: sphere
+  transform:
+  - [scale, 1, 1, 1 ]
+  - [translate, 2.2, -2.2, -2.2]
+  material:
+    color: [0.56, 0.57, 0.58] # iron
+    specular: 0.9
+    diffuse: 0.1
+    shininess: 2000.0
+    reflective: 0.05
+
+- add: cube
+  transform:
+  - [scale, 10, 0.1, 10 ]
+  - [rotate-x, 1.57 ]
+  - [translate, 0, 0, 3]
+  material:
+    color: [1,1,1]
+    specular: 0
+    diffuse: 1
+    shininess: 1
+    reflective: 0
+

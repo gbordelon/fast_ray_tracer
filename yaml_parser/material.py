@@ -75,16 +75,16 @@ class Material(object):
         for pat in pats:
             buf += """{}""".format(pats[pat].c_repr("{0}_{1}".format(name, pat), resources))
         return buf + """    Color material_{0}_color_raw = color({2:.10f}, {3:.10f}, {4:.10f});
-    Color material_{0}_spec_highlight = color({7:.10f}, {7:.10f}, {7:.10f});
     Color material_{0}_reflective = color({9:.10f}, {9:.10f}, {9:.10f});
     Color material_{0}_refractive = color({10:.10f}, {10:.10f}, {10:.10f});
 
     Material material_{0} = material_alloc();
     color_space_fn(material_{0}_color_raw, material_{0}->Ka);
     color_space_fn(material_{0}_color_raw, material_{0}->Kd);
+    color_space_fn(material_{0}_color_raw, material_{0}->Ks);
     color_scale(material_{0}->Ka, {5:.10f});
     color_scale(material_{0}->Kd, {6:.10f});
-    rgb_to_rgb(material_{0}_spec_highlight, material_{0}->Ks);
+    color_scale(material_{0}->Ks, {7:.10f});
     rgb_to_rgb(material_{0}_reflective, material_{0}->refl);
     rgb_to_rgb(material_{0}_refractive, material_{0}->Tf);
     material_{0}->reflective = material_{0}_reflective[0] > 0.0

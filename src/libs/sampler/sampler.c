@@ -10,7 +10,7 @@ uniform_sample_circle(const double r1, const double r2, const double radius, Poi
 { 
     // rands should be treated as theta and radius
     double theta = r1 * 2.0 * M_PI;
-    double r = r2 * radius;
+    double r = sqrt(r2) * radius;
 
     // find a point on the xz unit circle
     res[0] = r * cos(theta);
@@ -39,12 +39,26 @@ uniform_sample_hemisphere(const double r1, const double r2, Vector res)
 void
 cosine_weighted_sample_hemisphere(const double r1, const double r2, Vector res)
 {
+/*
+ * // I think this is causing NaNs and weird glitches.
     double theta = asin(sqrt(r1));
     double phi = 2 * M_PI * r2;
     Vector v;
     v[0] = sin(theta) * cos(phi);
     v[1] = sin(theta) * sin(phi);
     v[2] = cos(theta);
+    v[3] = 0;
+    vector_normalize(v, res);
+*/
+    /*
+     * try the function from http://www.rorydriscoll.com/2009/01/07/better-sampling/
+     */
+    double r = sqrt(r2);
+    double theta = 2 * M_PI * r1;
+    Vector v;
+    v[0] = r * cos(theta);
+    v[2] = r * sin(theta);
+    v[1] = sqrt(fmax(0.0, 1.0 - r2));
     v[3] = 0;
     vector_normalize(v, res);
 }
